@@ -8,6 +8,8 @@ import pandas as pd
 import dgl
 import torch
 import numpy as np
+import subprocess
+import sys
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 
@@ -27,17 +29,22 @@ class DeXposureTemporalLoader:
         self,
         data_path: str,
         meta_path: str,
-        prediction_window: int = 1  # 预测未来几周
+        prediction_window: int = 1,  # 预测未来几周
+        auto_download: bool = True  # 自动下载数据集
     ):
         """
         Args:
             data_path: historical-network_week_xxx.json 路径
             meta_path: meta_df.csv 路径
             prediction_window: 预测窗口（默认1周）
+            auto_download: 数据文件不存在时是否自动下载
         """
         self.data_path = Path(data_path)
         self.meta_path = Path(meta_path)
         self.prediction_window = prediction_window
+
+        # 检查数据文件是否存在
+        self._check_data_files(auto_download)
 
         # 加载数据
         print(f"加载数据: {self.data_path}")
@@ -351,6 +358,71 @@ class DeXposureTemporalLoader:
 
         print(f"✓ 成功构建 {len(pairs)} 个图对\n")
         return pairs
+
+    def _check_data_files(self, auto_download: bool = True):
+        """
+        检查数据文件是否存在,如果不存在则提示下载或自动下载
+
+        Args:
+            auto_download: 是否自动运行下载脚本
+        """
+        missing_files = []
+
+        # 检查数据文件
+        if not self.data_path.exists():
+            missing_files.append(str(self.data_path))
+
+        if not self.meta_path.exists():
+            missing_files.append(str(self.meta_path))
+
+        if not missing_files:
+            return  # 所有文件都存在
+
+        # 有文件缺失
+        print("\n" + "="*60)
+        print("❌ 数据文件缺失!")
+        print("="*60)
+        for f in missing_files:
+            print(f"  - {f}")
+
+        print("\n数据集大小约 1.2GB,请确保网络连接稳定\n")
+
+        if auto_download:
+            # 自动下载
+            print("正在尝试自动下载数据集...\n")
+
+            # 获取数据目录
+            data_dir = self.data_path.parent
+
+            # 调用下载脚本
+            try:
+                script_path = Path(__file__).parent.parent.parent / "bin" / "download_dataset.py"
+                result = subprocess.run(
+                    [sys.executable, str(script_path), "--data-dir", str(data_dir)],
+                    capture_output=True,
+                    text=True
+                )
+
+                if result.returncode == 0:
+                    print("\n✓ 数据集下载成功!")
+                else:
+                    print(f"\n✗ 自动下载失败:")
+                    print(result.stderr)
+                    print("\n请手动运行以下命令下载数据集:")
+                    print(f"  python {script_path} --data-dir {data_dir}")
+                    sys.exit(1)
+            except Exception as e:
+                print(f"\n✗ 自动下载出错: {e}")
+                print("\n请手动运行以下命令下载数据集:")
+                script_path = Path(__file__).parent.parent.parent / "bin" / "download_dataset.py"
+                print(f"  python {script_path} --data-dir {data_dir}")
+                sys.exit(1)
+        else:
+            # 不自动下载,只提示
+            script_path = Path(__file__).parent.parent.parent / "bin" / "download_dataset.py"
+            print("请运行以下命令下载数据集:")
+            print(f"  python {script_path} --data-dir {self.data_path.parent}\n")
+            sys.exit(1)
 
 
 # ============ 使用示例 ============

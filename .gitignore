@@ -171,6 +171,10 @@ events.out.tfevents.*
 checkpoints/*
 !checkpoints/graphpfn-v1.ckpt
 
+# DeXposure dataset files (large files, use download script instead)
+historical-network_week_*.json
+meta_df.csv
+
 # Experiments
 **/exp/**/*.*
 # The "_RUNNING" files must be tracked to mark
