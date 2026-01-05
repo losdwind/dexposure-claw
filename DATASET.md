@@ -4,8 +4,24 @@
 
 ## 数据集文件
 
-- `historical-network_week_2025-07-01.json` (~1.2GB) - 历史网络快照数据
-- `meta_df.csv` (~2MB) - 协议元数据
+### 主要数据文件 (必需)
+- `historical-network_week_2025-07-01.json` (~76MB) - 历史网络快照数据(2025年)
+- `historical-network_week_2020-03-30.json` (~1.1GB) - 历史网络快照数据(2020年)
+- `meta_df.csv` (~128KB) - 协议元数据
+
+### mapping 目录 (可选)
+- `mapping/id_to_info.json` (~457KB) - ID到信息的映射
+- `mapping/rev_map.json` (~49KB) - 反向映射
+- `mapping/token_to_protocol.json` (~2.5MB) - Token到协议的映射
+
+### network_data 目录 (可选)
+- `network_data/filtered_edges_ftx.csv` (~3.2MB) - FTX相关边数据
+- `network_data/filtered_edges_terra.csv` (~2.9MB) - Terra相关边数据
+- `network_data/filtered_graph_data.csv` (~59MB) - 过滤后的图数据
+- `network_data/filtered_nodes_ftx.csv` (~990KB) - FTX相关节点数据
+- `network_data/filtered_nodes_terra.csv` (~698KB) - Terra相关节点数据
+
+**总计:** 约 1.2GB
 
 ## 自动下载
 

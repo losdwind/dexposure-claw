@@ -16,15 +16,65 @@ from typing import Dict, Optional
 
 # 数据集配置
 DATASET_FILES = {
+    # 主要数据文件
     "historical-network_week_2025-07-01.json": {
         "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/historical-network_week_2025-07-01.json",
-        "md5": None,  # 可选:添加 MD5 校验
-        "size_mb": 1200  # 预估大小
+        "md5": None,
+        "size_mb": 76
+    },
+    "historical-network_week_2020-03-30.json": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/historical-network_week_2020-03-30.json",
+        "md5": None,
+        "size_mb": 1100
     },
     "meta_df.csv": {
         "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/meta_df.csv",
         "md5": None,
-        "size_mb": 2  # 预估大小
+        "size_mb": 0.1
+    },
+
+    # mapping 目录
+    "mapping/id_to_info.json": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/id_to_info.json",
+        "md5": None,
+        "size_mb": 0.5
+    },
+    "mapping/rev_map.json": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/rev_map.json",
+        "md5": None,
+        "size_mb": 0.05
+    },
+    "mapping/token_to_protocol.json": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/token_to_protocol.json",
+        "md5": None,
+        "size_mb": 2.5
+    },
+
+    # network_data 目录
+    "network_data/filtered_edges_ftx.csv": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/filtered_edges_ftx.csv",
+        "md5": None,
+        "size_mb": 3.2
+    },
+    "network_data/filtered_edges_terra.csv": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/filtered_edges_terra.csv",
+        "md5": None,
+        "size_mb": 2.9
+    },
+    "network_data/filtered_graph_data.csv": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/filtered_graph_data.csv",
+        "md5": None,
+        "size_mb": 59
+    },
+    "network_data/filtered_nodes_ftx.csv": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/filtered_nodes_ftx.csv",
+        "md5": None,
+        "size_mb": 1.0
+    },
+    "network_data/filtered_nodes_terra.csv": {
+        "url": "https://github.com/losdwind/graph-dexposure/releases/download/v1.0.0/filtered_nodes_terra.csv",
+        "md5": None,
+        "size_mb": 0.7
     }
 }
 
@@ -159,6 +209,10 @@ def download_dataset(
 
         config = DATASET_FILES[filename]
         dest_path = data_path / filename
+
+        # 如果文件在子目录中,创建子目录
+        if '/' in filename:
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 检查文件是否已存在
         if dest_path.exists() and not force:
