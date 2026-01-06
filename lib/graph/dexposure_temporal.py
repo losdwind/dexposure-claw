@@ -310,15 +310,18 @@ class DeXposureTemporalLoader:
 
         Returns:
             labels: (num_nodes, 3)
-                - [:, 0]: 相对变化率
+                - [:, 0]: 相对变化率 (裁剪到 [-2, 10])
                 - [:, 1]: 绝对损失 (log scale)
                 - [:, 2]: 受影响程度 [0, 1]
         """
-        # 避免除零
-        sizes_t_safe = np.maximum(sizes_t, 1.0)
+        # 避免除零：使用更安全的阈值
+        MIN_SIZE = 1000.0  # 最小规模 $1000
+        sizes_t_safe = np.maximum(sizes_t, MIN_SIZE)
 
-        # 1. 相对变化率
+        # 1. 相对变化率 - 裁剪极端值
         delta_ratio = (sizes_t1 - sizes_t) / sizes_t_safe
+        # 裁剪到合理范围: -200% ~ +1000%
+        delta_ratio = np.clip(delta_ratio, -2.0, 10.0)
 
         # 2. 绝对损失（取负值的 log）
         abs_loss = sizes_t - sizes_t1

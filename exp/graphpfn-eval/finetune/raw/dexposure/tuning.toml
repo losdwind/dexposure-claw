@@ -1,26 +1,20 @@
 # DeXposure 超参数搜索配置
-# 用于自动调优 GraphPFN 在 DeXposure 数据集上的性能
-#
-# 用法：
-#   cd graphpfn
-#   uv run bin/go.py exp/graphpfn-eval/finetune/raw/dexposure/tuning.toml --force
-#
-# 搜索完成后，最佳配置会自动保存到 report.json
+# 用法: uv run bin/go.py exp/graphpfn-eval/finetune/raw/dexposure/tuning.toml --force
 
 seed = 0
-n_trials = 100  # 超参数搜索试验次数
-sampler_type = "BruteForceSampler"  # 搜索算法
+n_trials = 50
+sampler_type = "BruteForceSampler"
 function = "bin.graphpfn_evaluate.main"
 
 [space]
 seed = 0
 amp = true
-checkpoint_name = "none"  # 从头训练
+checkpoint_name = "graphpfn-v1"  # 使用预训练模型
 unfreeze_all = true
-n_steps = -1  # 训练直到早停
-epoch_size = 10  # 搜索时使用较小的 epoch_size 以加快速度
-patience = 4  # 搜索时使用较小的 patience
-seq_len_pred = 1000
+n_steps = -1
+epoch_size = 10
+patience = 4
+seq_len_pred = 1024
 min_train_ratio = 0.5
 
 [space.data]
@@ -33,16 +27,15 @@ time_idx = 0
 split_strategy = "temporal"
 label_idx = 0
 
+# 特征预处理 (DeXposure 只有 num_features)
+num_policy = "noisy-quantile-normal"
+
 # 图结构编码
 [space.data.graph_encodings]
 preprocess = "standard"
 
 [space.data.graph_encodings.lap_pe]
-k = [
-    "_tune_",
-    "categorical",
-    [5, 10, 15, 20],  # 搜索不同的 k 值
-]
+k = 10
 
 [space.data.graph_encodings.degree]
 log = true
@@ -50,46 +43,29 @@ log = true
 [space.data.graph_encodings.pagerank]
 log = true
 
-# 优化器配置（学习率调优）
 [space.optimizer]
 type = "AdamW"
 lr = [
     "_tune_",
     "categorical",
-    [
-        0.00001,
-        0.00003,
-        0.0001,
-        0.0003,
-        0.001,
-    ],
+    [0.00003, 0.0001, 0.0003],
 ]
 weight_decay = 0.0
 
-# PEARL 配置
 [space.pearl]
 batch_size = 64
 output_dim = 16
 
-# GraphPFN 主干网络
 [space.pearl.backbone]
 type = "BaseGraphBackbone"
 conv_name = "gcn"
 norm_name = "layer_norm"
 residual = true
-n_layers = [
-    "_tune_",
-    "categorical",
-    [3, 4, 5],  # 搜索不同的层数
-]
+n_layers = 4
 d_hidden = [
     "_tune_",
     "categorical",
-    [128, 256, 512],  # 搜索不同的隐藏层维度
+    [128, 256],
 ]
-dropout = [
-    "_tune_",
-    "categorical",
-    [0.0, 0.1, 0.2],  # 搜索不同的 dropout
-]
+dropout = 0.1
 activation = "gelu"
