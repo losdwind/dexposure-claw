@@ -1,54 +1,39 @@
-# DeXposure Week 00 配置文件
-# 用于 GraphPFN 评估和训练（从头训练）
-#
-# 用法：
-#   cd graphpfn
-#   .venv/bin/python bin/graphpfn_evaluate.py --config exp/graphpfn-eval/finetune/raw/dexposure/evaluation.toml
-
 function = "bin.graphpfn_evaluate.main"
-n_seeds = 1  # 可以增加到 5-10 以获得更稳定的结果
+n_seeds = 1
 
 [base_config]
-patience = 20
-amp = true  # 自动混合精度（如果支持 bfloat16）
-n_steps = -1  # -1 表示训练直到早停
+seed = 0
+amp = true
+checkpoint_name = "graphpfn-v1"
+unfreeze_all = true
+n_steps = -1
 epoch_size = 100
+patience = 20
+seq_len_pred = 1000
 min_train_ratio = 0.5
-seq_len_pred = 1000  # 预测序列长度
 
-# 模型检查点（用于微调）
-checkpoint_name = "graphpfn-v1"  # 使用预训练检查点
-unfreeze_all = true  # 解冻所有参数进行微调
+[base_config.data]
+cache = false
+path = "data/"
+setting = "transductive"
+time_idx = 0
+split_strategy = "temporal"
+label_idx = 0
+num_policy = "noisy-quantile-normal"
 
-# 优化器配置
+[base_config.data.graph_encodings]
+preprocess = "standard"
+
+[base_config.data.graph_encodings.lap_pe]
+k = 10
+
+[base_config.data.graph_encodings.degree]
+log = true
+
+[base_config.data.graph_encodings.pagerank]
+log = true
+
 [base_config.optimizer]
 type = "AdamW"
 lr = 0.0001
 weight_decay = 0.0
-
-# 数据配置
-[base_config.data]
-cache = false
-path = "data/"  # DeXposure 数据目录
-setting = "transductive"
-
-# DeXposure 特定参数
-time_idx = 0  # 时间索引 (0-7, 对应 8 周数据)
-split_strategy = "temporal"  # 'temporal' 或 'random'
-label_idx = 0  # 回归标签: 0=变化率, 1=绝对损失, 2=受影响程度
-
-# 图结构编码（推荐）
-[base_config.data.graph_encodings]
-preprocess = "standard"  # 预处理方法
-
-# Laplacian 特征向量（全局结构信息）
-[base_config.data.graph_encodings.lap_pe]
-k = 10  # 特征向量数量（推荐 5-20）
-
-# 度数编码（节点重要性）
-[base_config.data.graph_encodings.degree]
-log = true  # 使用对数变换
-
-# PageRank 编码（节点影响力）
-[base_config.data.graph_encodings.pagerank]
-log = true  # 使用对数变换
