@@ -58,10 +58,13 @@ class DeXposureToGraphPFNAdapter:
         self.split_strategy = split_strategy
         self.label_idx = label_idx
 
+        # 标签描述 (与 dexposure_temporal.py 的 _compute_labels 对应)
+        label_names = ['log_change (推荐)', '相对变化率', '绝对损失', '受影响程度']
+        
         print(f"✓ 初始化 DeXposure 适配器")
         print(f"  时间索引: {time_idx} / {len(self.loader.dates)}")
         print(f"  划分策略: {split_strategy}")
-        print(f"  回归标签: {['变化率', '绝对损失', '受影响程度'][label_idx]}")
+        print(f"  回归标签: {label_names[label_idx] if label_idx < len(label_names) else 'unknown'}")
 
     def convert(self) -> Dict:
         """

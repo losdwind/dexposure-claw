@@ -309,11 +309,18 @@ class DeXposureTemporalLoader:
         计算回归标签
 
         Returns:
-            labels: (num_nodes, 3)
-                - [:, 0]: 相对变化率 (裁剪到 [-2, 10])
-                - [:, 1]: 绝对损失 (log scale)
-                - [:, 2]: 受影响程度 [0, 1]
+            labels: (num_nodes, 4)
+                - [:, 0]: log TVL 变化 (推荐主目标，对称且稳定)
+                - [:, 1]: 相对变化率 (裁剪到 [-2, 10])
+                - [:, 2]: 绝对损失 (log scale)
+                - [:, 3]: 受影响程度 [0, 1]
         """
+        # 0. Log TVL 变化 (主目标 - 对称且统计性质好)
+        # y = log1p(size_t+1) - log1p(size_t)
+        log_change = np.log1p(np.maximum(sizes_t1, 0)) - np.log1p(np.maximum(sizes_t, 0))
+        # 裁剪极端值到 [-5, 5] (对应约 -99% 到 +14700% 的变化)
+        log_change = np.clip(log_change, -5.0, 5.0)
+
         # 避免除零：使用更安全的阈值
         MIN_SIZE = 1000.0  # 最小规模 $1000
         sizes_t_safe = np.maximum(sizes_t, MIN_SIZE)
@@ -331,7 +338,7 @@ class DeXposureTemporalLoader:
         # 如果损失超过50%，算严重受影响
         impact_score = np.clip(-delta_ratio, 0, 1)
 
-        labels = np.stack([delta_ratio, log_abs_loss, impact_score], axis=1)
+        labels = np.stack([log_change, delta_ratio, log_abs_loss, impact_score], axis=1)
         return torch.FloatTensor(labels)
 
     def get_node_info(self, node_id: str) -> Dict:
