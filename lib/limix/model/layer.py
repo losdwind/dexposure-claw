@@ -246,10 +246,11 @@ class MultiheadAttention(torch.nn.Module):
                 kv = kv.expand(*expand_shape)
             else:
                 kv = torch.einsum("... s, j h d s -> ... j h d", x_kv, self.kv_proj_weight)
-                
+        
         if self.batched:
             atten_out = self.compute_attention_by_torch_batched(qkv, q, kv, attn_mask)
-        elif attn_mask is None and HAVE_FLASH_ATTN:
+        elif attn_mask is None and HAVE_FLASH_ATTN and qkv.is_cuda:
+            # Only use Flash Attention on CUDA
             atten_out = self.compute_attention_by_flashattn(qkv, q, kv)
         else:
             atten_out = self.compute_attention_by_torch(qkv, q, kv, attn_mask)

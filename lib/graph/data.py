@@ -127,6 +127,9 @@ REGRESSION_DATASETS = [
     "web-traffic",
 ]
 
+# DeXposure 数据集（动态生成）
+DEPOSURE_DATASETS = []  # 运行时根据可用时间快照动态生成
+
 PREDEFINED_SPLIT_DATASETS = [
     "roman-empire",
     "amazon-ratings",
@@ -437,6 +440,70 @@ def _load_ogb_data(
     return cast(GraphData, graph_data)
 
 
+def _load_dexposure_data(
+    path: str | Path,
+    *,
+    time_idx: int = 0,
+    split_strategy: str = 'temporal',
+    label_idx: int = 0,
+    **kwargs,
+) -> GraphData:
+    """
+    加载 DeXposure 数据集
+
+    Args:
+        path: 数据目录路径 (包含 historical-network_week_*.json)
+        time_idx: 时间索引 (默认 0)
+        split_strategy: 'temporal' 或 'random'
+        label_idx: 回归标签索引 (0=变化率, 1=绝对损失, 2=受影响程度)
+        **kwargs: 其他参数
+
+    Returns:
+        GraphData 字典
+    """
+    from lib.graph.dexposure_adapter import DeXposureToGraphPFNAdapter
+
+    path = Path(path).resolve()
+
+    # 查找 JSON 文件
+    json_files = list(path.glob("historical-network_week_*.json"))
+    meta_files = list(path.glob("meta_df.csv"))
+
+    if not json_files:
+        raise ValueError(
+            f"找不到 DeXposure 数据文件。"
+            f"需要在 {path} 目录下找到 historical-network_week_*.json"
+        )
+    if not meta_files:
+        raise ValueError(
+            f"找不到元数据文件。"
+            f"需要在 {path} 目录下找到 meta_df.csv"
+        )
+
+    data_path = json_files[0]
+    meta_path = meta_files[0]
+
+    # 创建适配器并转换
+    adapter = DeXposureToGraphPFNAdapter(
+        data_path=str(data_path),
+        meta_path=str(meta_path),
+        time_idx=time_idx,
+        split_strategy=split_strategy,
+        label_idx=label_idx
+    )
+
+    graph_data = adapter.convert()
+
+    # 应用后处理（与 _load_graphland_data 相同）
+    graph = graph_data['graph']
+    graph = dgl.remove_self_loop(graph)
+    graph = dgl.to_simple(graph)
+    graph = dgl.to_bidirected(graph)
+    graph_data['graph'] = graph
+
+    return graph_data
+
+
 def load_data(path: str | Path, **data_params) -> GraphData:
     """
     Load data, drop constant categorical features,
@@ -446,7 +513,13 @@ def load_data(path: str | Path, **data_params) -> GraphData:
     path = Path(path).resolve()
     name = path.name
 
-    if name in GRAPHLAND_DATASETS:
+    # 检查是否为 DeXposure 数据集
+    if name.startswith("dexposure-week") or \
+       (path / "historical-network_week").exists() or \
+       len(list(path.glob("historical-network_week_*.json"))) > 0:
+        _load_data_fn = _load_dexposure_data
+
+    elif name in GRAPHLAND_DATASETS:
         _load_data_fn = _load_graphland_data
 
     elif name in PYG_DATASETS:
@@ -573,6 +646,10 @@ T = TypeVar("T", np.ndarray, Tensor)
 
 
 def _get_task_type(name: str) -> TaskType:
+    # DeXposure datasets are regression tasks
+    if name.startswith("dexposure-week"):
+        return TaskType.REGRESSION
+
     if name in BINCLASS_DATASETS:
         return TaskType.BINCLASS
 

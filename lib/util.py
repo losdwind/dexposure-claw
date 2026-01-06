@@ -220,7 +220,10 @@ class Experiment:
         """
         self.sync()
 
-        should_start = _torch().tensor([True], device=f"cuda:{self.device_id}")
+        # Fix: use CPU if CUDA is not available
+        torch = _torch()
+        device = f"cuda:{self.device_id}" if torch.cuda.is_available() else "cpu"
+        should_start = torch.tensor([True], device=device)
         if self.master_process:
             should_start[0] = self.check_start(
                 main_fn, continue_=continue_, force=force
