@@ -2,7 +2,6 @@ function = "bin.graphpfn_evaluate.main"
 n_seeds = 1
 
 [base_config]
-seed = 0
 amp = true
 checkpoint_name = "graphpfn-v1"
 unfreeze_all = true
