@@ -3,7 +3,7 @@ n_seeds = 1
 
 [base_config]
 amp = true
-checkpoint_name = "graphpfn-v1"
+checkpoint_name = "none"
 unfreeze_all = true
 n_steps = -1
 epoch_size = 100
