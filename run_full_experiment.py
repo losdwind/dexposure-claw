@@ -19,8 +19,8 @@ Task III: Imputation
 - Node size masking
 - Evaluate reconstruction accuracy (MAE, recall, correlation)
 
-Rolling Walk-forward Evaluation
-- 60% train / 20% val / 20% test temporal splits
+Rolling Walk-forward Evaluation (Expanding Window)
+- Expanding train window with fixed val/test windows
 - No look-ahead bias in evaluation
 
 Model Comparison
@@ -113,10 +113,6 @@ class ExperimentConfig:
 
     # Multi-step forecasting
     forecast_horizons: List[int] = field(default_factory=lambda: [1, 3, 7])
-
-    # Rolling evaluation
-    rolling_window_size: int = 52  # 52 weeks = 1 year
-    rolling_stride: int = 4  # Advance 4 weeks per evaluation
 
     # Loss weights
     exist_loss_weight: float = 1.0
@@ -442,7 +438,8 @@ def save_predictions_csv(
     preds: List[Dict],
     output_dir: Path,
     model_name: str,
-    horizon: int
+    horizon: int,
+    fold_id: Optional[int] = None
 ) -> Tuple[Path, Path]:
     """Save predictions to CSV files."""
     edges_rows = []
@@ -480,8 +477,9 @@ def save_predictions_csv(
                 })
 
     # Save to CSV
-    edges_path = output_dir / f"predictions_edges_{model_name}_h{horizon}.csv"
-    nodes_path = output_dir / f"predictions_nodes_{model_name}_h{horizon}.csv"
+    fold_suffix = f"_fold{fold_id}" if fold_id is not None else ""
+    edges_path = output_dir / f"predictions_edges_{model_name}{fold_suffix}_h{horizon}.csv"
+    nodes_path = output_dir / f"predictions_nodes_{model_name}{fold_suffix}_h{horizon}.csv"
 
     pd.DataFrame(edges_rows).to_csv(edges_path, index=False)
     pd.DataFrame(nodes_rows).to_csv(nodes_path, index=False)
@@ -1064,92 +1062,149 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
     return outputs, h1, h2
 
 
-# ============== Rolling Evaluation ==============
-
-def rolling_evaluation(
-    model_fn,
-    train_fn,
-    predict_fn,
-    snapshots: List[Dict],
-    config: ExperimentConfig,
-    model_name: str = "Model"
-) -> Dict[str, Any]:
-    """
-    Perform rolling walk-forward evaluation.
-
-    Args:
-        model_fn: Function to create model
-        train_fn: Training function
-        predict_fn: Prediction function
-        snapshots: List of snapshots
-        config: Experiment configuration
-        model_name: Name of the model
-
-    Returns:
-        Dictionary of evaluation results
-    """
-    print(f"\n{'='*60}")
-    print(f"Rolling Evaluation: {model_name}")
-    print(f"{'='*60}")
-
-    results_by_horizon = {h: [] for h in config.forecast_horizons}
-
-    n = len(snapshots)
-    window_size = config.rolling_window_size
-    stride = config.rolling_stride
-
-    # Rolling windows
-    for start in range(0, n - window_size - max(config.forecast_horizons), stride):
-        end = start + window_size
-        train_end = int(window_size * config.train_ratio)
-        val_end = int(window_size * (config.train_ratio + config.val_ratio))
-
-        train_snaps = snapshots[start:start + train_end]
-        val_snaps = snapshots[start + train_end:start + val_end]
-        test_snaps = snapshots[start + val_end:end]
-
-        print(f"  Window {start}-{end}: train={len(train_snaps)}, val={len(val_snaps)}, test={len(test_snaps)}")
-
-        # Evaluate each horizon
-        for horizon in config.forecast_horizons:
-            # Build pairs
-            train_pairs = build_week_pairs(train_snaps, config.neg_ratio, config.seed, horizon=horizon)
-            val_pairs = build_week_pairs(val_snaps, config.neg_ratio, config.seed, horizon=horizon)
-            test_pairs = build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon=horizon)
-
-            if not train_pairs or not test_pairs:
-                continue
-
-            # Create and train model
-            model = model_fn(config)
-
-            for epoch in range(config.epochs):
-                train_fn(model, train_pairs, config)
-
-            # Evaluate
-            preds = predict_fn(model, test_pairs, config)
-            metrics = evaluate_predictions(preds)
-            metrics["window_start"] = start
-            metrics["horizon"] = horizon
-            results_by_horizon[horizon].append(metrics)
-
-    # Aggregate results
+def _summarize_metric_group(metrics_list: List[Dict[str, Any]], group: str, keys: List[str]) -> Dict[str, Dict[str, float]]:
+    """Summarize mean/std for metric group across folds."""
     summary = {}
-    for horizon, results in results_by_horizon.items():
-        if results:
-            auprcs = [r["exist"]["auprc"] for r in results if not np.isnan(r["exist"]["auprc"])]
-            aurocs = [r["exist"]["auroc"] for r in results if not np.isnan(r["exist"]["auroc"])]
-            maes = [r["weight"]["mae"] for r in results if not np.isnan(r["weight"]["mae"])]
+    for key in keys:
+        values = []
+        for metrics in metrics_list:
+            value = metrics.get(group, {}).get(key, float("nan"))
+            if isinstance(value, float) and math.isnan(value):
+                continue
+            values.append(value)
+        if values:
+            summary[key] = {"mean": float(np.mean(values)), "std": float(np.std(values))}
+        else:
+            summary[key] = {"mean": float("nan"), "std": float("nan")}
+    return summary
 
-            summary[f"h{horizon}"] = {
-                "auprc_mean": float(np.mean(auprcs)) if auprcs else float("nan"),
-                "auprc_std": float(np.std(auprcs)) if auprcs else float("nan"),
-                "auroc_mean": float(np.mean(aurocs)) if aurocs else float("nan"),
-                "weight_mae_mean": float(np.mean(maes)) if maes else float("nan"),
-                "num_windows": len(results),
-            }
 
-    return {"model": model_name, "summary": summary, "detailed": results_by_horizon}
+def aggregate_fold_metrics(fold_results: List[Dict[str, Any]], horizons: List[int]) -> Dict[str, Any]:
+    """Aggregate fold metrics into mean/std summaries per horizon."""
+    summary = {}
+    for horizon in horizons:
+        metrics_list = []
+        for result in fold_results:
+            if not result or "results" not in result:
+                continue
+            metrics = result["results"].get(f"h{horizon}")
+            if metrics:
+                metrics_list.append(metrics)
+        if not metrics_list:
+            continue
+        summary[f"h{horizon}"] = {
+            "n_folds": len(metrics_list),
+            "exist": _summarize_metric_group(metrics_list, "exist", ["auprc", "auroc", "recall@100", "recall@500", "recall@1000"]),
+            "weight": _summarize_metric_group(metrics_list, "weight", ["mae", "rmse", "weighted_mae"]),
+            "node": _summarize_metric_group(metrics_list, "node", ["mae", "rmse"]),
+        }
+    return summary
+
+
+def run_expanding_window_evaluation(
+    config: ExperimentConfig,
+    split_result: Dict[str, Any],
+    date_to_snap: Dict[str, Dict],
+    run_frozen: bool,
+    run_finetuned: bool,
+    run_roland: bool,
+    save_predictions: bool,
+    output_dir: Path
+) -> Dict[str, Any]:
+    """Run expanding-window walk-forward evaluation across folds."""
+    folds = split_result.get("folds", [])
+    if not folds:
+        return {"method": "expanding_window_walk_forward", "folds": [], "summary": {}}
+
+    print(f"\n{'='*60}")
+    print("EXPANDING WINDOW WALK-FORWARD EVALUATION")
+    print(f"{'='*60}")
+    print(f"  Folds: {len(folds)}")
+
+    fold_entries = []
+    model_fold_results = {
+        "graphpfn_frozen": [],
+        "graphpfn_finetuned": [],
+        "roland": [],
+    }
+
+    for fold in folds:
+        fold_id = fold["fold_id"]
+        train_snaps = [date_to_snap[d] for d in fold["train"] if d in date_to_snap]
+        val_snaps = [date_to_snap[d] for d in fold["val"] if d in date_to_snap]
+        test_snaps = [date_to_snap[d] for d in fold["test"] if d in date_to_snap]
+
+        print(f"\n--- Fold {fold_id} ---")
+        print(f"  Train: {fold['train'][0]} ~ {fold['train'][-1]} ({len(fold['train'])}w)")
+        print(f"  Val:   {fold['val'][0]} ~ {fold['val'][-1]} ({len(fold['val'])}w)")
+        print(f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)")
+
+        fold_entry = {
+            "fold_id": fold_id,
+            "train_range": f"{fold['train'][0]} ~ {fold['train'][-1]}",
+            "val_range": f"{fold['val'][0]} ~ {fold['val'][-1]}",
+            "test_range": f"{fold['test'][0]} ~ {fold['test'][-1]}",
+        }
+
+        if run_frozen:
+            result = run_graphpfn_experiment(
+                config,
+                finetune=False,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=save_predictions,
+                output_dir=output_dir,
+                fold_id=fold_id
+            )
+            if result:
+                fold_entry["graphpfn_frozen"] = result
+                model_fold_results["graphpfn_frozen"].append(result)
+
+        if run_finetuned:
+            result = run_graphpfn_experiment(
+                config,
+                finetune=True,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=save_predictions,
+                output_dir=output_dir,
+                fold_id=fold_id
+            )
+            if result:
+                fold_entry["graphpfn_finetuned"] = result
+                model_fold_results["graphpfn_finetuned"].append(result)
+
+        if run_roland:
+            result = run_roland_experiment(
+                config,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=save_predictions,
+                output_dir=output_dir
+            )
+            if result:
+                fold_entry["roland"] = result
+                model_fold_results["roland"].append(result)
+
+        fold_entries.append(fold_entry)
+
+    summary = {}
+    if model_fold_results["graphpfn_frozen"]:
+        summary["graphpfn_frozen"] = aggregate_fold_metrics(model_fold_results["graphpfn_frozen"], config.forecast_horizons)
+    if model_fold_results["graphpfn_finetuned"]:
+        summary["graphpfn_finetuned"] = aggregate_fold_metrics(model_fold_results["graphpfn_finetuned"], config.forecast_horizons)
+    if model_fold_results["roland"]:
+        summary["roland"] = aggregate_fold_metrics(model_fold_results["roland"], config.forecast_horizons)
+
+    return {
+        "method": "expanding_window_walk_forward",
+        "n_folds": len(fold_entries),
+        "folds": fold_entries,
+        "summary": summary,
+    }
 
 
 # ============== Main Experiment Functions ==============
@@ -1161,7 +1216,8 @@ def run_graphpfn_experiment(
     val_snaps: Optional[List[Dict]] = None,
     test_snaps: Optional[List[Dict]] = None,
     save_predictions: bool = False,
-    output_dir: Optional[Path] = None
+    output_dir: Optional[Path] = None,
+    fold_id: Optional[int] = None
 ):
     """
     Run GraphPFN experiment (frozen or finetuned).
@@ -1261,7 +1317,7 @@ def run_graphpfn_experiment(
         # Save predictions if requested
         if save_predictions and output_dir:
             model_name = "graphpfn_finetuned" if finetune else "graphpfn_frozen"
-            edges_path, nodes_path = save_predictions_csv(test_preds, output_dir, model_name, horizon)
+            edges_path, nodes_path = save_predictions_csv(test_preds, output_dir, model_name, horizon, fold_id)
             print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
 
     return {
@@ -2114,9 +2170,9 @@ def main():
     parser.add_argument("--test-weeks", type=int, default=8,
                        help="Test window size per fold in weeks (default: 8)")
     parser.add_argument("--step-weeks", type=int, default=8,
-                       help="Step size for rolling window in weeks (default: 8)")
+                       help="Step size for expanding window folds in weeks (default: 8)")
     parser.add_argument("--rolling", action="store_true",
-                       help="Run full rolling window evaluation (slower but more robust)")
+                       help="Run expanding window walk-forward evaluation (slower but more robust)")
     parser.add_argument("--save-predictions", action="store_true",
                        help="Save predictions to CSV files")
     args = parser.parse_args()
@@ -2197,6 +2253,24 @@ def main():
     val_snaps = [date_to_snap[d] for d in date_splits["val"] if d in date_to_snap]
     test_snaps = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
+    run_frozen = args.mode in ["all", "frozen"]
+    run_finetuned = args.mode in ["all", "finetuned"]
+    run_roland = args.mode in ["all", "roland"]
+    run_models = run_frozen or run_finetuned or run_roland
+
+    rolling_results = None
+    if args.rolling and run_models:
+        rolling_results = run_expanding_window_evaluation(
+            config=config,
+            split_result=split_result,
+            date_to_snap=date_to_snap,
+            run_frozen=run_frozen,
+            run_finetuned=run_finetuned,
+            run_roland=run_roland,
+            save_predictions=args.save_predictions,
+            output_dir=output_dir,
+        )
+
     all_results = {
         "temporal_split": {
             "method": "expanding_window_walk_forward",
@@ -2213,6 +2287,8 @@ def main():
         },
         "data_quality_summary": data_quality["summary"],
     }
+    if rolling_results:
+        all_results["rolling_folds"] = rolling_results
 
     # Run experiments based on mode
     if args.mode in ["all", "frozen"]:
