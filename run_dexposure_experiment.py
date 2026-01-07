@@ -58,6 +58,16 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EPS = 1e-12
 
 
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(description="DeXposure GraphPFN Experiment")
+    parser.add_argument("--finetune", action="store_true", help="Finetune encoder (default: frozen)")
+    parser.add_argument("--output-dir", type=str, default=None, help="Output directory")
+    parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs")
+    parser.add_argument("--batch-size", type=int, default=EDGE_BATCH_SIZE, help="Edge batch size")
+    return parser.parse_args()
+
+
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -452,7 +462,9 @@ def train_one_epoch(model, pairs, optimizer, device, edge_batch_size, finetune_e
 
         optimizer.zero_grad()
         batches = list(iter_edge_batches(len(src), edge_batch_size, rng=rng, shuffle=True))
+        num_batches = len(batches)
 
+        # Gradient accumulation: 每个 batch 单独 backward，梯度累积
         for b, batch_idx in enumerate(batches):
             logits, w_pred = model.link_scorer(h, src[batch_idx], dst[batch_idx])
             exist_loss = F.binary_cross_entropy_with_logits(logits, y_exist[batch_idx])
@@ -463,15 +475,21 @@ def train_one_epoch(model, pairs, optimizer, device, edge_batch_size, finetune_e
             else:
                 weight_loss = torch.tensor(0.0, device=device)
 
-            loss = (EXIST_LOSS_WEIGHT * exist_loss) + (WEIGHT_LOSS_WEIGHT * weight_loss)
-            retain = finetune_encoder and (b < len(batches) - 1)
-            loss.backward(retain_graph=retain)
+            batch_loss = (EXIST_LOSS_WEIGHT * exist_loss) + (WEIGHT_LOSS_WEIGHT * weight_loss)
+
+            # 除以 batch 数归一化梯度
+            scaled_loss = batch_loss / num_batches
+
+            # 最后一个 batch 不需要 retain_graph
+            is_last_batch = (b == num_batches - 1) and (NODE_LOSS_WEIGHT <= 0)
+            scaled_loss.backward(retain_graph=not is_last_batch)
 
             total_exist += exist_loss.item()
             total_weight += weight_loss.item()
 
         if NODE_LOSS_WEIGHT > 0:
-            (NODE_LOSS_WEIGHT * node_loss).backward()
+            node_loss_scaled = (NODE_LOSS_WEIGHT * node_loss) / num_batches
+            node_loss_scaled.backward()
 
         total_node += node_loss.item()
         total_samples += 1
@@ -595,12 +613,24 @@ def evaluate_predictions(preds, k=100):
 
 # ============== Main ==============
 def main():
+    args = parse_args()
+
+    # 根据参数设置
+    finetune_full = args.finetune
+    output_dir = args.output_dir or (
+        "output/dexposure_graphpfn_finetuned" if finetune_full
+        else "output/dexposure_graphpfn_frozen"
+    )
+    epochs = args.epochs
+    edge_batch_size = args.batch_size
+
+    mode_str = "Finetuned" if finetune_full else "Frozen Probing"
     print("=" * 60)
-    print("DeXposure GraphPFN Link Prediction Experiment")
+    print(f"DeXposure GraphPFN Link Prediction Experiment ({mode_str})")
     print("=" * 60)
 
     set_seed(SEED)
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Load metadata
     print("\n[1/7] Loading metadata...")
@@ -656,7 +686,7 @@ def main():
     # Create model
     print("\n[6/7] Creating model...")
     model = GraphPFNLinkPredictor(encoder=encoder, embed_dim=embed_dim, hidden_dim=HIDDEN_DIM).to(DEVICE)
-    set_encoder_trainable(model.encoder, trainable=FINETUNE_FULL)
+    set_encoder_trainable(model.encoder, trainable=finetune_full)
 
     optimizer = torch.optim.Adam(
         [p for p in model.parameters() if p.requires_grad],
@@ -665,16 +695,16 @@ def main():
     )
 
     # Training
-    print("\n[7/7] Training...")
+    print(f"\n[7/7] Training ({epochs} epochs, finetune={finetune_full})...")
     best_val_auprc = -float("inf")
-    best_model_path = Path(OUTPUT_DIR) / "best_model.ckpt"
+    best_model_path = Path(output_dir) / "best_model.ckpt"
 
-    for epoch in range(1, EPOCHS + 1):
-        train_losses = train_one_epoch(model, train_pairs, optimizer, DEVICE, EDGE_BATCH_SIZE, FINETUNE_FULL)
+    for epoch in range(1, epochs + 1):
+        train_losses = train_one_epoch(model, train_pairs, optimizer, DEVICE, edge_batch_size, finetune_full)
 
         # Validation
         model.eval()
-        val_preds = predict_samples(model, val_pairs, DEVICE, EDGE_BATCH_SIZE)
+        val_preds = predict_samples(model, val_pairs, DEVICE, edge_batch_size)
         val_metrics = evaluate_predictions(val_preds)
 
         val_auprc = val_metrics["exist"].get("auprc", 0.0)
@@ -698,9 +728,9 @@ def main():
     print("=" * 60)
 
     model.eval()
-    train_preds = predict_samples(model, train_pairs, DEVICE, EDGE_BATCH_SIZE)
-    val_preds = predict_samples(model, val_pairs, DEVICE, EDGE_BATCH_SIZE)
-    test_preds = predict_samples(model, test_pairs, DEVICE, EDGE_BATCH_SIZE)
+    train_preds = predict_samples(model, train_pairs, DEVICE, edge_batch_size)
+    val_preds = predict_samples(model, val_pairs, DEVICE, edge_batch_size)
+    test_preds = predict_samples(model, test_pairs, DEVICE, edge_batch_size)
 
     train_metrics = evaluate_predictions(train_preds)
     val_metrics = evaluate_predictions(val_preds)
@@ -720,17 +750,17 @@ def main():
             "train_ratio": TRAIN_RATIO,
             "val_ratio": VAL_RATIO,
             "hidden_dim": HIDDEN_DIM,
-            "epochs": EPOCHS,
+            "epochs": epochs,
             "seed": SEED,
-            "finetune_full": FINETUNE_FULL,
+            "finetune_full": finetune_full,
         },
         "generated_at": datetime.now().isoformat(),
     }
 
-    with open(Path(OUTPUT_DIR) / "metrics.json", "w") as f:
+    with open(Path(output_dir) / "metrics.json", "w") as f:
         json.dump(metrics_payload, f, indent=2)
 
-    print(f"\n✓ Results saved to {OUTPUT_DIR}/metrics.json")
+    print(f"\n✓ Results saved to {output_dir}/metrics.json")
     print("=" * 60)
 
 
