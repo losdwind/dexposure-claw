@@ -148,47 +148,6 @@ cython_debug/
 .zed/
 pyrightconfig.json
 
-# Data, checkpoints, etc.
-cache
-data
-**/catboost_cached_datasets/**
-*.bin
-*.csv
-*.cbm
-*.npy
-*.npz
-*.pickle
-*.pt
-*.pth
-*.rar
-*.tar*
-*.tmp
-*.zip
-*.ckpt
-batched-metrics-*
-AutogluonModels
-events.out.tfevents.*
-checkpoints/*
-!checkpoints/graphpfn-v1.ckpt
-
-# DeXposure dataset files (large files, use download script instead)
-historical-network_week_*.json
-meta_df.csv
-mapping/
-network_data/
-
-# Experiments
-**/exp/**/*.*
-# The "_RUNNING" files must be tracked to mark
-# accidentally commited reports of unfinished experiment.
-!**/exp/**/_RUNNING
-!**/exp/**/report.json
-!**/exp/**/*.toml
-!**/exp/README.md
-!**/exp/**/config_factory.py
-!**/exp/info.yaml
-dev/exp/check
-
 # Other
 local/
 .env
