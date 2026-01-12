@@ -1,6 +1,6 @@
 # DeXposure-FM 实验指南
 
-> 最后更新: 2025-01-07
+> 最后更新: 2026-01-12
 
 ## 项目目标
 
@@ -21,7 +21,7 @@
 ### 1. 进入项目目录
 
 ```bash
-cd /home/figurich/inter-protocol-exposure/graphpfn
+cd /home/figurich/CodeProjects/graph-dexposure
 ```
 
 ### 2. 确认依赖
@@ -37,7 +37,10 @@ pip install ijson
 ### 3. 确认数据文件
 
 ```bash
-# 网络数据 (约200MB)
+# 完整历史网络数据 (约1.1GB, 283周, 主实验用)
+ls -lh data/historical-network_week_2020-03-30.json
+
+# 最近快照数据 (约76MB, 8周, 快速测试用)
 ls -lh data/historical-network_week_2025-07-01.json
 
 # 元数据
@@ -46,6 +49,8 @@ ls -lh data/meta_df.csv
 # GraphPFN 预训练checkpoint
 ls -lh checkpoints/graphpfn-v1.ckpt
 ```
+
+> **注意**: 主实验应使用 `historical-network_week_2020-03-30.json` 完整历史文件。
 
 ---
 
@@ -93,13 +98,50 @@ python run_full_experiment.py --mode impute
 
 ### 常用参数
 
+**实验设置:**
+
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--mode` | all | 实验模式 |
+| `--mode` | all | 实验模式 (frozen/finetuned/roland/stats/shock/impute/all) |
 | `--epochs` | 5 | 训练轮数 |
 | `--seed` | 42 | 随机种子 |
 | `--output-dir` | output/full_experiment | 输出目录 |
 | `--shock-model` | graphpfn | Shock分析使用的模型 |
+| `--save-predictions` | False | 是否保存预测到 CSV |
+
+**时序划分 (Expanding Window):**
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--holdout-start` | 2025-01-01 | Hold-out 测试集起始日期 |
+| `--min-train-weeks` | 104 | 最少训练周数 (2年) |
+| `--val-weeks` | 12 | 验证窗口大小 |
+| `--test-weeks` | 8 | 每fold测试窗口大小 |
+| `--step-weeks` | 8 | 滚动步长 |
+| `--rolling` | False | 运行完整 rolling window 评估 |
+
+### 时序划分策略 (Expanding Window Walk-Forward)
+
+```
+Timeline:
+════════════════════════════════════════════════════════════════════════════
+
+Fold 1:  [══ Train (104w) ══][Val 12w][Test 8w]
+Fold 2:  [════ Train (112w) ════][Val 12w][Test 8w]
+Fold 3:  [══════ Train (120w) ══════][Val 12w][Test 8w]
+  ...         (训练窗口逐步扩展)
+Fold N:  [══════════════ Train ══════════════][Val 12w][Test 8w]
+
+════════════════════════════════════════════════════════════════════════════
+Hold-out: [════════════ All pre-2025 Train ════════════][Val 12w][ 2025 Test ]
+                                                                  (NEVER seen)
+```
+
+**为什么用 Expanding Window?**
+1. **金融惯例**: 避免 look-ahead bias，符合实际交易场景
+2. **多次评估**: 不依赖单一测试集，结果更稳健
+3. **训练数据增长**: 随时间积累更多数据，模拟真实部署
+4. **Hold-out 验证**: 2025 数据从未用于任何训练/调参
 
 ---
 
@@ -111,11 +153,11 @@ python run_full_experiment.py --mode impute
 ============================================================
 COMPARISON TABLE - Multi-step Forecasting Results
 ============================================================
-Model                          h=1 AUPRC       h=3 AUPRC       h=7 AUPRC
---------------------------------------------------------------------------------
-GraphPFN (Frozen)              0.7832          0.7456          0.7123
-GraphPFN (Finetuned)           0.8142          0.7821          0.7534
-ROLAND                         0.7234          0.6987          0.6654
+Model                     h=1 AUPRC   h=3 AUPRC   h=7 AUPRC   Weight MAE   Recall@100
+-----------------------------------------------------------------------------------------
+GraphPFN (Frozen)         0.7832      0.7456      0.7123      1.82         0.8234
+GraphPFN (Finetuned)      0.8142      0.7821      0.7534      1.54         0.8567
+ROLAND                    0.7234      0.6987      0.6654      N/A          0.7123
 
 ============================================================
 SHOCK ANALYSIS SUMMARY
@@ -139,20 +181,29 @@ Mask %       Edge Recall     Edge MAE        Node MAE
 
 ```
 output/full_experiment/
-├── experiment_results.json    # 完整实验结果
-└── network_statistics.csv     # 网络统计时序数据
+├── experiment_results.json       # 完整实验结果
+├── data_quality.json             # 数据质量统计
+├── network_statistics.csv        # 网络统计时序数据
+├── predictions_edges_test.csv    # 边级预测 (需 --save-predictions)
+└── predictions_nodes_test.csv    # 节点级预测 (需 --save-predictions)
 ```
 
 ### 3. 关键指标解读
 
-**Link Prediction:**
-- AUPRC > 0.8 表示良好的预测能力
+**Link Prediction (边存在性):**
+- AUPRC > 0.8 表示良好的预测能力 (主指标，处理类别不平衡)
 - AUROC > 0.9 表示优秀的区分能力
+- Recall@K: 前K个预测中正例的召回率 (K=100, 500, 1000)
+
+**Edge Weight (边权重):**
+- MAE: 平均绝对误差 (log-scale)
+- Weighted MAE: 按真实边权加权的MAE (对大额暴露更敏感)
 
 **Network Statistics:**
 - Gini: 0=完全平等, 1=完全不平等
 - HHI: 0=分散, 1=集中
 - Density: 边数/最大可能边数
+- Top-10% Concentration: 前10%节点的TVL占比
 
 ---
 
@@ -171,21 +222,31 @@ Weight MAE: 1.627
 ## 文件结构
 
 ```
-graphpfn/
-├── run_full_experiment.py      # 主实验脚本 (~1850行)
+graph-dexposure/
+├── run_full_experiment.py      # 主实验脚本 (统一入口)
 ├── run_optuna_search.py        # Optuna 超参数优化
 ├── run_final_evaluation.py     # 最终评估 (2025 hold-out test)
 ├── run_dexposure_experiment.py # 单次实验脚本 (已验证可用)
-├── EXPERIMENT_PLAN.md          # 详细实验计划 (给老师看)
+├── EXPERIMENT_PLAN.md          # 详细实验计划
+├── EXPERIMENT_GUIDE.md         # 本文件
+├── lib/
+│   └── graphpfn/               # GraphPFN 模型库
+│       └── model.py
 ├── src/
 │   └── network_statistics.py   # 网络统计量模块
 ├── data/
-│   ├── historical-network_week_2025-07-01.json
+│   ├── historical-network_week_2020-03-30.json  # 完整历史 (1.1GB)
+│   ├── historical-network_week_2025-07-01.json  # 最近快照 (76MB)
 │   └── meta_df.csv
 ├── checkpoints/
 │   └── graphpfn-v1.ckpt
 └── output/
     ├── full_experiment/        # 完整实验结果
+    │   ├── experiment_results.json
+    │   ├── data_quality.json
+    │   ├── network_statistics.csv
+    │   ├── predictions_edges_test.csv
+    │   └── predictions_nodes_test.csv
     ├── optuna/                 # 超参数优化结果
     └── final_evaluation/       # 最终评估结果
 ```
@@ -236,14 +297,14 @@ python run_final_evaluation.py --config output/optuna/best_params.json
 
 ### 论文实验对照表
 
-| 论文Section | 实验内容 | 脚本/函数 |
-|-------------|----------|-----------|
-| 5.2 Multi-step | h=1,3,7预测 | `run_graphpfn_experiment()` |
-| 5.2 Baselines | Frozen vs Finetuned vs ROLAND | `--mode frozen/finetuned/roland` |
-| 5.3 Shock Analysis | Terra/FTX事件 | `run_shock_analysis()` |
-| 5.4 Network Stats | Gini/HHI/Density | `run_network_statistics()` |
-| 5.5 Imputation | 缺失值重建 | `run_imputation_experiment()` |
-| Appendix | Rolling evaluation | `rolling_evaluation()` |
+| 论文Section | 实验内容 | 脚本/函数 | 主要指标 |
+|-------------|----------|-----------|----------|
+| 5.2 Multi-step | h=1,3,7预测 | `run_graphpfn_experiment()` | AUPRC, AUROC, Recall@K |
+| 5.2 Baselines | Frozen vs Finetuned vs ROLAND | `--mode frozen/finetuned/roland` | 对比表格 |
+| 5.3 Shock Analysis | Terra/FTX事件 | `run_shock_analysis()` | TVL变化, Gini Δ, 性能退化 |
+| 5.4 Network Stats | Gini/HHI/Density | `run_network_statistics()` | 时序统计 |
+| 5.5 Imputation | 缺失值重建 | `run_imputation_experiment()` | Edge Recall, MAE |
+| Appendix | Rolling evaluation | `expanding_window_split()` | 多fold聚合 |
 
 ---
 
@@ -268,7 +329,7 @@ pip install ijson
 
 确保在正确的目录运行，并且 `lib/graphpfn` 存在:
 ```bash
-cd /home/figurich/inter-protocol-exposure/graphpfn
+cd /home/figurich/CodeProjects/graph-dexposure
 ls lib/graphpfn/model.py
 ```
 
