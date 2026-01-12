@@ -425,9 +425,13 @@ def compute_data_quality(snapshots: List[Dict], raw_network_data: Dict) -> Dict[
         "std_nodes_per_week": float(np.std([s["N_nodes"] for s in weekly_stats])),
         "std_edges_per_week": float(np.std([s["N_edges"] for s in weekly_stats])),
         "mean_pct_target_null_dropped": float(np.mean([s["pct_target_null_dropped"] for s in weekly_stats])),
+        "mean_pct_endpoint_missing_dropped": float(np.mean([s["pct_endpoint_missing_dropped"] for s in weekly_stats])),
         "mean_overlap_ratio": float(np.mean([s["overlap_ratio_next_week"] for s in weekly_stats[:-1]])) if len(weekly_stats) > 1 else 0.0,
         "mean_pct_category_unknown": float(np.mean([s["pct_category_unknown"] for s in weekly_stats])),
     }
+
+    summary["pct_target_null_dropped"] = summary["mean_pct_target_null_dropped"]
+    summary["pct_endpoint_missing_dropped"] = summary["mean_pct_endpoint_missing_dropped"]
 
     return {"summary": summary, "weekly": weekly_stats}
 
@@ -439,7 +443,8 @@ def save_predictions_csv(
     output_dir: Path,
     model_name: str,
     horizon: int,
-    fold_id: Optional[int] = None
+    fold_id: Optional[int] = None,
+    append: bool = False
 ) -> Tuple[Path, Path]:
     """Save predictions to CSV files."""
     edges_rows = []
@@ -448,15 +453,22 @@ def save_predictions_csv(
     for item in preds:
         time_t = item["time_t"]
         time_t1 = item["time_t1"]
+        node_ids = item["node_ids"]
+        categories = item["categories"]
+        sizes_t = item["sizes_t"]
         exist_prob = 1 / (1 + np.exp(-item["exist_logits"]))
 
         # Edge predictions
         for i in range(len(item["y_exist"])):
+            u_idx = int(item["pair_src"][i])
+            v_idx = int(item["pair_dst"][i])
             edges_rows.append({
                 "time_t": time_t,
                 "time_t1": time_t1,
-                "u_idx": item["pair_src"][i],
-                "v_idx": item["pair_dst"][i],
+                "horizon": horizon,
+                "fold_id": fold_id,
+                "u_id": node_ids[u_idx],
+                "v_id": node_ids[v_idx],
                 "y_exist_true": int(item["y_exist"][i]),
                 "y_exist_pred": float(exist_prob[i]),
                 "y_w_true": float(item["y_weight"][i]),
@@ -471,20 +483,43 @@ def save_predictions_csv(
                 nodes_rows.append({
                     "time_t": time_t,
                     "time_t1": time_t1,
-                    "node_idx": i,
+                    "horizon": horizon,
+                    "fold_id": fold_id,
+                    "node_id": node_ids[i],
                     "y_node_true": float(item["y_node"][i]),
                     "y_node_pred": float(item["node_pred"][i]),
+                    "size_t": float(sizes_t[i]),
+                    "category": categories[i],
                 })
 
     # Save to CSV
-    fold_suffix = f"_fold{fold_id}" if fold_id is not None else ""
-    edges_path = output_dir / f"predictions_edges_{model_name}{fold_suffix}_h{horizon}.csv"
-    nodes_path = output_dir / f"predictions_nodes_{model_name}{fold_suffix}_h{horizon}.csv"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    edges_path = output_dir / "predictions_edges_test.csv"
+    nodes_path = output_dir / "predictions_nodes_test.csv"
 
-    pd.DataFrame(edges_rows).to_csv(edges_path, index=False)
-    pd.DataFrame(nodes_rows).to_csv(nodes_path, index=False)
+    if edges_rows:
+        edges_df = pd.DataFrame(edges_rows)
+        edges_df.to_csv(edges_path, index=False, mode="a" if append else "w", header=not (append and edges_path.exists()))
+    if nodes_rows:
+        nodes_df = pd.DataFrame(nodes_rows)
+        nodes_df.to_csv(nodes_path, index=False, mode="a" if append else "w", header=not (append and nodes_path.exists()))
 
     return edges_path, nodes_path
+
+
+def save_metrics_json(result: Dict[str, Any], output_dir: Path) -> Path:
+    """Save metrics.json in the experiment plan format."""
+    payload = {"model": result.get("model", "unknown")}
+    results = result.get("results", {})
+    for key in sorted(results.keys()):
+        payload[key] = results[key]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = output_dir / "metrics.json"
+    with metrics_path.open("w") as f:
+        json.dump(payload, f, indent=2)
+
+    return metrics_path
 
 
 # ============== Week Pair Construction ==============
@@ -1013,6 +1048,11 @@ def predict_graphpfn(model, pairs, config):
             outputs.append({
                 "time_t": sample.time_t,
                 "time_t1": sample.time_t1,
+                "node_ids": sample.node_ids,
+                "categories": sample.categories,
+                "sizes_t": sample.sizes_t,
+                "pair_src": sample.pair_src,
+                "pair_dst": sample.pair_dst,
                 "y_exist": sample.y_exist,
                 "y_weight": sample.y_weight,
                 "weight_mask": sample.weight_mask,
@@ -1049,6 +1089,11 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
             outputs.append({
                 "time_t": sample.time_t,
                 "time_t1": sample.time_t1,
+                "node_ids": sample.node_ids,
+                "categories": sample.categories,
+                "sizes_t": sample.sizes_t,
+                "pair_src": sample.pair_src,
+                "pair_dst": sample.pair_dst,
                 "y_exist": sample.y_exist,
                 "y_weight": sample.y_weight,
                 "weight_mask": sample.weight_mask,
@@ -1183,7 +1228,8 @@ def run_expanding_window_evaluation(
                 val_snaps=val_snaps,
                 test_snaps=test_snaps,
                 save_predictions=save_predictions,
-                output_dir=output_dir
+                output_dir=output_dir,
+                fold_id=fold_id
             )
             if result:
                 fold_entry["roland"] = result
@@ -1236,6 +1282,13 @@ def run_graphpfn_experiment(
         return None
 
     mode = "Finetuned" if finetune else "Frozen"
+    model_name = "graphpfn_finetuned" if finetune else "graphpfn_frozen"
+    model_output_dir = None
+    append_predictions = False
+    if output_dir:
+        model_output_dir = output_dir / model_name
+        if fold_id is not None:
+            model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
     print(f"\n{'='*60}")
     print(f"GraphPFN Experiment ({mode})")
     print(f"{'='*60}")
@@ -1315,12 +1368,19 @@ def run_graphpfn_experiment(
         print(f"  Test Weighted MAE: {test_metrics['weight']['weighted_mae']:.4f}")
 
         # Save predictions if requested
-        if save_predictions and output_dir:
-            model_name = "graphpfn_finetuned" if finetune else "graphpfn_frozen"
-            edges_path, nodes_path = save_predictions_csv(test_preds, output_dir, model_name, horizon, fold_id)
+        if save_predictions and model_output_dir:
+            edges_path, nodes_path = save_predictions_csv(
+                test_preds,
+                model_output_dir,
+                model_name,
+                horizon,
+                fold_id,
+                append=append_predictions
+            )
+            append_predictions = True
             print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
 
-    return {
+    result = {
         "model": f"GraphPFN ({mode})",
         "results": results,
         "config": {
@@ -1330,6 +1390,12 @@ def run_graphpfn_experiment(
         }
     }
 
+    if model_output_dir:
+        metrics_path = save_metrics_json(result, model_output_dir)
+        print(f"  Metrics saved to: {metrics_path.name}")
+
+    return result
+
 
 def run_roland_experiment(
     config: ExperimentConfig,
@@ -1337,11 +1403,20 @@ def run_roland_experiment(
     val_snaps: Optional[List[Dict]] = None,
     test_snaps: Optional[List[Dict]] = None,
     save_predictions: bool = False,
-    output_dir: Optional[Path] = None
+    output_dir: Optional[Path] = None,
+    fold_id: Optional[int] = None
 ):
     """Run ROLAND baseline experiment."""
     print(f"\n{'='*60}")
     print("ROLAND Baseline Experiment")
+
+    model_name = "roland"
+    model_output_dir = None
+    append_predictions = False
+    if output_dir:
+        model_output_dir = output_dir / model_name
+        if fold_id is not None:
+            model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
     print(f"{'='*60}")
 
     set_seed(config.seed)
@@ -1406,11 +1481,29 @@ def run_roland_experiment(
         print(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
         print(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
 
-    return {
+        if save_predictions and model_output_dir:
+            edges_path, nodes_path = save_predictions_csv(
+                test_preds,
+                model_output_dir,
+                model_name,
+                horizon,
+                fold_id,
+                append=append_predictions
+            )
+            append_predictions = True
+            print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
+
+    result = {
         "model": "ROLAND",
         "results": results,
         "config": {"epochs": config.epochs, "seed": config.seed}
     }
+
+    if model_output_dir:
+        metrics_path = save_metrics_json(result, model_output_dir)
+        print(f"  Metrics saved to: {metrics_path.name}")
+
+    return result
 
 
 def run_network_statistics(config: ExperimentConfig):
@@ -1851,160 +1944,79 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
 
 # ============== Task III: Imputation ==============
 
-def create_masked_snapshot(
-    snapshot: Dict,
+def evaluate_imputation_pairs(
+    pairs: List[WeekPair],
+    preds: List[Dict[str, Any]],
     mask_ratio: float,
-    mask_type: str,  # "edge" or "node" or "both"
     rng: np.random.Generator
-) -> Tuple[Dict, Dict]:
-    """
-    Create a masked version of a snapshot for imputation evaluation.
-
-    Args:
-        snapshot: Original snapshot dictionary
-        mask_ratio: Fraction of edges/nodes to mask (0.1 = 10%)
-        mask_type: What to mask - "edge", "node", or "both"
-        rng: Random number generator
-
-    Returns:
-        masked_snapshot: Snapshot with masked values
-        ground_truth: Dictionary containing original values for masked items
-    """
-    masked = {
-        "date": snapshot["date"],
-        "node_ids": snapshot["node_ids"].copy(),
-        "features": snapshot["features"].copy(),
-        "sizes": snapshot["sizes"].copy(),
-        "categories": snapshot["categories"].copy(),
-        "edge_src": snapshot["edge_src"].copy(),
-        "edge_dst": snapshot["edge_dst"].copy(),
-        "edge_weight": snapshot["edge_weight"].copy(),
-    }
-
-    ground_truth = {
-        "masked_edges": [],
-        "masked_edge_weights": [],
-        "masked_nodes": [],
-        "masked_node_sizes": [],
-    }
-
-    num_edges = len(snapshot["edge_src"])
-    num_nodes = len(snapshot["node_ids"])
-
-    # Mask edges
-    if mask_type in ["edge", "both"] and num_edges > 0:
-        num_mask = max(1, int(num_edges * mask_ratio))
-        mask_indices = rng.choice(num_edges, size=num_mask, replace=False)
-
-        for idx in sorted(mask_indices, reverse=True):
-            ground_truth["masked_edges"].append((
-                int(masked["edge_src"][idx]),
-                int(masked["edge_dst"][idx])
-            ))
-            ground_truth["masked_edge_weights"].append(float(masked["edge_weight"][idx]))
-
-        # Remove masked edges
-        keep_mask = np.ones(num_edges, dtype=bool)
-        keep_mask[mask_indices] = False
-        masked["edge_src"] = masked["edge_src"][keep_mask]
-        masked["edge_dst"] = masked["edge_dst"][keep_mask]
-        masked["edge_weight"] = masked["edge_weight"][keep_mask]
-
-    # Mask node sizes
-    if mask_type in ["node", "both"] and num_nodes > 0:
-        num_mask = max(1, int(num_nodes * mask_ratio))
-        mask_indices = rng.choice(num_nodes, size=num_mask, replace=False)
-
-        for idx in mask_indices:
-            ground_truth["masked_nodes"].append(int(idx))
-            ground_truth["masked_node_sizes"].append(float(masked["sizes"][idx]))
-
-        # Set masked node sizes to median (imputation baseline)
-        median_size = np.median(masked["sizes"])
-        masked["sizes"][mask_indices] = median_size
-
-    return masked, ground_truth
-
-
-def evaluate_imputation(
-    model,
-    encode_fn,
-    masked_snapshot: Dict,
-    ground_truth: Dict,
-    config: ExperimentConfig
 ) -> Dict[str, float]:
-    """
-    Evaluate imputation performance.
+    """Evaluate imputation performance on masked positives and nodes."""
+    edge_recall = []
+    edge_prob = []
+    edge_mae = []
+    edge_rmse = []
+    edge_corr = []
+    node_mae = []
+    node_rmse = []
 
-    Args:
-        model: Trained model with link_scorer and node_head
-        encode_fn: Function to encode graph
-        masked_snapshot: Snapshot with masked values
-        ground_truth: Ground truth values
+    for pair, pred in zip(pairs, preds):
+        y_exist = pred["y_exist"]
+        exist_prob = 1 / (1 + np.exp(-pred["exist_logits"]))
 
-    Returns:
-        Dictionary of imputation metrics
-    """
-    device = torch.device(config.device)
-    model.eval()
+        pos_idx = np.where(y_exist > 0.5)[0]
+        if len(pos_idx) > 0:
+            num_mask = max(1, int(len(pos_idx) * mask_ratio))
+            mask_idx = rng.choice(pos_idx, size=num_mask, replace=False)
 
-    results = {}
+            masked_probs = exist_prob[mask_idx]
+            edge_recall.append(float(np.mean(masked_probs > 0.5)))
+            edge_prob.append(float(np.mean(masked_probs)))
 
-    with torch.no_grad():
-        # Build graph from masked snapshot
-        graph = dgl.graph(
-            (masked_snapshot["edge_src"], masked_snapshot["edge_dst"]),
-            num_nodes=len(masked_snapshot["node_ids"])
-        )
-        features = torch.tensor(masked_snapshot["features"], dtype=torch.float32)
+            true_w = pred["y_weight"][mask_idx]
+            pred_w = pred["weight_pred"][mask_idx]
+            edge_mae.append(float(np.mean(np.abs(true_w - pred_w))))
+            edge_rmse.append(float(np.sqrt(np.mean((true_w - pred_w) ** 2))))
+            if len(true_w) > 1 and np.std(true_w) > 0 and np.std(pred_w) > 0:
+                edge_corr.append(float(np.corrcoef(true_w, pred_w)[0, 1]))
 
-        # Encode
-        h = encode_fn(graph, features, device)
+        node_mask = pred["node_mask"]
+        if node_mask.any():
+            node_indices = np.where(node_mask)[0]
+            num_mask = max(1, int(len(node_indices) * mask_ratio))
+            mask_nodes = rng.choice(node_indices, size=num_mask, replace=False)
 
-        # Edge imputation
-        if ground_truth["masked_edges"]:
-            src_list, dst_list = zip(*ground_truth["masked_edges"])
-            src = torch.tensor(src_list, dtype=torch.long, device=device)
-            dst = torch.tensor(dst_list, dtype=torch.long, device=device)
+            size_t = pair.sizes_t[mask_nodes]
+            log_size_t = np.log1p(np.maximum(size_t, 0))
+            true_log_t1 = log_size_t + pred["y_node"][mask_nodes]
+            pred_log_t1 = log_size_t + pred["node_pred"][mask_nodes]
 
-            exist_logits, weight_pred = model.link_scorer(h, src, dst)
+            node_mae.append(float(np.mean(np.abs(true_log_t1 - pred_log_t1))))
+            node_rmse.append(float(np.sqrt(np.mean((true_log_t1 - pred_log_t1) ** 2))))
 
-            # Edge existence (should predict high probability)
-            exist_prob = torch.sigmoid(exist_logits).cpu().numpy()
-            results["edge_exist_recall"] = float(np.mean(exist_prob > 0.5))
-            results["edge_exist_avg_prob"] = float(np.mean(exist_prob))
+    results: Dict[str, float] = {}
 
-            # Edge weight
-            true_weights = np.array(ground_truth["masked_edge_weights"])
-            pred_weights = weight_pred.cpu().numpy()
+    def add_stats(key: str, values: List[float]) -> None:
+        if values:
+            results[f"{key}_mean"] = float(np.mean(values))
+            results[f"{key}_std"] = float(np.std(values))
 
-            # Convert to log scale for comparison
-            true_log = np.log1p(np.maximum(true_weights, 0))
-            results["edge_weight_mae"] = float(np.mean(np.abs(pred_weights - true_log)))
-            results["edge_weight_rmse"] = float(np.sqrt(np.mean((pred_weights - true_log) ** 2)))
-
-            # Correlation
-            if len(true_log) > 1 and np.std(true_log) > 0 and np.std(pred_weights) > 0:
-                results["edge_weight_corr"] = float(np.corrcoef(true_log, pred_weights)[0, 1])
-            else:
-                results["edge_weight_corr"] = float("nan")
-
-        # Node size imputation
-        if ground_truth["masked_nodes"] and hasattr(model, "node_head"):
-            node_pred = model.node_head(h).cpu().numpy()
-
-            true_sizes = np.array(ground_truth["masked_node_sizes"])
-            pred_sizes = node_pred[ground_truth["masked_nodes"]]
-
-            # Convert to log scale
-            true_log = np.log1p(np.maximum(true_sizes, 0))
-            results["node_size_mae"] = float(np.mean(np.abs(pred_sizes - true_log)))
-            results["node_size_rmse"] = float(np.sqrt(np.mean((pred_sizes - true_log) ** 2)))
+    add_stats("edge_exist_recall", edge_recall)
+    add_stats("edge_exist_avg_prob", edge_prob)
+    add_stats("edge_weight_mae", edge_mae)
+    add_stats("edge_weight_rmse", edge_rmse)
+    add_stats("edge_weight_corr", edge_corr)
+    add_stats("node_size_mae", node_mae)
+    add_stats("node_size_rmse", node_rmse)
 
     return results
 
 
-def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float] = None):
+def run_imputation_experiment(
+    config: ExperimentConfig,
+    mask_ratios: List[float] = None,
+    snapshots: Optional[List[Dict]] = None,
+    date_splits: Optional[Dict[str, List[str]]] = None
+):
     """
     Run Task III: Imputation experiment.
 
@@ -2013,6 +2025,8 @@ def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float]
     Args:
         config: Experiment configuration
         mask_ratios: List of mask ratios to test (default: [0.1, 0.2, 0.3])
+        snapshots: Optional pre-built snapshots
+        date_splits: Optional train/test split (uses holdout if provided)
     """
     print(f"\n{'='*60}")
     print("Task III: Imputation Experiment")
@@ -2030,32 +2044,31 @@ def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float]
     rng = np.random.default_rng(config.seed)
 
     # Load data
-    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
-    network_data = load_network_data(config.data_path)
-    all_dates = sorted(network_data.keys())
+    if snapshots is None:
+        meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
+        network_data = load_network_data(config.data_path)
+        all_dates = sorted(network_data.keys())
+        snapshots = [
+            build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+            for date in all_dates
+        ]
+    else:
+        all_dates = [snap["date"] for snap in snapshots]
 
-    # Build snapshots
-    snapshots = [
-        build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
-        for date in all_dates
-    ]
+    if date_splits is None:
+        date_splits = get_single_split(all_dates)
 
     print(f"Loaded {len(snapshots)} snapshots")
 
-    # Split data
-    n = len(snapshots)
-    train_end = int(n * config.train_ratio)
-    val_end = int(n * (config.train_ratio + config.val_ratio))
-
-    train_snapshots = snapshots[:train_end]
-    test_snapshots = snapshots[val_end:]
+    date_to_snap = {s["date"]: s for s in snapshots}
+    train_snapshots = [date_to_snap[d] for d in date_splits["train"] if d in date_to_snap]
+    test_snapshots = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
     # Load and train model
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
     embed_dim = encoder.tfm.embed_dim
     model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
 
-    # Fine-tune
     for p in model.encoder.parameters():
         p.requires_grad = True
 
@@ -2066,66 +2079,26 @@ def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float]
     for epoch in range(config.epochs):
         train_graphpfn_epoch(model, train_pairs, optimizer, config, finetune_encoder=True)
 
-    # Define encode function
-    def encode_fn(graph, features, device):
-        return model.encode(graph, features, device)
+    test_pairs = build_week_pairs(test_snapshots, config.neg_ratio, config.seed, horizon=1)
+    if not test_pairs:
+        print("No test pairs available for imputation evaluation.")
+        return None
 
-    # Evaluate imputation at different mask ratios
+    preds = predict_graphpfn(model, test_pairs, config)
+
     results_by_ratio = {}
 
     for mask_ratio in mask_ratios:
         print(f"\n--- Mask ratio: {mask_ratio*100:.0f}% ---")
 
-        edge_results = []
-        node_results = []
-        both_results = []
-
-        for snap in test_snapshots:
-            # Edge masking
-            masked, gt = create_masked_snapshot(snap, mask_ratio, "edge", rng)
-            if gt["masked_edges"]:
-                res = evaluate_imputation(model, encode_fn, masked, gt, config)
-                edge_results.append(res)
-
-            # Node masking
-            masked, gt = create_masked_snapshot(snap, mask_ratio, "node", rng)
-            if gt["masked_nodes"]:
-                res = evaluate_imputation(model, encode_fn, masked, gt, config)
-                node_results.append(res)
-
-            # Both
-            masked, gt = create_masked_snapshot(snap, mask_ratio, "both", rng)
-            if gt["masked_edges"] or gt["masked_nodes"]:
-                res = evaluate_imputation(model, encode_fn, masked, gt, config)
-                both_results.append(res)
-
-        # Aggregate results
         ratio_results = {"mask_ratio": mask_ratio}
-
-        if edge_results:
-            for key in ["edge_exist_recall", "edge_exist_avg_prob", "edge_weight_mae", "edge_weight_corr"]:
-                values = [r.get(key, float("nan")) for r in edge_results]
-                values = [v for v in values if not np.isnan(v)]
-                if values:
-                    ratio_results[f"edge_{key}_mean"] = float(np.mean(values))
-                    ratio_results[f"edge_{key}_std"] = float(np.std(values))
-
-        if node_results:
-            for key in ["node_size_mae", "node_size_rmse"]:
-                values = [r.get(key, float("nan")) for r in node_results]
-                values = [v for v in values if not np.isnan(v)]
-                if values:
-                    ratio_results[f"node_{key}_mean"] = float(np.mean(values))
-                    ratio_results[f"node_{key}_std"] = float(np.std(values))
-
+        ratio_results.update(evaluate_imputation_pairs(test_pairs, preds, mask_ratio, rng))
         results_by_ratio[f"ratio_{int(mask_ratio*100)}"] = ratio_results
 
-        # Print results
-        print(f"  Edge exist recall: {ratio_results.get('edge_edge_exist_recall_mean', 'N/A'):.4f}" if 'edge_edge_exist_recall_mean' in ratio_results else "  Edge exist recall: N/A")
-        print(f"  Edge weight MAE: {ratio_results.get('edge_edge_weight_mae_mean', 'N/A'):.4f}" if 'edge_edge_weight_mae_mean' in ratio_results else "  Edge weight MAE: N/A")
-        print(f"  Node size MAE: {ratio_results.get('node_node_size_mae_mean', 'N/A'):.4f}" if 'node_node_size_mae_mean' in ratio_results else "  Node size MAE: N/A")
+        print(f"  Edge exist recall: {ratio_results.get('edge_exist_recall_mean', float('nan')):.4f}")
+        print(f"  Edge weight MAE: {ratio_results.get('edge_weight_mae_mean', float('nan')):.4f}")
+        print(f"  Node size MAE: {ratio_results.get('node_size_mae_mean', float('nan')):.4f}")
 
-    # Print summary table
     print(f"\n{'='*80}")
     print("IMPUTATION RESULTS SUMMARY")
     print(f"{'='*80}")
@@ -2134,9 +2107,9 @@ def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float]
 
     for ratio_key, results in results_by_ratio.items():
         ratio = results.get("mask_ratio", 0) * 100
-        edge_recall = results.get("edge_edge_exist_recall_mean", float("nan"))
-        edge_mae = results.get("edge_edge_weight_mae_mean", float("nan"))
-        node_mae = results.get("node_node_size_mae_mean", float("nan"))
+        edge_recall = results.get("edge_exist_recall_mean", float("nan"))
+        edge_mae = results.get("edge_weight_mae_mean", float("nan"))
+        node_mae = results.get("node_size_mae_mean", float("nan"))
         print(f"{ratio:<12.0f} {edge_recall:<15.4f} {edge_mae:<15.4f} {node_mae:<15.4f}")
 
     return {
@@ -2145,7 +2118,6 @@ def run_imputation_experiment(config: ExperimentConfig, mask_ratios: List[float]
         "mask_ratios_tested": mask_ratios,
         "num_test_snapshots": len(test_snapshots),
     }
-
 
 # ============== Main ==============
 
@@ -2337,7 +2309,7 @@ def main():
         all_results["shock_analysis"] = result
 
     if args.mode in ["all", "impute"]:
-        result = run_imputation_experiment(config)
+        result = run_imputation_experiment(config, snapshots=all_snapshots, date_splits=date_splits)
         if result:
             all_results["imputation"] = result
 
