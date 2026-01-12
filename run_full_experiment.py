@@ -87,6 +87,25 @@ from src.network_statistics import (
     herfindahl_hirschman_index
 )
 
+# ============== DGL CUDA Availability Check ==============
+
+def check_dgl_cuda_available() -> bool:
+    """Check if DGL CUDA support is available."""
+    if not torch.cuda.is_available():
+        return False
+    try:
+        # Try to create a small graph and move to CUDA
+        test_graph = dgl.graph(([0, 1], [1, 0]))
+        test_graph = test_graph.to('cuda')
+        return True
+    except Exception as e:
+        print(f"DGL CUDA not available: {e}")
+        return False
+
+DGL_CUDA_AVAILABLE = check_dgl_cuda_available()
+if torch.cuda.is_available() and not DGL_CUDA_AVAILABLE:
+    print("Warning: PyTorch CUDA is available but DGL CUDA is not. Using CPU for graph operations.")
+
 # ============== Configuration ==============
 
 @dataclass
@@ -122,8 +141,8 @@ class ExperimentConfig:
     # Random seeds for multiple runs
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456, 789, 2024])
 
-    # Device
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    # Device - use CUDA only if both PyTorch and DGL support it
+    device: str = "cuda" if (torch.cuda.is_available() and DGL_CUDA_AVAILABLE) else "cpu"
 
 
 EPS = 1e-12
