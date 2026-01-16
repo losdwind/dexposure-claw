@@ -2584,6 +2584,12 @@ def main():
     parser.add_argument(
         "--save-predictions", action="store_true", help="Save predictions to CSV files"
     )
+    parser.add_argument(
+        "--horizons",
+        type=str,
+        default="1,3,7",
+        help="Comma-separated forecast horizons (default: 1,3,7)",
+    )
     args = parser.parse_args()
 
     config = ExperimentConfig()
@@ -2591,6 +2597,7 @@ def main():
         config.output_dir = args.output_dir
     config.epochs = args.epochs
     config.seed = args.seed
+    config.forecast_horizons = [int(h) for h in args.horizons.split(",")]
 
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
