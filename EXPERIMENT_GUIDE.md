@@ -1,6 +1,6 @@
 # DeXposure-FM 实验指南
 
-> 最后更新: 2026-01-12
+> 最后更新: 2026-01-16
 
 ## 项目目标
 
@@ -13,6 +13,28 @@
 | Task I | Multi-step Forecasting (h=1,3,7) | ✅ 已实现 |
 | Task II | Shock Analysis (Terra/FTX) | ✅ 已实现 |
 | Task III | Imputation (缺失值填补) | ✅ 已实现 |
+
+---
+
+## 🔧 TODO: 可选优化项
+
+以下是可选的代码优化，可能提升 finetuned 模式的性能和稳定性：
+
+| 优先级 | 任务 | 说明 | 状态 |
+|--------|------|------|------|
+| 低 | 分层学习率 | GraphPFN encoder 用低 lr (1e-5)，task heads 用高 lr (1e-3) | ⬜ 待实现 |
+| 低 | 渐进解冻 | 先 frozen 训练几个 epoch，再 finetune | ⬜ 待实现 |
+| 低 | 使用 AdamW | 替换 Adam，添加 weight decay | ⬜ 待实现 |
+
+**参考实现 (分层学习率):**
+```python
+if finetune:
+    optimizer = torch.optim.AdamW([
+        {"params": model.encoder.parameters(), "lr": config.lr * 0.1},  # 骨干: 低 lr
+        {"params": model.link_scorer.parameters(), "lr": config.lr},   # 新头: 高 lr
+        {"params": model.node_head.parameters(), "lr": config.lr},
+    ], weight_decay=config.weight_decay)
+```
 
 ---
 
@@ -155,9 +177,9 @@ COMPARISON TABLE - Multi-step Forecasting Results
 ============================================================
 Model                     h=1 AUPRC   h=3 AUPRC   h=7 AUPRC   Weight MAE   Recall@100
 -----------------------------------------------------------------------------------------
-GraphPFN (Frozen)         0.7832      0.7456      0.7123      1.82         0.8234
-GraphPFN (Finetuned)      0.8142      0.7821      0.7534      1.54         0.8567
-ROLAND                    0.7234      0.6987      0.6654      N/A          0.7123
+GraphPFN (Frozen)         0.9308      0.9343      0.9337      3.27         4.33e-05
+GraphPFN (Finetuned)      待运行       待运行       待运行       待运行        待运行
+ROLAND                    待运行       待运行       待运行       N/A          待运行
 
 ============================================================
 SHOCK ANALYSIS SUMMARY
@@ -186,6 +208,15 @@ output/full_experiment/
 ├── network_statistics.csv        # 网络统计时序数据
 ├── predictions_edges_test.csv    # 边级预测 (需 --save-predictions)
 └── predictions_nodes_test.csv    # 节点级预测 (需 --save-predictions)
+
+output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
+├── experiment_results.json       # GraphPFN Frozen 完整结果
+├── data_quality.json             # 283周数据质量
+├── network_statistics.csv        # 网络演变统计
+├── README.md                     # 结果摘要
+└── graphpfn_frozen/
+    ├── predictions_edges_test.csv  # 边预测 (1.3GB)
+    └── predictions_nodes_test.csv  # 节点预测 (51MB)
 ```
 
 ### 3. 关键指标解读
@@ -207,7 +238,77 @@ output/full_experiment/
 
 ---
 
+## 🎯 最新实验结果 (2025-01-16)
+
+### GraphPFN Frozen Encoder 实验
+
+**实验配置:**
+- **模型**: GraphPFN (Frozen Encoder) - 线性探针模式
+- **训练轮数**: 5 epochs
+- **预测时间窗口**: h=1, 3, 7 weeks
+- **硬件**: NVIDIA H100 (80GB)
+- **训练时间**: ~1.5 小时
+
+**时序划分:**
+| 参数 | 值 |
+|------|-----|
+| 方法 | Expanding Window Walk-Forward |
+| Folds数量 | 16 |
+| 训练周数 | 238周 (2020-03-23 ~ 2024-10-07) |
+| 验证周数 | 12周 (2024-10-14 ~ 2024-12-30) |
+| 测试周数 | 33周 (2025-01-06 ~ 2025-08-18) |
+
+### 📊 核心指标
+
+| 预测窗口 | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
+|----------|-------|-------|------------|--------------|------------|
+| h=1 | **0.9308** | **0.9863** | 3.3037 | 13.7813 | 4.33e-05 |
+| h=3 | **0.9343** | **0.9867** | 3.2680 | 13.4431 | 4.63e-05 |
+| h=7 | **0.9337** | **0.9861** | 3.2549 | 13.7502 | 5.37e-05 |
+
+**结果分析:**
+- ✅ **AUPRC > 0.93**: 优秀的链接预测能力
+- ✅ **AUROC > 0.986**: 卓越的区分能力
+- ✅ **跨时间窗口稳定性**: h=1 到 h=7 性能几乎无衰减
+- ⚠️ **Weight MAE ~3.2-3.3**: 边权重预测仍有改进空间
+
+### 📈 网络统计摘要
+
+| 指标 | 均值 | 标准差 | 最小值 | 最大值 |
+|------|------|--------|--------|--------|
+| 节点数 | 5,676 | 3,952 | 9 | 11,236 |
+| 边数 | 30,424 | 25,589 | 8 | 74,138 |
+| 度Gini系数 | 0.703 | 0.071 | 0.389 | 0.748 |
+| TVL Gini | 0.986 | 0.011 | 0.889 | 0.992 |
+| 跨部门暴露比 | 0.853 | 0.151 | 0.0 | 0.979 |
+| 总TVL (B USD) | 276.1 | 220.3 | 0.09 | 858.7 |
+
+### 📁 输出文件
+
+结果保存在 `output/graph-dexposure-results/2025-01-16_graphpfn_frozen/`:
+```
+├── experiment_results.json     # 完整实验结果 (5869行)
+├── data_quality.json           # 数据质量统计 (2563行)
+├── network_statistics.csv      # 网络统计时序数据 (283周)
+├── experiment.log              # 实验日志
+├── README.md                   # 结果摘要
+└── graphpfn_frozen/
+    ├── predictions_edges_test.csv  # 边级预测 (1.3GB)
+    └── predictions_nodes_test.csv  # 节点级预测 (51MB)
+```
+
+### 🚀 下一步
+
+1. **运行 GraphPFN Finetuned**: 端到端微调对比
+2. **运行 ROLAND Baseline**: 基线模型对比
+3. **Shock Analysis**: Terra/FTX 事件分析
+4. **统计显著性测试**: 多种子运行
+
+---
+
 ## 之前的实验结果
+
+### 初步测试 (单次运行)
 
 使用 `run_dexposure_experiment.py` 的单次运行结果:
 
@@ -216,6 +317,8 @@ AUPRC: 0.814
 AUROC: 0.958
 Weight MAE: 1.627
 ```
+
+> **注意**: 最新的完整实验 (2025-01-16) 使用更严格的时序划分和更大的测试集，获得了更好的 AUPRC (0.93+) 和 AUROC (0.98+) 结果。
 
 ---
 

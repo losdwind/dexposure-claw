@@ -26,6 +26,8 @@
 - `predictions_edges_test.csv`: 边级预测（存在性 + 边权）
 - `predictions_nodes_test.csv`: 节点 TVL log-change 预测
 - `data_quality.json`: 每周数据质量与缺失统计
+- `systemic_risk.json`: 协议级系统重要性、部门溢出、预警指标
+- `stress_test.json`: 冲击一致情景下的损失分布、传染路径、政策反事实
 - 论文 Table 1–5 + Figure 1–7
 
 ---
@@ -313,7 +315,21 @@ $$y^{node}_{t+h}(u) = \log(1 + \text{size}_{t+h}(u)) - \log(1 + \text{size}_t(u)
 - 模型预测性能退化程度
 - 是否能提前预警风险
 
-### 3.3 Task III: Imputation
+### 3.3 Task III: Systemic Risk Measurement
+
+**目标**: 给出可用于宏观审慎监管的系统性风险统计与早期预警信号
+
+**输出:**
+- 协议级系统重要性评分 (SIS)
+- 部门/赛道溢出指数 (Sector Spillover Index)
+- 结构性预警指标 (Early-warning indicators)
+
+**设计要点:**
+- SIS 基于网络中心性、尾部暴露与 TVL 结合 (非单一规模指标)
+- 溢出指数基于 sector-to-sector 暴露矩阵与集中度变化
+- 预警指标来自结构突变 (如密度、集中度、同配性快速变化)
+
+### 3.4 Task IV: Imputation
 
 **目标**: 测试模型的缺失值重建能力
 
@@ -327,6 +343,20 @@ $$y^{node}_{t+h}(u) = \log(1 + \text{size}_{t+h}(u)) - \log(1 + \text{size}_t(u)
 - Edge masking: 随机移除部分边
 - Node masking: 随机mask节点属性
 - Combined masking: 同时mask边和节点
+
+### 3.5 Task V: Financial Risk Stress Testing
+
+**目标**: 生成冲击一致情景并量化系统级损失与传染路径
+
+**情景类型:**
+- 稳定币脱锚 (e.g., UST/USDC)
+- 交易所失败 (e.g., FTX)
+- 关键桥/跨链失效
+
+**评估内容:**
+- 损失分布与尾部风险 (e.g., VaR / ES)
+- 传染路径与关键节点/部门
+- 反事实政策工具效果 (杠杆上限、抵押折扣、桥限额)
 
 ---
 
@@ -469,6 +499,15 @@ L_total = 1.0 * L_exist + 1.0 * L_weight + 0.0 * L_node
 | **Density** | Edge density |
 | **Entropy** | Degree distribution entropy |
 | **Top-10% Concentration** | Share of top 10% nodes |
+
+### 6.6 Systemic Risk & Spillover Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Systemic Importance Score** | 协议级系统重要性 (中心性 + 尾部暴露 + TVL 加权) |
+| **Sector Spillover Index** | 部门间暴露矩阵的集中度/传染强度 |
+| **Early-warning Signals** | 结构突变指标 (密度/HHI/同配性跃迁) |
+| **Stress Loss Tail** | 压测场景下损失分布的尾部风险 |
 
 ---
 

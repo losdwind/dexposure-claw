@@ -45,25 +45,29 @@ Usage:
     python run_full_experiment.py --mode impute
 """
 
-import os
-import sys
+import argparse
 import json
 import math
+import os
 import random
-import argparse
-from pathlib import Path
+import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
+import dgl
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import dgl
-
-from sklearn.metrics import average_precision_score, roc_auc_score, mean_absolute_error, mean_squared_error
+from sklearn.metrics import (
+    average_precision_score,
+    mean_absolute_error,
+    mean_squared_error,
+    roc_auc_score,
+)
 
 # Add project paths
 GRAPHPFN_ROOT = Path(__file__).parent
@@ -74,6 +78,7 @@ sys.path.insert(0, str(GRAPHPFN_ROOT / "src"))
 try:
     from lib.graphpfn.model import GraphPFN, GraphPFNLayerWrapper
     from lib.limix.model.layer import MultiheadAttention as MHA
+
     GRAPHPFN_AVAILABLE = True
 except ImportError:
     GRAPHPFN_AVAILABLE = False
@@ -84,10 +89,11 @@ from src.network_statistics import (
     compute_all_network_statistics,
     compute_rolling_statistics,
     gini_coefficient,
-    herfindahl_hirschman_index
+    herfindahl_hirschman_index,
 )
 
 # ============== DGL CUDA Availability Check ==============
+
 
 def check_dgl_cuda_available() -> bool:
     """Check if DGL CUDA support is available."""
@@ -96,17 +102,21 @@ def check_dgl_cuda_available() -> bool:
     try:
         # Try to create a small graph and move to CUDA
         test_graph = dgl.graph(([0, 1], [1, 0]))
-        test_graph = test_graph.to('cuda')
+        test_graph = test_graph.to("cuda")
         return True
     except Exception as e:
         print(f"DGL CUDA not available: {e}")
         return False
 
+
 DGL_CUDA_AVAILABLE = check_dgl_cuda_available()
 if torch.cuda.is_available() and not DGL_CUDA_AVAILABLE:
-    print("Warning: PyTorch CUDA is available but DGL CUDA is not. Using CPU for graph operations.")
+    print(
+        "Warning: PyTorch CUDA is available but DGL CUDA is not. Using CPU for graph operations."
+    )
 
 # ============== Configuration ==============
+
 
 @dataclass
 class ExperimentConfig:
@@ -142,7 +152,9 @@ class ExperimentConfig:
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456, 789, 2024])
 
     # Device - use CUDA only if both PyTorch and DGL support it
-    device: str = "cuda" if (torch.cuda.is_available() and DGL_CUDA_AVAILABLE) else "cpu"
+    device: str = (
+        "cuda" if (torch.cuda.is_available() and DGL_CUDA_AVAILABLE) else "cpu"
+    )
 
 
 EPS = 1e-12
@@ -158,6 +170,7 @@ def set_seed(seed: int):
 
 # ============== Data Loading ==============
 
+
 def load_network_data(path: str) -> Dict:
     """Load network JSON data."""
     path = Path(path)
@@ -170,6 +183,7 @@ def load_network_data(path: str) -> Dict:
     with path.open("rb") as f:
         try:
             import ijson
+
             data = {k: v for k, v in ijson.kvitems(f, "data")}
             return data
         except Exception:
@@ -193,7 +207,9 @@ def load_metadata(path: str) -> Tuple[Dict, List[str], Dict]:
     return meta_category, category_list, category_to_idx
 
 
-def node_features(node: Dict, meta_category: Dict, category_to_idx: Dict, category_list: List) -> Tuple[np.ndarray, float, str]:
+def node_features(
+    node: Dict, meta_category: Dict, category_to_idx: Dict, category_list: List
+) -> Tuple[np.ndarray, float, str]:
     """Extract node features."""
     node_id = str(node.get("id"))
     size = float(node.get("size", 0.0))
@@ -224,7 +240,13 @@ def node_features(node: Dict, meta_category: Dict, category_to_idx: Dict, catego
     return feats, size, category
 
 
-def build_snapshot(date: str, snapshot: Dict, meta_category: Dict, category_to_idx: Dict, category_list: List) -> Dict:
+def build_snapshot(
+    date: str,
+    snapshot: Dict,
+    meta_category: Dict,
+    category_to_idx: Dict,
+    category_list: List,
+) -> Dict:
     """Build a single snapshot."""
     nodes = snapshot.get("nodes", [])
     links = snapshot.get("links", [])
@@ -235,7 +257,9 @@ def build_snapshot(date: str, snapshot: Dict, meta_category: Dict, category_to_i
         node_id = node.get("id")
         if node_id is None:
             continue
-        feats, size, category = node_features(node, meta_category, category_to_idx, category_list)
+        feats, size, category = node_features(
+            node, meta_category, category_to_idx, category_list
+        )
         node_ids.append(str(node_id))
         features.append(feats)
         sizes.append(size)
@@ -259,7 +283,9 @@ def build_snapshot(date: str, snapshot: Dict, meta_category: Dict, category_to_i
     return {
         "date": date,
         "node_ids": node_ids,
-        "features": np.array(features, dtype=np.float32) if features else np.zeros((0, 4 + len(category_list)), dtype=np.float32),
+        "features": np.array(features, dtype=np.float32)
+        if features
+        else np.zeros((0, 4 + len(category_list)), dtype=np.float32),
         "sizes": np.array(sizes, dtype=np.float32),
         "categories": categories,
         "edge_src": np.array(src, dtype=np.int64),
@@ -270,13 +296,14 @@ def build_snapshot(date: str, snapshot: Dict, meta_category: Dict, category_to_i
 
 # ============== Strict Temporal Split ==============
 
+
 def expanding_window_split(
     all_dates: List[str],
     holdout_start: str = "2025-01-01",
     min_train_weeks: int = 104,  # 最少2年训练数据
-    val_weeks: int = 12,         # 验证集: 12周 (约3个月)
-    test_weeks: int = 8,         # 每fold测试: 8周 (约2个月)
-    step_weeks: int = 8,         # 每次向前滚动8周
+    val_weeks: int = 12,  # 验证集: 12周 (约3个月)
+    test_weeks: int = 8,  # 每fold测试: 8周 (约2个月)
+    step_weeks: int = 8,  # 每次向前滚动8周
 ) -> Dict[str, Any]:
     """
     Expanding Window Walk-Forward Validation (金融惯例).
@@ -366,7 +393,7 @@ def expanding_window_split(
             "test_weeks": test_weeks,
             "step_weeks": step_weeks,
             "holdout_start": holdout_start,
-        }
+        },
     }
 
 
@@ -402,7 +429,10 @@ def get_single_split(
 
 # ============== Data Quality Statistics ==============
 
-def compute_data_quality(snapshots: List[Dict], raw_network_data: Dict) -> Dict[str, Any]:
+
+def compute_data_quality(
+    snapshots: List[Dict], raw_network_data: Dict
+) -> Dict[str, Any]:
     """Compute data quality statistics for each snapshot."""
     weekly_stats = []
 
@@ -427,15 +457,18 @@ def compute_data_quality(snapshots: List[Dict], raw_network_data: Dict) -> Dict[
         # Count unknown categories
         n_unknown = sum(1 for cat in snap["categories"] if cat == "Unknown")
 
-        weekly_stats.append({
-            "date": date,
-            "N_nodes": len(snap["node_ids"]),
-            "N_edges": len(snap["edge_src"]),
-            "pct_target_null_dropped": n_target_null / max(len(raw_links), 1),
-            "pct_endpoint_missing_dropped": n_endpoint_missing / max(len(raw_links), 1),
-            "overlap_ratio_next_week": overlap_ratio,
-            "pct_category_unknown": n_unknown / max(len(snap["node_ids"]), 1),
-        })
+        weekly_stats.append(
+            {
+                "date": date,
+                "N_nodes": len(snap["node_ids"]),
+                "N_edges": len(snap["edge_src"]),
+                "pct_target_null_dropped": n_target_null / max(len(raw_links), 1),
+                "pct_endpoint_missing_dropped": n_endpoint_missing
+                / max(len(raw_links), 1),
+                "overlap_ratio_next_week": overlap_ratio,
+                "pct_category_unknown": n_unknown / max(len(snap["node_ids"]), 1),
+            }
+        )
 
     # Summary statistics
     summary = {
@@ -443,19 +476,32 @@ def compute_data_quality(snapshots: List[Dict], raw_network_data: Dict) -> Dict[
         "mean_edges_per_week": float(np.mean([s["N_edges"] for s in weekly_stats])),
         "std_nodes_per_week": float(np.std([s["N_nodes"] for s in weekly_stats])),
         "std_edges_per_week": float(np.std([s["N_edges"] for s in weekly_stats])),
-        "mean_pct_target_null_dropped": float(np.mean([s["pct_target_null_dropped"] for s in weekly_stats])),
-        "mean_pct_endpoint_missing_dropped": float(np.mean([s["pct_endpoint_missing_dropped"] for s in weekly_stats])),
-        "mean_overlap_ratio": float(np.mean([s["overlap_ratio_next_week"] for s in weekly_stats[:-1]])) if len(weekly_stats) > 1 else 0.0,
-        "mean_pct_category_unknown": float(np.mean([s["pct_category_unknown"] for s in weekly_stats])),
+        "mean_pct_target_null_dropped": float(
+            np.mean([s["pct_target_null_dropped"] for s in weekly_stats])
+        ),
+        "mean_pct_endpoint_missing_dropped": float(
+            np.mean([s["pct_endpoint_missing_dropped"] for s in weekly_stats])
+        ),
+        "mean_overlap_ratio": float(
+            np.mean([s["overlap_ratio_next_week"] for s in weekly_stats[:-1]])
+        )
+        if len(weekly_stats) > 1
+        else 0.0,
+        "mean_pct_category_unknown": float(
+            np.mean([s["pct_category_unknown"] for s in weekly_stats])
+        ),
     }
 
     summary["pct_target_null_dropped"] = summary["mean_pct_target_null_dropped"]
-    summary["pct_endpoint_missing_dropped"] = summary["mean_pct_endpoint_missing_dropped"]
+    summary["pct_endpoint_missing_dropped"] = summary[
+        "mean_pct_endpoint_missing_dropped"
+    ]
 
     return {"summary": summary, "weekly": weekly_stats}
 
 
 # ============== Predictions Output ==============
+
 
 def save_predictions_csv(
     preds: List[Dict],
@@ -463,7 +509,7 @@ def save_predictions_csv(
     model_name: str,
     horizon: int,
     fold_id: Optional[int] = None,
-    append: bool = False
+    append: bool = False,
 ) -> Tuple[Path, Path]:
     """Save predictions to CSV files."""
     edges_rows = []
@@ -481,35 +527,39 @@ def save_predictions_csv(
         for i in range(len(item["y_exist"])):
             u_idx = int(item["pair_src"][i])
             v_idx = int(item["pair_dst"][i])
-            edges_rows.append({
-                "time_t": time_t,
-                "time_t1": time_t1,
-                "horizon": horizon,
-                "fold_id": fold_id,
-                "u_id": node_ids[u_idx],
-                "v_id": node_ids[v_idx],
-                "y_exist_true": int(item["y_exist"][i]),
-                "y_exist_pred": float(exist_prob[i]),
-                "y_w_true": float(item["y_weight"][i]),
-                "y_w_pred": float(item["weight_pred"][i]),
-                "is_positive": bool(item["weight_mask"][i] > 0.5),
-            })
+            edges_rows.append(
+                {
+                    "time_t": time_t,
+                    "time_t1": time_t1,
+                    "horizon": horizon,
+                    "fold_id": fold_id,
+                    "u_id": node_ids[u_idx],
+                    "v_id": node_ids[v_idx],
+                    "y_exist_true": int(item["y_exist"][i]),
+                    "y_exist_pred": float(exist_prob[i]),
+                    "y_w_true": float(item["y_weight"][i]),
+                    "y_w_pred": float(item["weight_pred"][i]),
+                    "is_positive": bool(item["weight_mask"][i] > 0.5),
+                }
+            )
 
         # Node predictions
         node_mask = item["node_mask"]
         for i in range(len(node_mask)):
             if node_mask[i]:
-                nodes_rows.append({
-                    "time_t": time_t,
-                    "time_t1": time_t1,
-                    "horizon": horizon,
-                    "fold_id": fold_id,
-                    "node_id": node_ids[i],
-                    "y_node_true": float(item["y_node"][i]),
-                    "y_node_pred": float(item["node_pred"][i]),
-                    "size_t": float(sizes_t[i]),
-                    "category": categories[i],
-                })
+                nodes_rows.append(
+                    {
+                        "time_t": time_t,
+                        "time_t1": time_t1,
+                        "horizon": horizon,
+                        "fold_id": fold_id,
+                        "node_id": node_ids[i],
+                        "y_node_true": float(item["y_node"][i]),
+                        "y_node_pred": float(item["node_pred"][i]),
+                        "size_t": float(sizes_t[i]),
+                        "category": categories[i],
+                    }
+                )
 
     # Save to CSV
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -518,10 +568,20 @@ def save_predictions_csv(
 
     if edges_rows:
         edges_df = pd.DataFrame(edges_rows)
-        edges_df.to_csv(edges_path, index=False, mode="a" if append else "w", header=not (append and edges_path.exists()))
+        edges_df.to_csv(
+            edges_path,
+            index=False,
+            mode="a" if append else "w",
+            header=not (append and edges_path.exists()),
+        )
     if nodes_rows:
         nodes_df = pd.DataFrame(nodes_rows)
-        nodes_df.to_csv(nodes_path, index=False, mode="a" if append else "w", header=not (append and nodes_path.exists()))
+        nodes_df.to_csv(
+            nodes_path,
+            index=False,
+            mode="a" if append else "w",
+            header=not (append and nodes_path.exists()),
+        )
 
     return edges_path, nodes_path
 
@@ -542,6 +602,7 @@ def save_metrics_json(result: Dict[str, Any], output_dir: Path) -> Path:
 
 
 # ============== Week Pair Construction ==============
+
 
 @dataclass
 class WeekPair:
@@ -564,7 +625,9 @@ class WeekPair:
     neg_edge_count: int
 
 
-def sample_negatives(num_nodes: int, pos_set: set, num_neg: int, rng: np.random.Generator) -> Tuple[np.ndarray, np.ndarray]:
+def sample_negatives(
+    num_nodes: int, pos_set: set, num_neg: int, rng: np.random.Generator
+) -> Tuple[np.ndarray, np.ndarray]:
     """Sample negative edges."""
     neg_src, neg_dst = [], []
     seen = set(pos_set)
@@ -583,7 +646,9 @@ def sample_negatives(num_nodes: int, pos_set: set, num_neg: int, rng: np.random.
     return np.array(neg_src, dtype=np.int64), np.array(neg_dst, dtype=np.int64)
 
 
-def build_week_pairs(snapshots: List[Dict], neg_ratio: int, seed: int, horizon: int = 1) -> List[WeekPair]:
+def build_week_pairs(
+    snapshots: List[Dict], neg_ratio: int, seed: int, horizon: int = 1
+) -> List[WeekPair]:
     """
     Build week pairs for training/evaluation.
 
@@ -601,12 +666,16 @@ def build_week_pairs(snapshots: List[Dict], neg_ratio: int, seed: int, horizon: 
         snap_t1 = snapshots[t + horizon]
 
         id_to_idx = {nid: i for i, nid in enumerate(snap_t["node_ids"])}
-        size_t1_map = {nid: size for nid, size in zip(snap_t1["node_ids"], snap_t1["sizes"])}
+        size_t1_map = {
+            nid: size for nid, size in zip(snap_t1["node_ids"], snap_t1["sizes"])
+        }
 
         # Build positive edges (edges that exist at t+h)
         pos_src, pos_dst, pos_w, pos_set = [], [], [], set()
 
-        for src_idx, dst_idx, w in zip(snap_t1["edge_src"], snap_t1["edge_dst"], snap_t1["edge_weight"]):
+        for src_idx, dst_idx, w in zip(
+            snap_t1["edge_src"], snap_t1["edge_dst"], snap_t1["edge_weight"]
+        ):
             src_id = snap_t1["node_ids"][int(src_idx)]
             dst_id = snap_t1["node_ids"][int(dst_idx)]
             if src_id not in id_to_idx or dst_id not in id_to_idx:
@@ -627,51 +696,72 @@ def build_week_pairs(snapshots: List[Dict], neg_ratio: int, seed: int, horizon: 
 
         # Sample negatives
         num_neg = num_pos * neg_ratio
-        neg_src, neg_dst = sample_negatives(len(snap_t["node_ids"]), pos_set, num_neg, rng)
+        neg_src, neg_dst = sample_negatives(
+            len(snap_t["node_ids"]), pos_set, num_neg, rng
+        )
 
         # Combine and shuffle
         pair_src = np.concatenate([pos_src, neg_src])
         pair_dst = np.concatenate([pos_dst, neg_dst])
-        y_exist = np.concatenate([np.ones(num_pos, dtype=np.float32), np.zeros(len(neg_src), dtype=np.float32)])
+        y_exist = np.concatenate(
+            [
+                np.ones(num_pos, dtype=np.float32),
+                np.zeros(len(neg_src), dtype=np.float32),
+            ]
+        )
         y_weight = np.concatenate([pos_w, np.zeros(len(neg_src), dtype=np.float32)])
-        weight_mask = np.concatenate([np.ones(num_pos, dtype=np.float32), np.zeros(len(neg_src), dtype=np.float32)])
+        weight_mask = np.concatenate(
+            [
+                np.ones(num_pos, dtype=np.float32),
+                np.zeros(len(neg_src), dtype=np.float32),
+            ]
+        )
 
         order = rng.permutation(len(pair_src))
         pair_src, pair_dst = pair_src[order], pair_dst[order]
-        y_exist, y_weight, weight_mask = y_exist[order], y_weight[order], weight_mask[order]
+        y_exist, y_weight, weight_mask = (
+            y_exist[order],
+            y_weight[order],
+            weight_mask[order],
+        )
 
         # Node-level labels
         y_node = np.zeros(len(snap_t["node_ids"]), dtype=np.float32)
         node_mask = np.zeros(len(snap_t["node_ids"]), dtype=bool)
         for i, nid in enumerate(snap_t["node_ids"]):
             if nid in size_t1_map:
-                y_node[i] = math.log1p(max(size_t1_map[nid], 0.0)) - math.log1p(max(snap_t["sizes"][i], 0.0))
+                y_node[i] = math.log1p(max(size_t1_map[nid], 0.0)) - math.log1p(
+                    max(snap_t["sizes"][i], 0.0)
+                )
                 node_mask[i] = True
 
-        pairs.append(WeekPair(
-            time_t=snap_t["date"],
-            time_t1=snap_t1["date"],
-            node_ids=snap_t["node_ids"],
-            categories=snap_t["categories"],
-            sizes_t=snap_t["sizes"],
-            features_t=snap_t["features"],
-            edge_src_t=snap_t["edge_src"],
-            edge_dst_t=snap_t["edge_dst"],
-            pair_src=pair_src,
-            pair_dst=pair_dst,
-            y_exist=y_exist,
-            y_weight=y_weight,
-            weight_mask=weight_mask,
-            y_node=y_node,
-            node_mask=node_mask,
-            pos_edge_count=num_pos,
-            neg_edge_count=len(neg_src),
-        ))
+        pairs.append(
+            WeekPair(
+                time_t=snap_t["date"],
+                time_t1=snap_t1["date"],
+                node_ids=snap_t["node_ids"],
+                categories=snap_t["categories"],
+                sizes_t=snap_t["sizes"],
+                features_t=snap_t["features"],
+                edge_src_t=snap_t["edge_src"],
+                edge_dst_t=snap_t["edge_dst"],
+                pair_src=pair_src,
+                pair_dst=pair_dst,
+                y_exist=y_exist,
+                y_weight=y_weight,
+                weight_mask=weight_mask,
+                y_node=y_node,
+                node_mask=node_mask,
+                pos_edge_count=num_pos,
+                neg_edge_count=len(neg_src),
+            )
+        )
 
     return pairs
 
 
 # ============== Model Definitions ==============
+
 
 class LinkScorer(nn.Module):
     """Link prediction head with exist and weight outputs."""
@@ -714,7 +804,13 @@ class NodeHead(nn.Module):
 # ============== GraphPFN Encoder ==============
 
 if GRAPHPFN_AVAILABLE:
-    def graphpfn_encode(model: GraphPFN, graph: dgl.DGLGraph, features: torch.Tensor, device: torch.device) -> torch.Tensor:
+
+    def graphpfn_encode(
+        model: GraphPFN,
+        graph: dgl.DGLGraph,
+        features: torch.Tensor,
+        device: torch.device,
+    ) -> torch.Tensor:
         """Encode graph using GraphPFN."""
         num_nodes = graph.num_nodes()
 
@@ -736,27 +832,55 @@ if GRAPHPFN_AVAILABLE:
             if isinstance(module, MHA):
                 module.batched = False
 
-        if device.type == "cpu":
-            sdpa_backends = [torch.nn.attention.SDPBackend.MATH]
+        # PyTorch 2.2 compatibility: use torch.backends.cuda.sdp_kernel context manager
+        # instead of torch.nn.attention.sdpa_kernel (PyTorch 2.4+)
+        if hasattr(torch.nn, "attention") and hasattr(
+            torch.nn.attention, "sdpa_kernel"
+        ):
+            # PyTorch 2.4+ API
+            if device.type == "cpu":
+                sdpa_backends = [torch.nn.attention.SDPBackend.MATH]
+            else:
+                sdpa_backends = [
+                    torch.nn.attention.SDPBackend.FLASH_ATTENTION,
+                    torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION,
+                ]
+            with torch.nn.attention.sdpa_kernel(sdpa_backends):
+                out = model.tfm.forward(
+                    x=tfm_features.unsqueeze(0),
+                    y=y_train.unsqueeze(0),
+                    eval_pos=n_train,
+                    task_type="reg",
+                    checkpointing=True,
+                )
         else:
-            sdpa_backends = [
-                torch.nn.attention.SDPBackend.FLASH_ATTENTION,
-                torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION,
-            ]
-
-        with torch.nn.attention.sdpa_kernel(sdpa_backends):
-            out = model.tfm.forward(
-                x=tfm_features.unsqueeze(0),
-                y=y_train.unsqueeze(0),
-                eval_pos=n_train,
-                task_type="reg",
-                checkpointing=True,
-            )
+            # PyTorch 2.2/2.3 compatibility - use torch.backends.cuda.sdp_kernel
+            if device.type == "cpu":
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=False, enable_math=True, enable_mem_efficient=False
+                ):
+                    out = model.tfm.forward(
+                        x=tfm_features.unsqueeze(0),
+                        y=y_train.unsqueeze(0),
+                        eval_pos=n_train,
+                        task_type="reg",
+                        checkpointing=True,
+                    )
+            else:
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=True, enable_math=False, enable_mem_efficient=True
+                ):
+                    out = model.tfm.forward(
+                        x=tfm_features.unsqueeze(0),
+                        y=y_train.unsqueeze(0),
+                        eval_pos=n_train,
+                        task_type="reg",
+                        checkpointing=True,
+                    )
 
         inv_order = torch.argsort((~train_mask).float(), stable=True)
         order = torch.argsort(inv_order, stable=True)
         return out["encoder_embed"].squeeze(0)[order]
-
 
     class GraphPFNLinkPredictor(nn.Module):
         """GraphPFN-based link predictor."""
@@ -767,9 +891,10 @@ if GRAPHPFN_AVAILABLE:
             self.link_scorer = LinkScorer(embed_dim, hidden_dim)
             self.node_head = NodeHead(embed_dim, hidden_dim)
 
-        def encode(self, graph: dgl.DGLGraph, features: torch.Tensor, device: torch.device) -> torch.Tensor:
+        def encode(
+            self, graph: dgl.DGLGraph, features: torch.Tensor, device: torch.device
+        ) -> torch.Tensor:
             return graphpfn_encode(self.encoder, graph, features, device)
-
 
     def load_graphpfn_encoder(checkpoint_path: str, device: torch.device) -> GraphPFN:
         """Load pretrained GraphPFN encoder."""
@@ -782,13 +907,20 @@ if GRAPHPFN_AVAILABLE:
 
 # ============== ROLAND Baseline ==============
 
+
 class ROLANDBaseline(nn.Module):
     """
     ROLAND baseline model (adapted from DeXposure).
     Temporal GNN with GCN + GRU for link prediction.
     """
 
-    def __init__(self, input_dim: int, hidden_dim: int = 64, out_dim: int = 32, dropout: float = 0.1):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 64,
+        out_dim: int = 32,
+        dropout: float = 0.1,
+    ):
         super().__init__()
         from torch_geometric.nn import GCNConv
 
@@ -813,10 +945,14 @@ class ROLANDBaseline(nn.Module):
         self.hidden_dim = hidden_dim
         self.out_dim = out_dim
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor,
-                edge_label_index: torch.Tensor,
-                h1: Optional[torch.Tensor] = None,
-                h2: Optional[torch.Tensor] = None):
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_label_index: torch.Tensor,
+        h1: Optional[torch.Tensor] = None,
+        h2: Optional[torch.Tensor] = None,
+    ):
         """
         Forward pass.
 
@@ -859,6 +995,7 @@ class ROLANDBaseline(nn.Module):
 
 # ============== Training Functions ==============
 
+
 def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool):
     """Train GraphPFN model for one epoch."""
     model.train()
@@ -869,7 +1006,9 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
     total_exist, total_weight, total_node, total_samples = 0.0, 0.0, 0.0, 0
 
     for sample in pairs:
-        graph = dgl.graph((sample.edge_src_t, sample.edge_dst_t), num_nodes=len(sample.node_ids))
+        graph = dgl.graph(
+            (sample.edge_src_t, sample.edge_dst_t), num_nodes=len(sample.node_ids)
+        )
         features = torch.tensor(sample.features_t, dtype=torch.float32)
 
         if finetune_encoder:
@@ -883,14 +1022,20 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         node_true = torch.tensor(sample.y_node, dtype=torch.float32, device=device)
         node_mask = torch.tensor(sample.node_mask, dtype=torch.bool, device=device)
         node_pred = model.node_head(h)
-        node_loss = F.smooth_l1_loss(node_pred[node_mask], node_true[node_mask]) if node_mask.any() else torch.tensor(0.0, device=device)
+        node_loss = (
+            F.smooth_l1_loss(node_pred[node_mask], node_true[node_mask])
+            if node_mask.any()
+            else torch.tensor(0.0, device=device)
+        )
 
         # Edge prediction
         src = torch.tensor(sample.pair_src, dtype=torch.long, device=device)
         dst = torch.tensor(sample.pair_dst, dtype=torch.long, device=device)
         y_exist = torch.tensor(sample.y_exist, dtype=torch.float32, device=device)
         y_weight = torch.tensor(sample.y_weight, dtype=torch.float32, device=device)
-        weight_mask = torch.tensor(sample.weight_mask, dtype=torch.float32, device=device)
+        weight_mask = torch.tensor(
+            sample.weight_mask, dtype=torch.float32, device=device
+        )
 
         optimizer.zero_grad()
 
@@ -898,11 +1043,17 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         exist_loss = F.binary_cross_entropy_with_logits(logits, y_exist)
 
         mask = weight_mask > 0.5
-        weight_loss = F.smooth_l1_loss(w_pred[mask], y_weight[mask]) if mask.any() else torch.tensor(0.0, device=device)
+        weight_loss = (
+            F.smooth_l1_loss(w_pred[mask], y_weight[mask])
+            if mask.any()
+            else torch.tensor(0.0, device=device)
+        )
 
-        loss = (config.exist_loss_weight * exist_loss +
-                config.weight_loss_weight * weight_loss +
-                config.node_loss_weight * node_loss)
+        loss = (
+            config.exist_loss_weight * exist_loss
+            + config.weight_loss_weight * weight_loss
+            + config.node_loss_weight * node_loss
+        )
 
         loss.backward()
         optimizer.step()
@@ -929,13 +1080,20 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
         # Build PyG edge index
         edge_index = torch.tensor(
             np.stack([sample.edge_src_t, sample.edge_dst_t]),
-            dtype=torch.long, device=device
+            dtype=torch.long,
+            device=device,
         )
         x = torch.tensor(sample.features_t, dtype=torch.float32, device=device)
 
+        # Reset hidden states if number of nodes changed
+        num_nodes = x.size(0)
+        if h1 is not None and h1.size(0) != num_nodes:
+            h1, h2 = None, None
+
         edge_label_index = torch.tensor(
             np.stack([sample.pair_src, sample.pair_dst]),
-            dtype=torch.long, device=device
+            dtype=torch.long,
+            device=device,
         )
         y_exist = torch.tensor(sample.y_exist, dtype=torch.float32, device=device)
 
@@ -956,7 +1114,10 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
 
 # ============== Evaluation Functions ==============
 
-def compute_recall_at_k(y_true: np.ndarray, y_score: np.ndarray, k_values: List[int] = [100, 500, 1000]) -> Dict[str, float]:
+
+def compute_recall_at_k(
+    y_true: np.ndarray, y_score: np.ndarray, k_values: List[int] = [100, 500, 1000]
+) -> Dict[str, float]:
     """Compute Recall@K for top-K predictions."""
     results = {}
     n_positive = int(y_true.sum())
@@ -977,7 +1138,9 @@ def compute_recall_at_k(y_true: np.ndarray, y_score: np.ndarray, k_values: List[
     return results
 
 
-def compute_weighted_mae(y_true: np.ndarray, y_pred: np.ndarray, weights: np.ndarray) -> float:
+def compute_weighted_mae(
+    y_true: np.ndarray, y_pred: np.ndarray, weights: np.ndarray
+) -> float:
     """Compute Weighted MAE (weighted by true edge weights)."""
     if len(y_true) == 0 or weights.sum() == 0:
         return float("nan")
@@ -1027,14 +1190,20 @@ def evaluate_predictions(preds: List[Dict]) -> Dict[str, Any]:
         exist_metrics["recall@1000"] = float("nan")
 
     # Weight metrics
-    weight_metrics = {"mae": float("nan"), "rmse": float("nan"), "weighted_mae": float("nan")}
+    weight_metrics = {
+        "mae": float("nan"),
+        "rmse": float("nan"),
+        "weighted_mae": float("nan"),
+    }
     if weight_true:
         wt = np.concatenate(weight_true)
         wp = np.concatenate(weight_pred_list)
         weight_metrics["mae"] = float(mean_absolute_error(wt, wp))
         weight_metrics["rmse"] = float(np.sqrt(mean_squared_error(wt, wp)))
         # Weighted MAE (weighted by true edge weights)
-        weight_metrics["weighted_mae"] = compute_weighted_mae(wt, wp, np.exp(wt))  # exp to get original scale
+        weight_metrics["weighted_mae"] = compute_weighted_mae(
+            wt, wp, np.exp(wt)
+        )  # exp to get original scale
 
     # Node metrics
     node_metrics = {"mae": float("nan"), "rmse": float("nan")}
@@ -1055,7 +1224,9 @@ def predict_graphpfn(model, pairs, config):
 
     with torch.no_grad():
         for sample in pairs:
-            graph = dgl.graph((sample.edge_src_t, sample.edge_dst_t), num_nodes=len(sample.node_ids))
+            graph = dgl.graph(
+                (sample.edge_src_t, sample.edge_dst_t), num_nodes=len(sample.node_ids)
+            )
             features = torch.tensor(sample.features_t, dtype=torch.float32)
             h = model.encode(graph, features, device)
             node_pred = model.node_head(h).cpu().numpy()
@@ -1064,23 +1235,25 @@ def predict_graphpfn(model, pairs, config):
             dst = torch.tensor(sample.pair_dst, dtype=torch.long, device=device)
             logits, w_pred = model.link_scorer(h, src, dst)
 
-            outputs.append({
-                "time_t": sample.time_t,
-                "time_t1": sample.time_t1,
-                "node_ids": sample.node_ids,
-                "categories": sample.categories,
-                "sizes_t": sample.sizes_t,
-                "pair_src": sample.pair_src,
-                "pair_dst": sample.pair_dst,
-                "y_exist": sample.y_exist,
-                "y_weight": sample.y_weight,
-                "weight_mask": sample.weight_mask,
-                "y_node": sample.y_node,
-                "node_mask": sample.node_mask,
-                "exist_logits": logits.cpu().numpy(),
-                "weight_pred": w_pred.cpu().numpy(),
-                "node_pred": node_pred,
-            })
+            outputs.append(
+                {
+                    "time_t": sample.time_t,
+                    "time_t1": sample.time_t1,
+                    "node_ids": sample.node_ids,
+                    "categories": sample.categories,
+                    "sizes_t": sample.sizes_t,
+                    "pair_src": sample.pair_src,
+                    "pair_dst": sample.pair_dst,
+                    "y_exist": sample.y_exist,
+                    "y_weight": sample.y_weight,
+                    "weight_mask": sample.weight_mask,
+                    "y_node": sample.y_node,
+                    "node_mask": sample.node_mask,
+                    "exist_logits": logits.cpu().numpy(),
+                    "weight_pred": w_pred.cpu().numpy(),
+                    "node_pred": node_pred,
+                }
+            )
 
     return outputs
 
@@ -1095,38 +1268,54 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
         for sample in pairs:
             edge_index = torch.tensor(
                 np.stack([sample.edge_src_t, sample.edge_dst_t]),
-                dtype=torch.long, device=device
+                dtype=torch.long,
+                device=device,
             )
             x = torch.tensor(sample.features_t, dtype=torch.float32, device=device)
+
+            # Reset hidden states if number of nodes changed
+            num_nodes = x.size(0)
+            if h1 is not None and h1.size(0) != num_nodes:
+                h1, h2 = None, None
+
             edge_label_index = torch.tensor(
                 np.stack([sample.pair_src, sample.pair_dst]),
-                dtype=torch.long, device=device
+                dtype=torch.long,
+                device=device,
             )
 
             pred, h1, h2 = model(x, edge_index, edge_label_index, h1, h2)
 
-            outputs.append({
-                "time_t": sample.time_t,
-                "time_t1": sample.time_t1,
-                "node_ids": sample.node_ids,
-                "categories": sample.categories,
-                "sizes_t": sample.sizes_t,
-                "pair_src": sample.pair_src,
-                "pair_dst": sample.pair_dst,
-                "y_exist": sample.y_exist,
-                "y_weight": sample.y_weight,
-                "weight_mask": sample.weight_mask,
-                "y_node": sample.y_node,
-                "node_mask": sample.node_mask,
-                "exist_logits": pred.cpu().numpy(),
-                "weight_pred": np.zeros_like(sample.y_weight),  # ROLAND doesn't predict weight
-                "node_pred": np.zeros(len(sample.node_ids)),  # ROLAND doesn't predict node
-            })
+            outputs.append(
+                {
+                    "time_t": sample.time_t,
+                    "time_t1": sample.time_t1,
+                    "node_ids": sample.node_ids,
+                    "categories": sample.categories,
+                    "sizes_t": sample.sizes_t,
+                    "pair_src": sample.pair_src,
+                    "pair_dst": sample.pair_dst,
+                    "y_exist": sample.y_exist,
+                    "y_weight": sample.y_weight,
+                    "weight_mask": sample.weight_mask,
+                    "y_node": sample.y_node,
+                    "node_mask": sample.node_mask,
+                    "exist_logits": pred.cpu().numpy(),
+                    "weight_pred": np.zeros_like(
+                        sample.y_weight
+                    ),  # ROLAND doesn't predict weight
+                    "node_pred": np.zeros(
+                        len(sample.node_ids)
+                    ),  # ROLAND doesn't predict node
+                }
+            )
 
     return outputs, h1, h2
 
 
-def _summarize_metric_group(metrics_list: List[Dict[str, Any]], group: str, keys: List[str]) -> Dict[str, Dict[str, float]]:
+def _summarize_metric_group(
+    metrics_list: List[Dict[str, Any]], group: str, keys: List[str]
+) -> Dict[str, Dict[str, float]]:
     """Summarize mean/std for metric group across folds."""
     summary = {}
     for key in keys:
@@ -1137,13 +1326,18 @@ def _summarize_metric_group(metrics_list: List[Dict[str, Any]], group: str, keys
                 continue
             values.append(value)
         if values:
-            summary[key] = {"mean": float(np.mean(values)), "std": float(np.std(values))}
+            summary[key] = {
+                "mean": float(np.mean(values)),
+                "std": float(np.std(values)),
+            }
         else:
             summary[key] = {"mean": float("nan"), "std": float("nan")}
     return summary
 
 
-def aggregate_fold_metrics(fold_results: List[Dict[str, Any]], horizons: List[int]) -> Dict[str, Any]:
+def aggregate_fold_metrics(
+    fold_results: List[Dict[str, Any]], horizons: List[int]
+) -> Dict[str, Any]:
     """Aggregate fold metrics into mean/std summaries per horizon."""
     summary = {}
     for horizon in horizons:
@@ -1158,8 +1352,14 @@ def aggregate_fold_metrics(fold_results: List[Dict[str, Any]], horizons: List[in
             continue
         summary[f"h{horizon}"] = {
             "n_folds": len(metrics_list),
-            "exist": _summarize_metric_group(metrics_list, "exist", ["auprc", "auroc", "recall@100", "recall@500", "recall@1000"]),
-            "weight": _summarize_metric_group(metrics_list, "weight", ["mae", "rmse", "weighted_mae"]),
+            "exist": _summarize_metric_group(
+                metrics_list,
+                "exist",
+                ["auprc", "auroc", "recall@100", "recall@500", "recall@1000"],
+            ),
+            "weight": _summarize_metric_group(
+                metrics_list, "weight", ["mae", "rmse", "weighted_mae"]
+            ),
             "node": _summarize_metric_group(metrics_list, "node", ["mae", "rmse"]),
         }
     return summary
@@ -1173,16 +1373,16 @@ def run_expanding_window_evaluation(
     run_finetuned: bool,
     run_roland: bool,
     save_predictions: bool,
-    output_dir: Path
+    output_dir: Path,
 ) -> Dict[str, Any]:
     """Run expanding-window walk-forward evaluation across folds."""
     folds = split_result.get("folds", [])
     if not folds:
         return {"method": "expanding_window_walk_forward", "folds": [], "summary": {}}
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("EXPANDING WINDOW WALK-FORWARD EVALUATION")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Folds: {len(folds)}")
 
     fold_entries = []
@@ -1199,7 +1399,9 @@ def run_expanding_window_evaluation(
         test_snaps = [date_to_snap[d] for d in fold["test"] if d in date_to_snap]
 
         print(f"\n--- Fold {fold_id} ---")
-        print(f"  Train: {fold['train'][0]} ~ {fold['train'][-1]} ({len(fold['train'])}w)")
+        print(
+            f"  Train: {fold['train'][0]} ~ {fold['train'][-1]} ({len(fold['train'])}w)"
+        )
         print(f"  Val:   {fold['val'][0]} ~ {fold['val'][-1]} ({len(fold['val'])}w)")
         print(f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)")
 
@@ -1219,7 +1421,7 @@ def run_expanding_window_evaluation(
                 test_snaps=test_snaps,
                 save_predictions=save_predictions,
                 output_dir=output_dir,
-                fold_id=fold_id
+                fold_id=fold_id,
             )
             if result:
                 fold_entry["graphpfn_frozen"] = result
@@ -1234,7 +1436,7 @@ def run_expanding_window_evaluation(
                 test_snaps=test_snaps,
                 save_predictions=save_predictions,
                 output_dir=output_dir,
-                fold_id=fold_id
+                fold_id=fold_id,
             )
             if result:
                 fold_entry["graphpfn_finetuned"] = result
@@ -1248,7 +1450,7 @@ def run_expanding_window_evaluation(
                 test_snaps=test_snaps,
                 save_predictions=save_predictions,
                 output_dir=output_dir,
-                fold_id=fold_id
+                fold_id=fold_id,
             )
             if result:
                 fold_entry["roland"] = result
@@ -1258,11 +1460,17 @@ def run_expanding_window_evaluation(
 
     summary = {}
     if model_fold_results["graphpfn_frozen"]:
-        summary["graphpfn_frozen"] = aggregate_fold_metrics(model_fold_results["graphpfn_frozen"], config.forecast_horizons)
+        summary["graphpfn_frozen"] = aggregate_fold_metrics(
+            model_fold_results["graphpfn_frozen"], config.forecast_horizons
+        )
     if model_fold_results["graphpfn_finetuned"]:
-        summary["graphpfn_finetuned"] = aggregate_fold_metrics(model_fold_results["graphpfn_finetuned"], config.forecast_horizons)
+        summary["graphpfn_finetuned"] = aggregate_fold_metrics(
+            model_fold_results["graphpfn_finetuned"], config.forecast_horizons
+        )
     if model_fold_results["roland"]:
-        summary["roland"] = aggregate_fold_metrics(model_fold_results["roland"], config.forecast_horizons)
+        summary["roland"] = aggregate_fold_metrics(
+            model_fold_results["roland"], config.forecast_horizons
+        )
 
     return {
         "method": "expanding_window_walk_forward",
@@ -1274,6 +1482,7 @@ def run_expanding_window_evaluation(
 
 # ============== Main Experiment Functions ==============
 
+
 def run_graphpfn_experiment(
     config: ExperimentConfig,
     finetune: bool = True,
@@ -1282,7 +1491,7 @@ def run_graphpfn_experiment(
     test_snaps: Optional[List[Dict]] = None,
     save_predictions: bool = False,
     output_dir: Optional[Path] = None,
-    fold_id: Optional[int] = None
+    fold_id: Optional[int] = None,
 ):
     """
     Run GraphPFN experiment (frozen or finetuned).
@@ -1308,9 +1517,9 @@ def run_graphpfn_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"GraphPFN Experiment ({mode})")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     set_seed(config.seed)
     device = torch.device(config.device)
@@ -1322,7 +1531,9 @@ def run_graphpfn_experiment(
         all_dates = sorted(network_data.keys())
 
         snapshots = [
-            build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+            build_snapshot(
+                date, network_data[date], meta_category, category_to_idx, category_list
+            )
             for date in all_dates
         ]
 
@@ -1338,7 +1549,9 @@ def run_graphpfn_experiment(
     else:
         print("  Using strict temporal split (recommended)")
 
-    print(f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}")
+    print(
+        f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}"
+    )
 
     # Load encoder
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
@@ -1351,29 +1564,67 @@ def run_graphpfn_experiment(
     for p in model.encoder.parameters():
         p.requires_grad = finetune
 
-    optimizer = torch.optim.Adam(
-        [p for p in model.parameters() if p.requires_grad],
-        lr=config.lr, weight_decay=config.weight_decay
-    )
+    # Layer-wise learning rate: encoder uses lower LR for stable fine-tuning
+    if finetune:
+        encoder_params = list(model.encoder.parameters())
+        encoder_param_set = set(encoder_params)
+        head_params = [p for p in model.parameters() if p not in encoder_param_set]
+        optimizer = torch.optim.Adam(
+            [
+                {"params": encoder_params, "lr": config.lr * 0.1},  # Lower LR for pretrained encoder
+                {"params": head_params, "lr": config.lr},           # Full LR for new head
+            ],
+            weight_decay=config.weight_decay,
+        )
+        print(f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}")
+    else:
+        optimizer = torch.optim.Adam(
+            [p for p in model.parameters() if p.requires_grad],
+            lr=config.lr,
+            weight_decay=config.weight_decay,
+        )
 
     # Build pairs for each horizon
     results = {}
     for horizon in config.forecast_horizons:
         print(f"\n--- Horizon h={horizon} ---")
 
-        train_pairs = build_week_pairs(train_snaps, config.neg_ratio, config.seed, horizon)
-        val_pairs = build_week_pairs(val_snaps, config.neg_ratio, config.seed, horizon) if val_snaps else []
-        test_pairs = build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon) if test_snaps else []
+        train_pairs = build_week_pairs(
+            train_snaps, config.neg_ratio, config.seed, horizon
+        )
+        val_pairs = (
+            build_week_pairs(val_snaps, config.neg_ratio, config.seed, horizon)
+            if val_snaps
+            else []
+        )
+        test_pairs = (
+            build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon)
+            if test_snaps
+            else []
+        )
 
-        print(f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}")
+        print(
+            f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}"
+        )
 
         # Train
+        import sys
+
         for epoch in range(config.epochs):
-            losses = train_graphpfn_epoch(model, train_pairs, optimizer, config, finetune)
-            if (epoch + 1) % 2 == 0:
+            losses = train_graphpfn_epoch(
+                model, train_pairs, optimizer, config, finetune
+            )
+            # Print progress every epoch
+            loss_str = f"exist={losses['exist_loss']:.4f}, weight={losses['weight_loss']:.4f}, node={losses['node_loss']:.4f}"
+            if val_pairs and (epoch + 1) % 2 == 0:
                 val_preds = predict_graphpfn(model, val_pairs, config)
                 val_metrics = evaluate_predictions(val_preds)
-                print(f"  Epoch {epoch+1}: loss={losses}, val_auprc={val_metrics['exist']['auprc']:.4f}")
+                print(
+                    f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, val_auprc={val_metrics['exist']['auprc']:.4f}"
+                )
+            else:
+                print(f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}")
+            sys.stdout.flush()
 
         # Test
         test_preds = predict_graphpfn(model, test_pairs, config)
@@ -1394,10 +1645,23 @@ def run_graphpfn_experiment(
                 model_name,
                 horizon,
                 fold_id,
-                append=append_predictions
+                append=append_predictions,
             )
             append_predictions = True
             print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
+
+        # Save intermediate results after each horizon
+        if model_output_dir:
+            intermediate_result = {
+                "model": f"GraphPFN ({mode})",
+                "results": results.copy(),
+                "config": {"finetune": finetune, "epochs": config.epochs, "seed": config.seed},
+                "status": "partial" if horizon != config.forecast_horizons[-1] else "complete",
+            }
+            intermediate_path = model_output_dir / "metrics_intermediate.json"
+            with open(intermediate_path, "w") as f:
+                json.dump(intermediate_result, f, indent=2)
+            print(f"  Intermediate results saved to: {intermediate_path.name}")
 
     result = {
         "model": f"GraphPFN ({mode})",
@@ -1406,7 +1670,7 @@ def run_graphpfn_experiment(
             "finetune": finetune,
             "epochs": config.epochs,
             "seed": config.seed,
-        }
+        },
     }
 
     if model_output_dir:
@@ -1423,10 +1687,10 @@ def run_roland_experiment(
     test_snaps: Optional[List[Dict]] = None,
     save_predictions: bool = False,
     output_dir: Optional[Path] = None,
-    fold_id: Optional[int] = None
+    fold_id: Optional[int] = None,
 ):
     """Run ROLAND baseline experiment."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("ROLAND Baseline Experiment")
 
     model_name = "roland"
@@ -1436,7 +1700,7 @@ def run_roland_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     set_seed(config.seed)
     device = torch.device(config.device)
@@ -1448,7 +1712,9 @@ def run_roland_experiment(
         all_dates = sorted(network_data.keys())
 
         snapshots = [
-            build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+            build_snapshot(
+                date, network_data[date], meta_category, category_to_idx, category_list
+            )
             for date in all_dates
         ]
 
@@ -1467,7 +1733,9 @@ def run_roland_experiment(
     # Get input dimension
     input_dim = train_snaps[0]["features"].shape[1]
 
-    print(f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}")
+    print(
+        f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}"
+    )
 
     results = {}
     for horizon in config.forecast_horizons:
@@ -1477,20 +1745,36 @@ def run_roland_experiment(
         model = ROLANDBaseline(input_dim, hidden_dim=64, out_dim=32).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
-        train_pairs = build_week_pairs(train_snaps, config.neg_ratio, config.seed, horizon)
-        val_pairs = build_week_pairs(val_snaps, config.neg_ratio, config.seed, horizon) if val_snaps else []
-        test_pairs = build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon) if test_snaps else []
+        train_pairs = build_week_pairs(
+            train_snaps, config.neg_ratio, config.seed, horizon
+        )
+        val_pairs = (
+            build_week_pairs(val_snaps, config.neg_ratio, config.seed, horizon)
+            if val_snaps
+            else []
+        )
+        test_pairs = (
+            build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon)
+            if test_snaps
+            else []
+        )
 
-        print(f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}")
+        print(
+            f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}"
+        )
 
         # Train
         h1, h2 = None, None
         for epoch in range(config.epochs):
-            losses, h1, h2 = train_roland_epoch(model, train_pairs, optimizer, config, h1, h2)
+            losses, h1, h2 = train_roland_epoch(
+                model, train_pairs, optimizer, config, h1, h2
+            )
             if (epoch + 1) % 2 == 0:
                 val_preds, _, _ = predict_roland(model, val_pairs, config, h1, h2)
                 val_metrics = evaluate_predictions(val_preds)
-                print(f"  Epoch {epoch+1}: loss={losses['loss']:.4f}, val_auprc={val_metrics['exist']['auprc']:.4f}")
+                print(
+                    f"  Epoch {epoch + 1}: loss={losses['loss']:.4f}, val_auprc={val_metrics['exist']['auprc']:.4f}"
+                )
 
         # Test
         test_preds, _, _ = predict_roland(model, test_pairs, config, h1, h2)
@@ -1507,15 +1791,28 @@ def run_roland_experiment(
                 model_name,
                 horizon,
                 fold_id,
-                append=append_predictions
+                append=append_predictions,
             )
             append_predictions = True
             print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
 
+        # Save intermediate results after each horizon
+        if model_output_dir:
+            intermediate_result = {
+                "model": "ROLAND",
+                "results": results.copy(),
+                "config": {"epochs": config.epochs, "seed": config.seed},
+                "status": "partial" if horizon != config.forecast_horizons[-1] else "complete",
+            }
+            intermediate_path = model_output_dir / "metrics_intermediate.json"
+            with open(intermediate_path, "w") as f:
+                json.dump(intermediate_result, f, indent=2)
+            print(f"  Intermediate results saved to: {intermediate_path.name}")
+
     result = {
         "model": "ROLAND",
         "results": results,
-        "config": {"epochs": config.epochs, "seed": config.seed}
+        "config": {"epochs": config.epochs, "seed": config.seed},
     }
 
     if model_output_dir:
@@ -1527,9 +1824,9 @@ def run_roland_experiment(
 
 def run_network_statistics(config: ExperimentConfig):
     """Compute network-level statistics for all snapshots."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Computing Network Statistics")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
     network_data = load_network_data(config.data_path)
@@ -1538,15 +1835,21 @@ def run_network_statistics(config: ExperimentConfig):
     # Build snapshots
     snapshots = []
     for date in all_dates:
-        snap = build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
-        snapshots.append({
-            "date": date,
-            "edge_index": np.stack([snap["edge_src"], snap["edge_dst"]]) if len(snap["edge_src"]) > 0 else np.zeros((2, 0), dtype=np.int64),
-            "num_nodes": len(snap["node_ids"]),
-            "edge_weights": snap["edge_weight"],
-            "node_sizes": snap["sizes"],
-            "node_sectors": snap["categories"],
-        })
+        snap = build_snapshot(
+            date, network_data[date], meta_category, category_to_idx, category_list
+        )
+        snapshots.append(
+            {
+                "date": date,
+                "edge_index": np.stack([snap["edge_src"], snap["edge_dst"]])
+                if len(snap["edge_src"]) > 0
+                else np.zeros((2, 0), dtype=np.int64),
+                "num_nodes": len(snap["node_ids"]),
+                "edge_weights": snap["edge_weight"],
+                "node_sizes": snap["sizes"],
+                "node_sectors": snap["categories"],
+            }
+        )
 
     # Compute statistics
     all_stats = compute_rolling_statistics(snapshots, category_list)
@@ -1572,13 +1875,15 @@ def run_network_statistics(config: ExperimentConfig):
 
 # ============== Shock Analysis (Task II: Policy-relevant Scenario Analysis) ==============
 
+
 @dataclass
 class ShockEvent:
     """Represents a market shock event for analysis."""
+
     name: str
     event_date: str  # YYYY-MM-DD
     pre_window_start: str  # Start of pre-event window
-    post_window_end: str   # End of post-event window
+    post_window_end: str  # End of post-event window
     description: str = ""
 
 
@@ -1588,15 +1893,15 @@ SHOCK_EVENTS = [
         name="Terra/Luna Collapse",
         event_date="2022-05-09",
         pre_window_start="2022-04-25",  # 2 weeks before
-        post_window_end="2022-05-23",   # 2 weeks after
-        description="UST depeg and LUNA death spiral"
+        post_window_end="2022-05-23",  # 2 weeks after
+        description="UST depeg and LUNA death spiral",
     ),
     ShockEvent(
         name="FTX Collapse",
         event_date="2022-11-07",
         pre_window_start="2022-10-31",  # 1 week before
-        post_window_end="2022-11-21",   # 2 weeks after
-        description="FTX exchange collapse and contagion"
+        post_window_end="2022-11-21",  # 2 weeks after
+        description="FTX exchange collapse and contagion",
     ),
 ]
 
@@ -1618,9 +1923,7 @@ def find_nearest_date(target: str, dates: List[str]) -> Optional[str]:
 
 
 def analyze_shock_network_changes(
-    snapshots: List[Dict],
-    event: ShockEvent,
-    config: ExperimentConfig
+    snapshots: List[Dict], event: ShockEvent, config: ExperimentConfig
 ) -> Dict[str, Any]:
     """
     Analyze network structure changes around a shock event.
@@ -1652,14 +1955,22 @@ def analyze_shock_network_changes(
 
     # Split into periods
     pre_snapshots = snapshots[pre_start_idx:event_idx]
-    event_snapshots = snapshots[event_idx:event_idx+1]  # Event week only
-    post_snapshots = snapshots[event_idx+1:post_end_idx+1]
+    event_snapshots = snapshots[event_idx : event_idx + 1]  # Event week only
+    post_snapshots = snapshots[event_idx + 1 : post_end_idx + 1]
 
     results = {
         "event_name": event.name,
         "event_date": event_date,
-        "pre_window": {"start": pre_start_date, "end": event_date, "num_weeks": len(pre_snapshots)},
-        "post_window": {"start": event_date, "end": post_end_date, "num_weeks": len(post_snapshots)},
+        "pre_window": {
+            "start": pre_start_date,
+            "end": event_date,
+            "num_weeks": len(pre_snapshots),
+        },
+        "post_window": {
+            "start": event_date,
+            "end": post_end_date,
+            "num_weeks": len(post_snapshots),
+        },
     }
 
     # Compute statistics for each period
@@ -1669,7 +1980,11 @@ def analyze_shock_network_changes(
 
         all_stats = []
         for snap in snaps:
-            edge_index = np.stack([snap["edge_src"], snap["edge_dst"]]) if len(snap["edge_src"]) > 0 else np.zeros((2, 0), dtype=np.int64)
+            edge_index = (
+                np.stack([snap["edge_src"], snap["edge_dst"]])
+                if len(snap["edge_src"]) > 0
+                else np.zeros((2, 0), dtype=np.int64)
+            )
             stats = compute_all_network_statistics(
                 edge_index=edge_index,
                 num_nodes=len(snap["node_ids"]),
@@ -1702,7 +2017,9 @@ def analyze_shock_network_changes(
         # Edge count change
         pre_edges = np.mean([len(s["edge_src"]) for s in pre_snapshots])
         post_edges = np.mean([len(s["edge_src"]) for s in post_snapshots])
-        results["edge_count_change_pct"] = float((post_edges - pre_edges) / (pre_edges + EPS) * 100)
+        results["edge_count_change_pct"] = float(
+            (post_edges - pre_edges) / (pre_edges + EPS) * 100
+        )
 
         # Concentration change (Gini)
         pre_gini = np.mean([gini_coefficient(s["sizes"]) for s in pre_snapshots])
@@ -1710,8 +2027,12 @@ def analyze_shock_network_changes(
         results["gini_change"] = float(post_gini - pre_gini)
 
         # HHI change
-        pre_hhi = np.mean([herfindahl_hirschman_index(s["sizes"]) for s in pre_snapshots])
-        post_hhi = np.mean([herfindahl_hirschman_index(s["sizes"]) for s in post_snapshots])
+        pre_hhi = np.mean(
+            [herfindahl_hirschman_index(s["sizes"]) for s in pre_snapshots]
+        )
+        post_hhi = np.mean(
+            [herfindahl_hirschman_index(s["sizes"]) for s in post_snapshots]
+        )
         results["hhi_change"] = float(post_hhi - pre_hhi)
 
         print(f"    TVL change: {results['tvl_change_pct']:.2f}%")
@@ -1728,7 +2049,7 @@ def evaluate_model_during_shock(
     snapshots: List[Dict],
     event: ShockEvent,
     config: ExperimentConfig,
-    model_name: str = "Model"
+    model_name: str = "Model",
 ) -> Dict[str, Any]:
     """
     Evaluate model prediction performance during a shock event.
@@ -1795,13 +2116,19 @@ def evaluate_model_during_shock(
 
     # Compute performance degradation
     if "pre_auprc" in results and "event_auprc" in results:
-        results["auprc_degradation"] = float(results["pre_auprc"] - results["event_auprc"])
-        print(f"    AUPRC degradation during {event.name}: {results['auprc_degradation']:.4f}")
+        results["auprc_degradation"] = float(
+            results["pre_auprc"] - results["event_auprc"]
+        )
+        print(
+            f"    AUPRC degradation during {event.name}: {results['auprc_degradation']:.4f}"
+        )
 
     return results
 
 
-def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "graphpfn"):
+def run_shock_analysis(
+    config: ExperimentConfig, model=None, model_type: str = "graphpfn"
+):
     """
     Run complete shock analysis for all predefined events.
 
@@ -1810,9 +2137,9 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
         model: Optional pretrained model (if None, will train fresh)
         model_type: Type of model ("graphpfn" or "roland")
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Shock Analysis (Task II: Policy-relevant Scenario Analysis)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Load data
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
@@ -1821,7 +2148,9 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
 
     # Build snapshots
     snapshots = [
-        build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+        build_snapshot(
+            date, network_data[date], meta_category, category_to_idx, category_list
+        )
         for date in all_dates
     ]
 
@@ -1832,7 +2161,9 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
     for event in SHOCK_EVENTS:
         # Check if event is in our date range
         if event.event_date < all_dates[0] or event.event_date > all_dates[-1]:
-            print(f"\n  Skipping {event.name}: event date {event.event_date} outside data range")
+            print(
+                f"\n  Skipping {event.name}: event date {event.event_date} outside data range"
+            )
             continue
 
         results = analyze_shock_network_changes(snapshots, event, config)
@@ -1859,18 +2190,24 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
             # Load and setup model
             encoder = load_graphpfn_encoder(config.checkpoint_path, device)
             embed_dim = encoder.tfm.embed_dim
-            model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
+            model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(
+                device
+            )
 
             # Fine-tune on training data
             for p in model.encoder.parameters():
                 p.requires_grad = True
 
             optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-            train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
+            train_pairs = build_week_pairs(
+                train_snapshots, config.neg_ratio, config.seed, horizon=1
+            )
 
             print(f"  Training on {len(train_pairs)} pairs (before {first_event_date})")
             for epoch in range(config.epochs):
-                train_graphpfn_epoch(model, train_pairs, optimizer, config, finetune_encoder=True)
+                train_graphpfn_epoch(
+                    model, train_pairs, optimizer, config, finetune_encoder=True
+                )
 
             # Evaluate during each shock event
             for event in SHOCK_EVENTS:
@@ -1883,7 +2220,7 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
                     snapshots=snapshots,
                     event=event,
                     config=config,
-                    model_name="GraphPFN (Finetuned)"
+                    model_name="GraphPFN (Finetuned)",
                 )
                 model_performance_results[f"graphpfn_{event.name}"] = results
 
@@ -1894,18 +2231,25 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
 
         # Train model
         first_event_date = min(e.pre_window_start for e in SHOCK_EVENTS)
-        train_end_idx = next((i for i, d in enumerate(all_dates) if d >= first_event_date), len(all_dates)//2)
+        train_end_idx = next(
+            (i for i, d in enumerate(all_dates) if d >= first_event_date),
+            len(all_dates) // 2,
+        )
 
         if train_end_idx > 10:
             train_snapshots = snapshots[:train_end_idx]
 
             model = ROLANDBaseline(input_dim, hidden_dim=64, out_dim=32).to(device)
             optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-            train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
+            train_pairs = build_week_pairs(
+                train_snapshots, config.neg_ratio, config.seed, horizon=1
+            )
 
             h1, h2 = None, None
             for epoch in range(config.epochs):
-                _, h1, h2 = train_roland_epoch(model, train_pairs, optimizer, config, h1, h2)
+                _, h1, h2 = train_roland_epoch(
+                    model, train_pairs, optimizer, config, h1, h2
+                )
 
             # Evaluate during each shock event
             for event in SHOCK_EVENTS:
@@ -1922,7 +2266,7 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
                     snapshots=snapshots,
                     event=event,
                     config=config,
-                    model_name="ROLAND"
+                    model_name="ROLAND",
                 )
                 model_performance_results[f"roland_{event.name}"] = results
 
@@ -1930,14 +2274,20 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
     all_results = {
         "network_changes": network_change_results,
         "model_performance": model_performance_results,
-        "events_analyzed": [e.name for e in SHOCK_EVENTS if e.event_date >= all_dates[0] and e.event_date <= all_dates[-1]],
+        "events_analyzed": [
+            e.name
+            for e in SHOCK_EVENTS
+            if e.event_date >= all_dates[0] and e.event_date <= all_dates[-1]
+        ],
     }
 
     # Print summary table
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("SHOCK ANALYSIS SUMMARY")
-    print(f"{'='*80}")
-    print(f"{'Event':<25} {'TVL Change':<15} {'Edge Change':<15} {'Gini Δ':<12} {'HHI Δ':<12}")
+    print(f"{'=' * 80}")
+    print(
+        f"{'Event':<25} {'TVL Change':<15} {'Edge Change':<15} {'Gini Δ':<12} {'HHI Δ':<12}"
+    )
     print("-" * 80)
 
     for event_name, results in network_change_results.items():
@@ -1946,10 +2296,14 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
             edge_chg = f"{results.get('edge_count_change_pct', 0):.1f}%"
             gini_chg = f"{results.get('gini_change', 0):.4f}"
             hhi_chg = f"{results.get('hhi_change', 0):.4f}"
-            print(f"{event_name:<25} {tvl_chg:<15} {edge_chg:<15} {gini_chg:<12} {hhi_chg:<12}")
+            print(
+                f"{event_name:<25} {tvl_chg:<15} {edge_chg:<15} {gini_chg:<12} {hhi_chg:<12}"
+            )
 
     if model_performance_results:
-        print(f"\n{'Model + Event':<35} {'Pre AUPRC':<12} {'Event AUPRC':<12} {'Degradation':<12}")
+        print(
+            f"\n{'Model + Event':<35} {'Pre AUPRC':<12} {'Event AUPRC':<12} {'Degradation':<12}"
+        )
         print("-" * 80)
         for key, results in model_performance_results.items():
             if "error" not in results:
@@ -1963,11 +2317,12 @@ def run_shock_analysis(config: ExperimentConfig, model=None, model_type: str = "
 
 # ============== Task III: Imputation ==============
 
+
 def evaluate_imputation_pairs(
     pairs: List[WeekPair],
     preds: List[Dict[str, Any]],
     mask_ratio: float,
-    rng: np.random.Generator
+    rng: np.random.Generator,
 ) -> Dict[str, float]:
     """Evaluate imputation performance on masked positives and nodes."""
     edge_recall = []
@@ -2034,7 +2389,7 @@ def run_imputation_experiment(
     config: ExperimentConfig,
     mask_ratios: List[float] = None,
     snapshots: Optional[List[Dict]] = None,
-    date_splits: Optional[Dict[str, List[str]]] = None
+    date_splits: Optional[Dict[str, List[str]]] = None,
 ):
     """
     Run Task III: Imputation experiment.
@@ -2047,9 +2402,9 @@ def run_imputation_experiment(
         snapshots: Optional pre-built snapshots
         date_splits: Optional train/test split (uses holdout if provided)
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Task III: Imputation Experiment")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if not GRAPHPFN_AVAILABLE:
         print("GraphPFN not available, skipping imputation experiment...")
@@ -2068,7 +2423,9 @@ def run_imputation_experiment(
         network_data = load_network_data(config.data_path)
         all_dates = sorted(network_data.keys())
         snapshots = [
-            build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+            build_snapshot(
+                date, network_data[date], meta_category, category_to_idx, category_list
+            )
             for date in all_dates
         ]
     else:
@@ -2080,7 +2437,9 @@ def run_imputation_experiment(
     print(f"Loaded {len(snapshots)} snapshots")
 
     date_to_snap = {s["date"]: s for s in snapshots}
-    train_snapshots = [date_to_snap[d] for d in date_splits["train"] if d in date_to_snap]
+    train_snapshots = [
+        date_to_snap[d] for d in date_splits["train"] if d in date_to_snap
+    ]
     test_snapshots = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
     # Load and train model
@@ -2092,13 +2451,19 @@ def run_imputation_experiment(
         p.requires_grad = True
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-    train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
+    train_pairs = build_week_pairs(
+        train_snapshots, config.neg_ratio, config.seed, horizon=1
+    )
 
     print(f"Training on {len(train_pairs)} pairs...")
     for epoch in range(config.epochs):
-        train_graphpfn_epoch(model, train_pairs, optimizer, config, finetune_encoder=True)
+        train_graphpfn_epoch(
+            model, train_pairs, optimizer, config, finetune_encoder=True
+        )
 
-    test_pairs = build_week_pairs(test_snapshots, config.neg_ratio, config.seed, horizon=1)
+    test_pairs = build_week_pairs(
+        test_snapshots, config.neg_ratio, config.seed, horizon=1
+    )
     if not test_pairs:
         print("No test pairs available for imputation evaluation.")
         return None
@@ -2108,19 +2473,27 @@ def run_imputation_experiment(
     results_by_ratio = {}
 
     for mask_ratio in mask_ratios:
-        print(f"\n--- Mask ratio: {mask_ratio*100:.0f}% ---")
+        print(f"\n--- Mask ratio: {mask_ratio * 100:.0f}% ---")
 
         ratio_results = {"mask_ratio": mask_ratio}
-        ratio_results.update(evaluate_imputation_pairs(test_pairs, preds, mask_ratio, rng))
-        results_by_ratio[f"ratio_{int(mask_ratio*100)}"] = ratio_results
+        ratio_results.update(
+            evaluate_imputation_pairs(test_pairs, preds, mask_ratio, rng)
+        )
+        results_by_ratio[f"ratio_{int(mask_ratio * 100)}"] = ratio_results
 
-        print(f"  Edge exist recall: {ratio_results.get('edge_exist_recall_mean', float('nan')):.4f}")
-        print(f"  Edge weight MAE: {ratio_results.get('edge_weight_mae_mean', float('nan')):.4f}")
-        print(f"  Node size MAE: {ratio_results.get('node_size_mae_mean', float('nan')):.4f}")
+        print(
+            f"  Edge exist recall: {ratio_results.get('edge_exist_recall_mean', float('nan')):.4f}"
+        )
+        print(
+            f"  Edge weight MAE: {ratio_results.get('edge_weight_mae_mean', float('nan')):.4f}"
+        )
+        print(
+            f"  Node size MAE: {ratio_results.get('node_size_mae_mean', float('nan')):.4f}"
+        )
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("IMPUTATION RESULTS SUMMARY")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"{'Mask %':<12} {'Edge Recall':<15} {'Edge MAE':<15} {'Node MAE':<15}")
     print("-" * 60)
 
@@ -2129,7 +2502,9 @@ def run_imputation_experiment(
         edge_recall = results.get("edge_exist_recall_mean", float("nan"))
         edge_mae = results.get("edge_weight_mae_mean", float("nan"))
         node_mae = results.get("node_size_mae_mean", float("nan"))
-        print(f"{ratio:<12.0f} {edge_recall:<15.4f} {edge_mae:<15.4f} {node_mae:<15.4f}")
+        print(
+            f"{ratio:<12.0f} {edge_recall:<15.4f} {edge_mae:<15.4f} {node_mae:<15.4f}"
+        )
 
     return {
         "model": "GraphPFN (Finetuned)",
@@ -2138,34 +2513,77 @@ def run_imputation_experiment(
         "num_test_snapshots": len(test_snapshots),
     }
 
+
 # ============== Main ==============
+
 
 def main():
     parser = argparse.ArgumentParser(description="DeXposure-FM Full Experiment Suite")
-    parser.add_argument("--mode", type=str, default="all",
-                       choices=["all", "frozen", "finetuned", "roland", "stats", "shock", "impute", "compare"],
-                       help="Experiment mode: all, frozen, finetuned, roland, stats, shock, impute, compare")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="all",
+        choices=[
+            "all",
+            "frozen",
+            "finetuned",
+            "roland",
+            "stats",
+            "shock",
+            "impute",
+            "compare",
+        ],
+        help="Experiment mode: all, frozen, finetuned, roland, stats, shock, impute, compare",
+    )
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--shock-model", type=str, default="graphpfn",
-                       choices=["graphpfn", "roland"],
-                       help="Model type for shock analysis")
+    parser.add_argument(
+        "--shock-model",
+        type=str,
+        default="graphpfn",
+        choices=["graphpfn", "roland"],
+        help="Model type for shock analysis",
+    )
     # Temporal split arguments (金融惯例: Expanding Window Walk-Forward)
-    parser.add_argument("--holdout-start", type=str, default="2025-01-01",
-                       help="Hold-out test set start date (YYYY-MM-DD)")
-    parser.add_argument("--min-train-weeks", type=int, default=104,
-                       help="Minimum training weeks (default: 104 = 2 years)")
-    parser.add_argument("--val-weeks", type=int, default=12,
-                       help="Validation window size in weeks (default: 12)")
-    parser.add_argument("--test-weeks", type=int, default=8,
-                       help="Test window size per fold in weeks (default: 8)")
-    parser.add_argument("--step-weeks", type=int, default=8,
-                       help="Step size for expanding window folds in weeks (default: 8)")
-    parser.add_argument("--rolling", action="store_true",
-                       help="Run expanding window walk-forward evaluation (slower but more robust)")
-    parser.add_argument("--save-predictions", action="store_true",
-                       help="Save predictions to CSV files")
+    parser.add_argument(
+        "--holdout-start",
+        type=str,
+        default="2025-01-01",
+        help="Hold-out test set start date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--min-train-weeks",
+        type=int,
+        default=104,
+        help="Minimum training weeks (default: 104 = 2 years)",
+    )
+    parser.add_argument(
+        "--val-weeks",
+        type=int,
+        default=12,
+        help="Validation window size in weeks (default: 12)",
+    )
+    parser.add_argument(
+        "--test-weeks",
+        type=int,
+        default=8,
+        help="Test window size per fold in weeks (default: 8)",
+    )
+    parser.add_argument(
+        "--step-weeks",
+        type=int,
+        default=8,
+        help="Step size for expanding window folds in weeks (default: 8)",
+    )
+    parser.add_argument(
+        "--rolling",
+        action="store_true",
+        help="Run expanding window walk-forward evaluation (slower but more robust)",
+    )
+    parser.add_argument(
+        "--save-predictions", action="store_true", help="Save predictions to CSV files"
+    )
     args = parser.parse_args()
 
     config = ExperimentConfig()
@@ -2189,7 +2607,9 @@ def main():
     # Build all snapshots
     print("Building snapshots...")
     all_snapshots = [
-        build_snapshot(date, network_data[date], meta_category, category_to_idx, category_list)
+        build_snapshot(
+            date, network_data[date], meta_category, category_to_idx, category_list
+        )
         for date in all_dates
     ]
 
@@ -2203,27 +2623,47 @@ def main():
         step_weeks=args.step_weeks,
     )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("EXPANDING WINDOW WALK-FORWARD SPLIT (金融惯例)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Rolling Folds: {split_result['n_folds']}")
-    print(f"  Min Train: {args.min_train_weeks} weeks | Val: {args.val_weeks} weeks | Test: {args.test_weeks} weeks")
+    print(
+        f"  Min Train: {args.min_train_weeks} weeks | Val: {args.val_weeks} weeks | Test: {args.test_weeks} weeks"
+    )
     print(f"  Step Size: {args.step_weeks} weeks")
-    if split_result['folds']:
-        print(f"\n  Fold 1:  Train {split_result['folds'][0]['train'][0]} ~ {split_result['folds'][0]['train'][-1]} ({len(split_result['folds'][0]['train'])}w)")
-        print(f"           Val   {split_result['folds'][0]['val'][0]} ~ {split_result['folds'][0]['val'][-1]} ({len(split_result['folds'][0]['val'])}w)")
-        print(f"           Test  {split_result['folds'][0]['test'][0]} ~ {split_result['folds'][0]['test'][-1]} ({len(split_result['folds'][0]['test'])}w)")
-        if len(split_result['folds']) > 1:
-            last = split_result['folds'][-1]
-            print(f"  Fold {last['fold_id']}: Train ... ~ {last['train'][-1]} ({len(last['train'])}w)")
-            print(f"           Val   {last['val'][0]} ~ {last['val'][-1]} ({len(last['val'])}w)")
-            print(f"           Test  {last['test'][0]} ~ {last['test'][-1]} ({len(last['test'])}w)")
+    if split_result["folds"]:
+        print(
+            f"\n  Fold 1:  Train {split_result['folds'][0]['train'][0]} ~ {split_result['folds'][0]['train'][-1]} ({len(split_result['folds'][0]['train'])}w)"
+        )
+        print(
+            f"           Val   {split_result['folds'][0]['val'][0]} ~ {split_result['folds'][0]['val'][-1]} ({len(split_result['folds'][0]['val'])}w)"
+        )
+        print(
+            f"           Test  {split_result['folds'][0]['test'][0]} ~ {split_result['folds'][0]['test'][-1]} ({len(split_result['folds'][0]['test'])}w)"
+        )
+        if len(split_result["folds"]) > 1:
+            last = split_result["folds"][-1]
+            print(
+                f"  Fold {last['fold_id']}: Train ... ~ {last['train'][-1]} ({len(last['train'])}w)"
+            )
+            print(
+                f"           Val   {last['val'][0]} ~ {last['val'][-1]} ({len(last['val'])}w)"
+            )
+            print(
+                f"           Test  {last['test'][0]} ~ {last['test'][-1]} ({len(last['test'])}w)"
+            )
 
-    holdout = split_result['holdout']
+    holdout = split_result["holdout"]
     print(f"\n  Hold-out (Final Evaluation):")
-    print(f"    Train: {holdout['train'][0] if holdout['train'] else 'N/A'} ~ {holdout['train'][-1] if holdout['train'] else 'N/A'} ({len(holdout['train'])} weeks)")
-    print(f"    Val:   {holdout['val'][0] if holdout['val'] else 'N/A'} ~ {holdout['val'][-1] if holdout['val'] else 'N/A'} ({len(holdout['val'])} weeks)")
-    print(f"    Test:  {holdout['test'][0] if holdout['test'] else 'N/A'} ~ {holdout['test'][-1] if holdout['test'] else 'N/A'} ({len(holdout['test'])} weeks)")
+    print(
+        f"    Train: {holdout['train'][0] if holdout['train'] else 'N/A'} ~ {holdout['train'][-1] if holdout['train'] else 'N/A'} ({len(holdout['train'])} weeks)"
+    )
+    print(
+        f"    Val:   {holdout['val'][0] if holdout['val'] else 'N/A'} ~ {holdout['val'][-1] if holdout['val'] else 'N/A'} ({len(holdout['val'])} weeks)"
+    )
+    print(
+        f"    Test:  {holdout['test'][0] if holdout['test'] else 'N/A'} ~ {holdout['test'][-1] if holdout['test'] else 'N/A'} ({len(holdout['test'])} weeks)"
+    )
     print(f"    ⚠️  Hold-out test data is NEVER seen during training!")
 
     # 使用 holdout split 作为默认 (用于快速实验)
@@ -2270,9 +2710,15 @@ def main():
                 "train_weeks": len(date_splits["train"]),
                 "val_weeks": len(date_splits["val"]),
                 "test_weeks": len(date_splits["test"]),
-                "train_range": f"{date_splits['train'][0]} ~ {date_splits['train'][-1]}" if date_splits['train'] else "N/A",
-                "val_range": f"{date_splits['val'][0]} ~ {date_splits['val'][-1]}" if date_splits['val'] else "N/A",
-                "test_range": f"{date_splits['test'][0]} ~ {date_splits['test'][-1]}" if date_splits['test'] else "N/A",
+                "train_range": f"{date_splits['train'][0]} ~ {date_splits['train'][-1]}"
+                if date_splits["train"]
+                else "N/A",
+                "val_range": f"{date_splits['val'][0]} ~ {date_splits['val'][-1]}"
+                if date_splits["val"]
+                else "N/A",
+                "test_range": f"{date_splits['test'][0]} ~ {date_splits['test'][-1]}"
+                if date_splits["test"]
+                else "N/A",
             },
             "config": split_result["config"],
         },
@@ -2290,7 +2736,7 @@ def main():
             val_snaps=val_snaps,
             test_snaps=test_snaps,
             save_predictions=args.save_predictions,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
         if result:
             all_results["graphpfn_frozen"] = result
@@ -2303,7 +2749,7 @@ def main():
             val_snaps=val_snaps,
             test_snaps=test_snaps,
             save_predictions=args.save_predictions,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
         if result:
             all_results["graphpfn_finetuned"] = result
@@ -2315,7 +2761,7 @@ def main():
             val_snaps=val_snaps,
             test_snaps=test_snaps,
             save_predictions=args.save_predictions,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
         all_results["roland"] = result
 
@@ -2328,7 +2774,9 @@ def main():
         all_results["shock_analysis"] = result
 
     if args.mode in ["all", "impute"]:
-        result = run_imputation_experiment(config, snapshots=all_snapshots, date_splits=date_splits)
+        result = run_imputation_experiment(
+            config, snapshots=all_snapshots, date_splits=date_splits
+        )
         if result:
             all_results["imputation"] = result
 
@@ -2338,18 +2786,35 @@ def main():
 
     # Print comparison table
     if args.mode in ["all", "compare"]:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("COMPARISON TABLE - Multi-step Forecasting Results")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"{'Model':<30} {'h=1 AUPRC':<15} {'h=3 AUPRC':<15} {'h=7 AUPRC':<15}")
         print("-" * 80)
 
         for name, result in all_results.items():
             if "results" in result:
-                h1 = result["results"].get("h1", {}).get("exist", {}).get("auprc", float("nan"))
-                h3 = result["results"].get("h3", {}).get("exist", {}).get("auprc", float("nan"))
-                h7 = result["results"].get("h7", {}).get("exist", {}).get("auprc", float("nan"))
-                print(f"{result.get('model', name):<30} {h1:<15.4f} {h3:<15.4f} {h7:<15.4f}")
+                h1 = (
+                    result["results"]
+                    .get("h1", {})
+                    .get("exist", {})
+                    .get("auprc", float("nan"))
+                )
+                h3 = (
+                    result["results"]
+                    .get("h3", {})
+                    .get("exist", {})
+                    .get("auprc", float("nan"))
+                )
+                h7 = (
+                    result["results"]
+                    .get("h7", {})
+                    .get("exist", {})
+                    .get("auprc", float("nan"))
+                )
+                print(
+                    f"{result.get('model', name):<30} {h1:<15.4f} {h3:<15.4f} {h7:<15.4f}"
+                )
 
     print(f"\nResults saved to: {output_dir / 'experiment_results.json'}")
     print(f"\nExperiment completed. Available modes:")
