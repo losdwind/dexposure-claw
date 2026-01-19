@@ -1,0 +1,147 @@
+% DeXposure-FM architecture section (drop-in LaTeX).
+% Requires in the preamble:
+% \usepackage{tikz}
+% \usetikzlibrary{arrows.meta,positioning,fit}
+%
+% This section aligns notation with FormalisingCreditExposures-clean.tex:
+% exposure definition: Eq.~\eqref{eq:credit-exposure-definition}
+% node weight: Eq.~\eqref{eq:node-weight}
+% value flow: Eq.~\eqref{eq:value-flow}
+% edge weight: Eq.~\eqref{eq:edge-weight}
+
+\subsection{DeXposure-FM Architecture}
+\label{sec:dexposure-fm-architecture}
+
+% DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, 
+% which internally fuses graph structure and tabular node features. The model is designed to support 
+% three downstream objectives: (1) multi-step forecasting of edge weights and network statistics; 
+% (2) policy-relevant shock analysis on historical stress events; and (3) imputation of missing edges.
+
+\subsubsection{Inputs and notation (aligned with the DeXposure construction)}
+Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
+For each interval $\tau$ we construct a weighted directed graph snapshot
+\begin{equation}
+G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau}),
+\end{equation}
+where $\mathcal{P}_{\tau}$ is the set of protocols and $\mathcal{E}_{\tau}$ is the set of directed exposure links.
+Node weights are given by $w_{\tau}(p)$ (the protocol's end-of-interval stock) as in Eq.~\eqref{eq:node-weight}, and edge weights are given by $w_{\tau}(e_{pq})$ (the change in credit exposure from $p$ to issuing protocol $q$ over $\tau$) as in Eq.~\eqref{eq:edge-weight}, where token-level value flows $F^{\sigma}_{pq,\tau}$ are defined by Eq.~\eqref{eq:value-flow}. Credit exposure exists when $X_p(t)\cap X_G(q)\neq\varnothing$ (Eq.~\eqref{eq:credit-exposure-definition}).
+
+For each protocol $p$ we form the following inputs:
+\begin{itemize}
+  \item \textbf{Graph snapshot:} $G_{\tau}$ with node features including $w_{\tau}(p)$ and edge features including $w_{\tau}(e_{pq})$ (and optional attributes such as token class or sector pair).
+  \item \textbf{Tabular node features:} $\mathbf{x}^{\mathrm{tab}}_{p}$ contains protocol descriptors including:
+  \begin{itemize}
+    \item Log-scaled TVL: $\log(1 + w_{\tau}(p))$
+    \item Number of token types held
+    \item Maximum token share (concentration measure)
+    \item Token composition entropy
+    \item Protocol category (one-hot encoded, $\sim$15 classes)
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{Tri-modal encoders with shared latent space}
+We parameterize DeXposure-FM with three pre-trained encoders (one per modality) and lightweight adapters that map each modality to a shared $d$-dimensional representation:
+\begin{align}
+\mathbf{h}^{\mathrm{tab}}_{p} &= E_{\mathrm{tab}}(\mathbf{x}^{\mathrm{tab}}_{p}),\\
+\mathbf{h}^{\mathrm{ts}}_{p,\tau} &= E_{\mathrm{ts}}(\mathbf{x}^{\mathrm{ts}}_{p,\tau-L+1:\tau}),\\
+\tilde{\mathbf{h}}^{\mathrm{tab}}_{p} &= A_{\mathrm{tab}}(\mathbf{h}^{\mathrm{tab}}_{p}),\qquad
+\tilde{\mathbf{h}}^{\mathrm{ts}}_{p,\tau} = A_{\mathrm{ts}}(\mathbf{h}^{\mathrm{ts}}_{p,\tau}).
+\end{align}
+Adapters $A_{\mathrm{tab}}$ and $A_{\mathrm{ts}}$ (e.g., LayerNorm $\rightarrow$ bottleneck MLP) enable parameter-efficient fine-tuning while keeping the backbone encoders fixed or LoRA-tuned.
+
+\paragraph{Gated fusion.}
+Because the informational content of time-series and tabular features varies across protocols and regimes, we fuse modality embeddings using a learned, elementwise gate:
+\begin{align}
+\mathbf{g}_{p,\tau} &= \sigma\!\left(W_g [\tilde{\mathbf{h}}^{\mathrm{tab}}_{p}; \tilde{\mathbf{h}}^{\mathrm{ts}}_{p,\tau}] + \mathbf{b}_g\right)\in(0,1)^d,\\
+\mathbf{z}^{(0)}_{p,\tau} &= \mathbf{g}_{p,\tau}\odot \tilde{\mathbf{h}}^{\mathrm{ts}}_{p,\tau} + (1-\mathbf{g}_{p,\tau})\odot \tilde{\mathbf{h}}^{\mathrm{tab}}_{p}.
+\end{align}
+$\mathbf{z}^{(0)}_{p,\tau}$ serves as the initial node embedding for the graph encoder.
+
+\subsubsection{Graph encoder and spatiotemporal core}
+Given $(G_{\tau},\{\mathbf{z}^{(0)}_{p,\tau}\})$, a pre-trained graph encoder (e.g., graph Transformer backbones \cite{Ying2021Graphormer,eremeev2025g2tfm}) contextualizes each protocol within the contemporaneous exposure network:
+\begin{equation}
+\{\mathbf{z}_{p,\tau}\}_{p\in\mathcal{P}_{\tau}} = E_{\mathrm{graph}}\!\left(G_{\tau}, \{\mathbf{z}^{(0)}_{p,\tau}\}_{p\in\mathcal{P}_{\tau}}\right).
+\end{equation}
+We then model dynamics over a rolling window of graph snapshots using a temporal core (e.g., a temporal Transformer) applied node-wise:
+\begin{equation}
+\mathbf{s}_{p,\tau} = E_{\mathrm{temp}}\!\left([\mathbf{z}_{p,\tau-L+1},\ldots,\mathbf{z}_{p,\tau}]\right).
+\end{equation}
+The states $\mathbf{s}_{p,\tau}$ summarize a protocol’s recent temporal evolution \emph{and} its network context.
+
+\subsubsection{Decoders and task heads}
+\paragraph{(1) Multi-step forecasting.}
+For horizon $h\in\{1,\ldots,H\}$ we predict future node weights $\widehat{w}_{\tau+h}(p)$ and edge weights $\widehat{w}_{\tau+h}(e_{pq})$.
+To scale edge prediction to large graphs, we use a low-rank bilinear decoder with nonnegativity:
+\begin{align}
+\mathbf{u}_{p,\tau+h} &= W_u\,\mathbf{s}_{p,\tau+h},\qquad \mathbf{v}_{q,\tau+h}=W_v\,\mathbf{s}_{q,\tau+h},\\
+\widehat{w}_{\tau+h}(e_{pq}) &= \operatorname{softplus}\!\left(\mathbf{u}_{p,\tau+h}^\top \mathbf{v}_{q,\tau+h}\right).
+\end{align}
+Network-level statistics (concentration, density, sector connectivity) are obtained either (i) by applying deterministic functionals to the predicted graph $\widehat{G}_{\tau+h}$, or (ii) via an auxiliary pooled head $H_{\mathrm{net}}(\cdot)$ on a global embedding $\mathbf{g}_{\tau}=\mathrm{Pool}(\{\mathbf{s}_{p,\tau}\})$.
+
+\paragraph{(2) Scenario-conditioned stress paths.}
+We represent a stress scenario as a structured shock vector $\mathbf{c}$ (e.g., stablecoin de-peg magnitude, collateral repricing, exchange outage indicator). A scenario encoder $E_{\mathrm{scen}}$ produces a context embedding that modulates the temporal core via FiLM:
+\begin{equation}
+\mathbf{s}'_{p,\tau} = \gamma(\mathbf{c})\odot \mathbf{s}_{p,\tau} + \beta(\mathbf{c}),
+\end{equation}
+and we decode a shock-consistent path $\{\widehat{G}_{\tau+1},\ldots,\widehat{G}_{\tau+H}\}$.
+We additionally regularize outputs to respect economic constraints (e.g., nonnegativity of flows and bounded changes in exposure) to improve scenario plausibility.
+
+\paragraph{(3) Imputation and denoising.}
+We train DeXposure-FM with masked-modality objectives: randomly mask entries in $\mathbf{x}^{\mathrm{ts}}$ and in edge weights $w_{\tau}(e_{pq})$, and reconstruct them from the remaining modalities and network context. We report both reconstruction quality (TVL-weighted errors) and downstream gains in forecasting and link prediction.
+
+\begin{comment}
+    
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  scale=0.88, transform shape,
+  box/.style={draw, rounded corners, align=center, minimum width=3.0cm, minimum height=0.9cm},
+  sbox/.style={draw, rounded corners, align=center, minimum width=2.75cm, minimum height=0.82cm},
+  arrow/.style={-Latex, thick},
+  node distance=0.5cm and 0.85cm
+]
+  % Inputs
+  \node[box] (tabin) {Tabular metadata\\ $\mathbf{x}^{\mathrm{tab}}_{p}$};
+  \node[box, below=of tabin] (tsin) {Time-series window\\ $\mathbf{x}^{\mathrm{ts}}_{p,\tau-L+1:\tau}$};
+  \node[box, below=of tsin] (graphin) {Exposure graph snapshot\\ $G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau})$\\ Node: $w_{\tau}(p)$, Edge: $w_{\tau}(e_{pq})$};
+
+  % Encoders
+  \node[sbox, right=of tabin] (etab) {Pre-trained\\tabular encoder\\ $E_{\mathrm{tab}}$};
+  \node[sbox, right=of tsin] (ets) {Pre-trained\\time-series encoder\\ $E_{\mathrm{ts}}$};
+  \node[sbox, right=of graphin] (egraph) {Pre-trained\\graph encoder\\ $E_{\mathrm{graph}}$};
+
+  % Fusion
+  \node[sbox, right=1.3cm of ets] (fusion) {Adapters +\\gated fusion\\ $\mathbf{z}^{(0)}_{p,\tau}$};
+
+  % Temporal core
+  \node[sbox, right=1.2cm of fusion] (temp) {Temporal core\\ $E_{\mathrm{temp}}$\\ $\mathbf{s}_{p,\tau}$};
+
+  % Heads
+  \node[sbox, right=1.2cm of temp] (forecast) {Forecasting head\\ $\widehat{w}_{\tau+h}(e_{pq}),\,\widehat{w}_{\tau+h}(p)$};
+  \node[sbox, above=0.55cm of forecast] (scenario) {Scenario conditioning\\ $E_{\mathrm{scen}}(\mathbf{c})$};
+  \node[sbox, below=0.55cm of forecast] (impute) {Imputation/denoising\\ masked reconstruction};
+
+  % Arrows
+  \draw[arrow] (tabin) -- (etab);
+  \draw[arrow] (tsin) -- (ets);
+  \draw[arrow] (graphin) -- (egraph);
+
+  \draw[arrow] (etab.east) -- ++(0.55,0) |- (fusion.west);
+  \draw[arrow] (ets.east) -- (fusion.west);
+
+  \draw[arrow] (fusion) -- (temp);
+  \draw[arrow] (temp) -- (forecast);
+
+  \draw[arrow] (scenario) -- (forecast);
+  \draw[arrow] (impute) -- (forecast);
+
+  % Grouping boxes (optional)
+  \node[draw, dashed, rounded corners, fit=(tabin)(tsin)(graphin), inner sep=6pt, label={[align=center]above:Inputs}] {};
+  \node[draw, dashed, rounded corners, fit=(etab)(ets)(egraph), inner sep=6pt, label={[align=center]above:Pre-trained encoders}] {};
+\end{tikzpicture}
+\caption{DeXposure-FM architecture aligned with the DeXposure exposure-graph construction. The model fuses protocol metadata and protocol-level time series into node embeddings, contextualizes them with the exposure graph snapshot $G_{\tau}$ (node weights $w_{\tau}(p)$ and edge weights $w_{\tau}(e_{pq})$), then models dynamics over rolling windows to support multi-step forecasting, scenario-conditioned stress testing, and imputation/denoising.}
+\label{fig:dexposure-fm-architecture}
+\end{figure}
+
+\end{comment}
