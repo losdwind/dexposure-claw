@@ -1,28 +1,50 @@
 # DeXposure-FM 实验指南
 
-> 最后更新: 2026-01-16
+> 最后更新: 2026-01-19
 
 ## 项目目标
 
 为 NBER "AI and Economic Measurement" 会议准备论文实验，验证 GraphPFN 在 DeFi 协议间信用暴露预测任务上的表现。
 
+### 导师反馈摘要 (2026-01-19)
+
+| 类别 | 反馈 | 状态 |
+|------|------|------|
+| 架构 | GraphPFN 单编码器方案 | ✅ 认可 |
+| 训练 | 需实现 7个损失分量 | 🔴 待实现 |
+| 训练 | 需实现 TVL 经济加权 | 🔴 待实现 |
+| 实验 | 保留 h ∈ {1,3,7,14} 窗口 | 🔴 h=14 待补 |
+
 ### 论文核心评估任务
 
 | 任务 | 描述 | 状态 |
 |------|------|------|
-| Task I | Multi-step Forecasting (h=1,3,7) | ✅ 已实现 |
+| Task I | Multi-step Forecasting (h=1,3,7,14) | ⏳ 缺 h=14 |
 | Task II | Shock Analysis (Terra/FTX) | ✅ 已实现 |
 | Task III | Imputation (缺失值填补) | ✅ 已实现 |
+| Ablation | 损失分量消融 (7个) | 🔴 待实现 |
+| Ablation | TVL 加权消融 | 🔴 待实现 |
+| Ablation | 编码器消融 (GraphPFN vs GNN) | ⏳ 待补充 |
 
 ---
 
-## 🔧 代码优化 (已完成)
+## 🔧 代码优化
 
+### 已完成
 | 优先级 | 任务 | 说明 | 状态 |
 |--------|------|------|------|
 | 高 | 分层学习率 | GraphPFN encoder 用低 lr (1e-4)，task heads 用高 lr (1e-3) | ✅ 已实现 |
 | 低 | 中间结果保存 | 每个horizon完成后保存metrics_intermediate.json | ✅ 已实现 |
 | 低 | ROLAND GRU修复 | 修复不同节点数图之间的hidden state传递bug | ✅ 已实现 |
+
+### 待实现 (导师要求)
+| 优先级 | 任务 | 说明 | 状态 |
+|--------|------|------|------|
+| 🔴 高 | 7个损失分量 | L_edge, L_link, L_node, L_stats, L_impute, L_scen, L_smooth | ⬜ 待实现 |
+| 🔴 高 | TVL 经济加权 | $w_{ij} \propto TVL_i \cdot E_{ij}$ | ⬜ 待实现 |
+| 🔴 高 | h=14 预测窗口 | 添加两周预测实验 | ⬜ 待运行 |
+| 🟡 中 | 编码器消融 | GraphPFN vs GCN/GAT/SAGE | ⬜ 待实现 |
+| 🟡 中 | Naive Baseline | 用上周边直接预测 | ⬜ 待实现 |
 | 低 | 渐进解冻 | 先 frozen 训练几个 epoch，再 finetune | ⬜ 待实现 |
 | 低 | 使用 AdamW | 替换 Adam，添加 weight decay | ⬜ 待实现 |
 
@@ -287,6 +309,7 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 | h=1 | 0.9322 | 0.9855 | 2.6217 | 6.10 | 4.33e-05 |
 | h=3 | 0.9344 | 0.9860 | 2.6645 | 5.97 | 4.63e-05 |
 | h=7 | 0.9361 | 0.9861 | 2.6441 | 6.24 | 5.37e-05 |
+| h=14 | ⏳ 待运行 | ⏳ | ⏳ | ⏳ | ⏳ |
 
 **分层学习率配置:**
 - Encoder (预训练): LR = 1e-4 (0.1x)
@@ -334,9 +357,19 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 
 ### 📋 待运行实验
 
-1. **Shock Analysis**: Terra/FTX 事件分析
-2. **Imputation**: 缺失值填补实验
-3. **统计显著性测试**: 多种子运行 (seeds: 42, 123, 456, 789, 2024)
+**🔴 高优先级 (导师要求):**
+1. **h=14 预测窗口**: 补充两周预测实验
+2. **7个损失分量**: 实现并消融验证
+3. **TVL 经济加权**: 实现并消融验证
+
+**🟡 中优先级:**
+4. **编码器消融**: GraphPFN vs GCN/GAT/SAGE
+5. **Naive Baseline**: 验证模型优于简单启发式
+6. **Shock Analysis**: Terra/FTX 事件分析
+7. **Imputation**: 缺失值填补实验
+
+**低优先级:**
+8. **统计显著性测试**: 多种子运行 (seeds: 42, 123, 456, 789, 2024)
 
 ---
 

@@ -140,6 +140,9 @@ cython_debug/
 
 # <<< GITHUB DEFAULT PYTHON .GIGIGNORE
 
+# Output large files (predictions CSV files)
+output/**/predictions_*.csv
+
 # macOS
 .DS_Store
 

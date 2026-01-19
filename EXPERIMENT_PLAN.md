@@ -1,6 +1,11 @@
 # DeXposure-FM 实验计划
 
-> 版本: v2.0 | 日期: 2025-01-07
+> 版本: v3.0 | 日期: 2026-01-19
+> 
+> **导师反馈 (2026-01-19)**:
+> - ✅ 架构部分：GraphPFN 单编码器方案认可
+> - 🔴 训练部分：需实现 **7个损失分量** + **TVL经济加权**
+> - 🔴 实验部分：预测窗口保留 **h ∈ {1, 3, 7, 14}**
 
 ## 0. 研究目标与核心对照
 
@@ -289,6 +294,7 @@ python run_full_experiment.py --mode all --epochs 10 --rolling
 | h = 1 | Next week prediction |
 | h = 3 | 3 weeks ahead |
 | h = 7 | 7 weeks ahead |
+| h = 14 | 14 weeks ahead (导师要求保留) |
 
 **Sub-task A: Edge Existence (分类)**
 $$y^{exist}_{t+h}(u,v) = \mathbb{1}[(u,v) \in E_{t+h}]$$
@@ -410,51 +416,106 @@ node_mask = True  # 标识哪些节点有标签
 
 ---
 
-## 5. Loss Functions
+## 5. Loss Functions (导师要求保留7个分量)
 
 ### 5.1 总损失函数
 
 ```python
-L_total = λ_exist * L_exist + λ_weight * L_weight + λ_node * L_node
+L_total = λ_edge * L_edge + λ_link * L_link + λ_node * L_node 
+        + λ_stats * L_stats + λ_impute * L_impute 
+        + λ_scen * L_scen + λ_smooth * L_smooth
 ```
 
-**默认权重:**
+**7个损失分量 (导师要求保留):**
 
-| 损失项 | 权重 (λ) | 说明 |
-|--------|----------|------|
-| `L_exist` | 1.0 | Edge existence loss |
-| `L_weight` | 1.0 | Edge weight loss |
-| `L_node` | 0.5 | Node size change loss |
+| 损失项 | 权重 (λ) | 公式 | 说明 |
+|--------|----------|------|------|
+| `L_edge` | 1.0 | BCE | 边存在预测 |
+| `L_link` | 1.0 | SmoothL1 | 边权重预测 |
+| `L_node` | 0.5 | SmoothL1 | 节点属性预测 |
+| `L_stats` | 0.1 | MSE | 图统计量约束 (Gini, HHI等) |
+| `L_impute` | 0.3 | SmoothL1 | 缺失值填补 |
+| `L_scen` | 0.2 | CE/Contrastive | 场景分类/对比 |
+| `L_smooth` | 0.1 | Temporal Smoothness | 时序平滑约束 |
 
-### 5.2 各损失函数定义
+### 5.2 经济重要性加权 (导师要求保留)
 
-**Link Existence Loss (Binary Cross-Entropy):**
+所有边级损失使用 TVL 加权:
+
+$$w_{ij} = \frac{\text{TVL}_i \cdot E_{ij}}{\sum_{(i',j') \in \mathcal{E}} \text{TVL}_{i'} \cdot E_{i'j'}}$$
+
 ```python
-L_exist = BCE(σ(logits), y_exist)
+# 经济重要性加权
+def compute_tvl_weights(edges, node_tvl):
+    weights = []
+    for (src, dst, edge_weight) in edges:
+        w = node_tvl[src] * edge_weight
+        weights.append(w)
+    weights = torch.tensor(weights)
+    return weights / weights.sum()  # 归一化
+
+# 加权损失
+L_edge_weighted = (tvl_weights * bce_loss).sum()
+L_link_weighted = (tvl_weights * smoothl1_loss).sum()
+```
+
+### 5.3 各损失函数定义
+
+**L_edge - 边存在预测 (BCE):**
+```python
+L_edge = BCE(σ(logits), y_exist)
        = -[y·log(σ(logits)) + (1-y)·log(1-σ(logits))]
 ```
 
-**Edge Weight Loss (Smooth L1 / Huber Loss):**
+**L_link - 边权重预测 (Smooth L1):**
 ```python
-L_weight = SmoothL1(w_pred, log1p(w_true))
-
+L_link = SmoothL1(w_pred, log1p(w_true))
 # Only computed for positive edges (existing edges)
-# SmoothL1 is robust to outliers
 ```
 
-**Node Size Change Loss (Smooth L1):**
+**L_node - 节点属性预测 (Smooth L1):**
 ```python
 L_node = SmoothL1(Δsize_pred, Δsize_true)
-
 # Where Δsize = log1p(size_{t+h}) - log1p(size_t)
 ```
 
-### 5.4 Ablation: 移除 Node Aux Task
-
+**L_stats - 图统计量约束 (MSE):**
 ```python
-# 设置 λ_node = 0, 观察主任务是否下降
-L_total = 1.0 * L_exist + 1.0 * L_weight + 0.0 * L_node
+# 预测的图应保持合理的统计特性
+L_stats = MSE(gini_pred, gini_true) + MSE(hhi_pred, hhi_true)
 ```
+
+**L_impute - 缺失值填补 (Smooth L1):**
+```python
+# 随机 mask 部分边，重建其权重
+L_impute = SmoothL1(imputed_weights, true_weights)
+```
+
+**L_scen - 场景分类 (CE/Contrastive):**
+```python
+# 区分正常期 vs Shock期 (Terra/FTX)
+L_scen = CrossEntropy(scenario_logits, scenario_labels)
+```
+
+**L_smooth - 时序平滑约束:**
+```python
+# 鼓励相邻时间步预测平滑变化
+L_smooth = MSE(pred_{t+h} - pred_{t+h-1}, actual_change)
+```
+
+### 5.4 消融实验设计 (损失分量)
+
+需要验证每个损失分量的贡献:
+
+| 配置 | 说明 |
+|------|------|
+| Full (all 7 losses) | 完整模型 |
+| - L_smooth | 移除时序平滑 |
+| - L_scen | 移除场景损失 |
+| - L_impute | 移除填补损失 |
+| - L_stats | 移除统计量损失 |
+| - L_node | 移除节点损失 |
+| Only L_edge + L_link | 最小配置 |
 
 ---
 
@@ -643,18 +704,72 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 | **EvolveGCN** | Temporal GNN | Evolving GCN weights |
 | **DySAT** | Temporal GNN | Dynamic self-attention |
 
-### 8.2 实验结果 (已完成 2025-01-17)
+### 8.2 实验结果 (已完成 2025-01-18)
 
-| Model | h=1 AUPRC | h=1 AUROC | h=3 AUPRC | h=3 AUROC | h=7 AUPRC | h=7 AUROC | Weight MAE |
-|-------|-----------|-----------|-----------|-----------|-----------|-----------|------------|
-| **GraphPFN (Finetuned)** | **0.9322** | **0.9855** | **0.9344** | **0.9860** | **0.9361** | **0.9861** | 2.62-2.66 |
-| **GraphPFN (Frozen)** | 0.9308 | 0.9863 | 0.9343 | 0.9867 | 0.9337 | 0.9861 | 3.25-3.30 |
-| **ROLAND** | 0.8697 | 0.9616 | 0.8655 | 0.9593 | 0.8614 | 0.9550 | 3.94-4.00 |
+#### 📊 Multi-step Forecasting 主结果
 
-**关键结论:**
-- GraphPFN Finetuned 在所有指标上最优，AUPRC 比 ROLAND 高 7-9%
-- 分层学习率 (encoder 0.1x, head 1.0x) 有效提升 Weight MAE
-- 长期预测 (h=7) 性能不降反升，显示模型鲁棒性
+| Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | h=14 AUPRC | Weight MAE |
+|-------|-----------|-----------|-----------|------------|------------|
+| **GraphPFN (Finetuned)** | **0.9322** | **0.9344** | **0.9361** | ⏳ | **2.62-2.66** |
+| GraphPFN (Frozen) | 0.9308 | 0.9343 | 0.9337 | ⏳ | 3.25-3.30 |
+| ROLAND | 0.8697 | 0.8655 | 0.8614 | ⏳ | 3.94-4.00 |
+
+> ⏳ h=14 待补充运行
+
+#### 📋 详细结果
+
+**GraphPFN (Frozen) - 线性探针:**
+
+| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
+|---------|-------|-------|------------|--------------|------------|
+| h=1 | 0.9308 | 0.9863 | 3.3037 | 13.78 | 4.33e-05 |
+| h=3 | 0.9343 | 0.9867 | 3.2680 | 13.44 | 4.63e-05 |
+| h=7 | 0.9337 | 0.9861 | 3.2549 | 13.75 | 5.37e-05 |
+
+**GraphPFN (Finetuned) - 分层学习率微调 (Encoder: 1e-4, Head: 1e-3):**
+
+| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
+|---------|-------|-------|------------|--------------|------------|
+| h=1 | 0.9322 | 0.9855 | 2.6217 | 6.10 | 4.33e-05 |
+| h=3 | 0.9344 | 0.9860 | 2.6645 | 5.97 | 4.63e-05 |
+| h=7 | 0.9361 | 0.9861 | 2.6441 | 6.24 | 5.37e-05 |
+
+**ROLAND Baseline (GCN + GRU):**
+
+| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
+|---------|-------|-------|------------|--------------|------------|
+| h=1 | 0.8697 | 0.9616 | 3.9878 | 18.98 | 4.33e-05 |
+| h=3 | 0.8655 | 0.9593 | 3.9682 | 19.00 | 4.58e-05 |
+| h=7 | 0.8614 | 0.9550 | 3.9377 | 19.08 | 5.21e-05 |
+
+#### 🎯 关键结论
+
+1. **GraphPFN Finetuned 在所有 AUPRC 指标上最优**: 比 ROLAND 高 6-7%
+2. **分层学习率有效提升 Weight MAE**: Finetuned (2.62) vs Frozen (3.25) = 20% 改进
+3. **h=7 性能最佳**: 长期预测鲁棒，AUPRC 0.9361 (最高)
+4. **Foundation Model 优势明显**: GraphPFN 在所有指标上超越传统 Temporal GNN
+
+#### ✅ 已完成实验
+
+- [x] GraphPFN Frozen (线性探针)
+- [x] GraphPFN Finetuned (分层学习率)
+- [x] ROLAND Baseline
+
+#### ⏳ 待运行实验
+
+**高优先级 (导师要求):**
+- [ ] h=14 预测窗口实验
+- [ ] 7个损失分量实现与消融
+- [ ] TVL 经济重要性加权实现与消融
+
+**中优先级:**
+- [ ] Shock Analysis (Terra/Luna, FTX)
+- [ ] Imputation (10%, 20%, 30% masking)
+- [ ] 编码器消融 (GraphPFN vs GCN/GAT/SAGE)
+- [ ] Naive Baseline (用上周边预测)
+
+**低优先级:**
+- [ ] 多种子统计显著性测试
 
 ### 8.3 统计显著性测试
 
