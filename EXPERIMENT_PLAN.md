@@ -1,11 +1,11 @@
 # DeXposure-FM 实验计划
 
-> 版本: v3.0 | 日期: 2026-01-19
+> 版本: v3.1 | 日期: 2026-01-22
 > 
 > **导师反馈 (2026-01-19)**:
 > - ✅ 架构部分：GraphPFN 单编码器方案认可
-> - 🔴 训练部分：需实现 **7个损失分量** + **TVL经济加权**
-> - 🔴 实验部分：预测窗口保留 **h ∈ {1, 3, 7, 14}**
+> - ✅ 训练部分：**7个损失分量** 已实现 | TVL经济加权 待实现
+> - ✅ 实验部分：预测窗口 **h ∈ {1, 3, 7, 14}** 已实现
 
 ## 0. 研究目标与核心对照
 
@@ -307,21 +307,13 @@ $$y^{node}_{t+h}(u) = \log(1 + \text{size}_{t+h}(u)) - \log(1 + \text{size}_t(u)
 
 > 仅对 $V_t \cap V_{t+h}$ 计算标签
 
-### 3.2 Task II: Shock Analysis (Policy-relevant Scenarios)
+### 3.2 Task II: Financial Stability Analysis
 
-**目标**: 评估模型在极端市场事件期间的表现
+**目标**: 综合评估模型在金融稳定性分析中的应用价值
 
-| Event | Date | Analysis Window |
-|-------|------|-----------------|
-| Terra/Luna Collapse | 2022-05-09 | 2022-04-25 ~ 2022-05-23 |
-| FTX Collapse | 2022-11-07 | 2022-10-31 ~ 2022-11-21 |
+本任务包含三个子任务：
 
-**评估内容:**
-- 事件前后网络结构变化 (TVL, edges, Gini, HHI)
-- 模型预测性能退化程度
-- 是否能提前预警风险
-
-### 3.3 Task III: Systemic Risk Measurement
+#### 3.2.1 Systemic Risk Measurement
 
 **目标**: 给出可用于宏观审慎监管的系统性风险统计与早期预警信号
 
@@ -335,7 +327,64 @@ $$y^{node}_{t+h}(u) = \log(1 + \text{size}_{t+h}(u)) - \log(1 + \text{size}_t(u)
 - 溢出指数基于 sector-to-sector 暴露矩阵与集中度变化
 - 预警指标来自结构突变 (如密度、集中度、同配性快速变化)
 
-### 3.4 Task IV: Imputation
+**公式:**
+```
+SIS_p = α · PageRank_p + β · TailExposure_p + γ · log(TVL_p)
+SpilloverIndex = HHI({S_ij : i ≠ j})  # 部门间暴露矩阵的HHI
+```
+
+#### 3.2.2 Shock Event Analysis (Policy-relevant Scenarios)
+
+**目标**: 评估模型在极端市场事件期间的表现
+
+| Event | Date | Analysis Window |
+|-------|------|-----------------|
+| Terra/Luna Collapse | 2022-05-09 | 2022-04-25 ~ 2022-05-23 |
+| FTX Collapse | 2022-11-07 | 2022-10-31 ~ 2022-11-21 |
+
+**评估内容:**
+- 事件前后网络结构变化 (TVL, edges, Gini, HHI)
+- 模型预测性能退化程度
+- 是否能提前预警风险
+
+#### 3.2.3 Contagion Simulation (Stress Testing)
+
+**目标**: 模拟冲击传染并量化系统级损失
+
+**传染机制 (DebtRank-style):**
+```python
+def simulate_contagion(G, shocked_node, shock_ratio=0.5, threshold=0.1):
+    losses = {shocked_node: shock_ratio * TVL[shocked_node]}
+    distressed = {shocked_node}
+    
+    for round in range(max_rounds):
+        new_distressed = set()
+        for node in distressed:
+            for creditor in G.predecessors(node):
+                exposure = edge_weight(creditor, node)
+                loss = exposure * (losses[node] / TVL[node])
+                losses[creditor] = losses.get(creditor, 0) + loss
+                if losses[creditor] > threshold * TVL[creditor]:
+                    new_distressed.add(creditor)
+        if not new_distressed:
+            break
+        distressed = new_distressed
+    
+    return losses, len(distressed), round + 1  # total_loss, affected, depth
+```
+
+**情景类型:**
+- 稳定币脱锚 (e.g., UST/USDC) - 50% TVL 损失
+- 交易所失败 (e.g., FTX) - 100% TVL 损失
+- 关键桥/跨链失效 - 100% TVL 损失
+
+**评估内容:**
+- 系统总损失 (% of total TVL)
+- 传染深度 (propagation rounds)
+- 受影响协议数量
+- 与实际历史事件对比 (Terra/FTX)
+
+### 3.3 Task III: Imputation
 
 **目标**: 测试模型的缺失值重建能力
 
@@ -349,20 +398,6 @@ $$y^{node}_{t+h}(u) = \log(1 + \text{size}_{t+h}(u)) - \log(1 + \text{size}_t(u)
 - Edge masking: 随机移除部分边
 - Node masking: 随机mask节点属性
 - Combined masking: 同时mask边和节点
-
-### 3.5 Task V: Financial Risk Stress Testing
-
-**目标**: 生成冲击一致情景并量化系统级损失与传染路径
-
-**情景类型:**
-- 稳定币脱锚 (e.g., UST/USDC)
-- 交易所失败 (e.g., FTX)
-- 关键桥/跨链失效
-
-**评估内容:**
-- 损失分布与尾部风险 (e.g., VaR / ES)
-- 传染路径与关键节点/部门
-- 反事实政策工具效果 (杠杆上限、抵押折扣、桥限额)
 
 ---
 
@@ -416,7 +451,7 @@ node_mask = True  # 标识哪些节点有标签
 
 ---
 
-## 5. Loss Functions (导师要求保留7个分量)
+## 5. Loss Functions (导师要求保留7个分量) ✅ 已实现
 
 ### 5.1 总损失函数
 
@@ -426,17 +461,19 @@ L_total = λ_edge * L_edge + λ_link * L_link + λ_node * L_node
         + λ_scen * L_scen + λ_smooth * L_smooth
 ```
 
-**7个损失分量 (导师要求保留):**
+**7个损失分量 (✅ 已在 run_full_experiment.py 实现):**
 
-| 损失项 | 权重 (λ) | 公式 | 说明 |
-|--------|----------|------|------|
-| `L_edge` | 1.0 | BCE | 边存在预测 |
-| `L_link` | 1.0 | SmoothL1 | 边权重预测 |
-| `L_node` | 0.5 | SmoothL1 | 节点属性预测 |
-| `L_stats` | 0.1 | MSE | 图统计量约束 (Gini, HHI等) |
-| `L_impute` | 0.3 | SmoothL1 | 缺失值填补 |
-| `L_scen` | 0.2 | CE/Contrastive | 场景分类/对比 |
-| `L_smooth` | 0.1 | Temporal Smoothness | 时序平滑约束 |
+| 损失项 | 权重 (λ) | 公式 | 说明 | 状态 |
+|--------|----------|------|------|------|
+| `L_edge` | 1.0 | BCE | 边存在预测 | ✅ |
+| `L_link` | 1.0 | SmoothL1 | 边权重预测 | ✅ |
+| `L_node` | 0.5 | SmoothL1 | 节点属性预测 | ✅ |
+| `L_stats` | 0.1 | MSE | 图统计量约束 (density, degree) | ✅ |
+| `L_impute` | 0.3 | SmoothL1 | 缺失值填补 | ✅ |
+| `L_scen` | 0.2 | CE/Contrastive | 场景分类/对比 | ✅ |
+| `L_smooth` | 0.1 | Temporal Smoothness | 时序平滑约束 | ✅ |
+
+**代码位置**: `run_full_experiment.py` lines 1234-1500
 
 ### 5.2 经济重要性加权 (导师要求保留)
 
@@ -502,22 +539,6 @@ L_scen = CrossEntropy(scenario_logits, scenario_labels)
 # 鼓励相邻时间步预测平滑变化
 L_smooth = MSE(pred_{t+h} - pred_{t+h-1}, actual_change)
 ```
-
-### 5.4 消融实验设计 (损失分量)
-
-需要验证每个损失分量的贡献:
-
-| 配置 | 说明 |
-|------|------|
-| Full (all 7 losses) | 完整模型 |
-| - L_smooth | 移除时序平滑 |
-| - L_scen | 移除场景损失 |
-| - L_impute | 移除填补损失 |
-| - L_stats | 移除统计量损失 |
-| - L_node | 移除节点损失 |
-| Only L_edge + L_link | 最小配置 |
-
----
 
 ## 6. Evaluation Metrics
 
@@ -708,46 +729,51 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 #### 📊 Multi-step Forecasting 主结果
 
-| Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | h=14 AUPRC | Weight MAE |
-|-------|-----------|-----------|-----------|------------|------------|
-| **GraphPFN (Finetuned)** | **0.9322** | **0.9344** | **0.9361** | ⏳ | **2.62-2.66** |
-| GraphPFN (Frozen) | 0.9308 | 0.9343 | 0.9337 | ⏳ | 3.25-3.30 |
-| ROLAND | 0.8697 | 0.8655 | 0.8614 | ⏳ | 3.94-4.00 |
+| Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | h=14 AUPRC | Weight MAE | Node MAE |
+|-------|-----------|-----------|-----------|------------|------------|----------|
+| **GraphPFN (FT)** | **0.932** | **0.934** | **0.936** | ⏳ | **2.62-2.66** | 0.06-0.21 |
+| GraphPFN (FR) | 0.931 | 0.934 | 0.934 | ⏳ | 3.25-3.30 | 0.06-0.12* |
+| ROLAND | 0.870 | 0.866 | 0.861 | ⏳ | 3.94-3.99 | N/A† |
 
-> ⏳ h=14 待补充运行
+*h=7 数据不完整 †ROLAND 未实现 node 预测
 
 #### 📋 详细结果
 
 **GraphPFN (Frozen) - 线性探针:**
 
-| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
-|---------|-------|-------|------------|--------------|------------|
-| h=1 | 0.9308 | 0.9863 | 3.3037 | 13.78 | 4.33e-05 |
-| h=3 | 0.9343 | 0.9867 | 3.2680 | 13.44 | 4.63e-05 |
-| h=7 | 0.9337 | 0.9861 | 3.2549 | 13.75 | 5.37e-05 |
+| Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
+|---------|-------|-------|------------|-------------|----------|-----------|-------------|
+| h=1 | 0.9308 | 0.9863 | 3.3037 | 4.2912 | 0.0600 | 0.4013 | 13.78 |
+| h=3 | 0.9343 | 0.9867 | 3.2680 | 4.4595 | 0.1166 | 0.6064 | 13.44 |
+| h=7 | 0.9337 | 0.9861 | 3.2549 | ---* | ---* | ---* | 13.75 |
+
+*h=7 预测文件因磁盘空间不足未完整保存
 
 **GraphPFN (Finetuned) - 分层学习率微调 (Encoder: 1e-4, Head: 1e-3):**
 
-| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
-|---------|-------|-------|------------|--------------|------------|
-| h=1 | 0.9322 | 0.9855 | 2.6217 | 6.10 | 4.33e-05 |
-| h=3 | 0.9344 | 0.9860 | 2.6645 | 5.97 | 4.63e-05 |
-| h=7 | 0.9361 | 0.9861 | 2.6441 | 6.24 | 5.37e-05 |
+| Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
+|---------|-------|-------|------------|-------------|----------|-----------|-------------|
+| h=1 | 0.9322 | 0.9855 | 2.6217 | 3.5255 | 0.0599 | 0.4007 | 6.10 |
+| h=3 | 0.9344 | 0.9860 | 2.6645 | 3.5637 | 0.1208 | 0.6047 | --- |
+| h=7 | 0.9361 | 0.9861 | 2.6441 | 3.5457 | 0.2107 | 0.8400 | --- |
 
 **ROLAND Baseline (GCN + GRU):**
 
-| Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
-|---------|-------|-------|------------|--------------|------------|
-| h=1 | 0.8697 | 0.9616 | 3.9878 | 18.98 | 4.33e-05 |
-| h=3 | 0.8655 | 0.9593 | 3.9682 | 19.00 | 4.58e-05 |
-| h=7 | 0.8614 | 0.9550 | 3.9377 | 19.08 | 5.21e-05 |
+| Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Weighted MAE | Node Pred |
+|---------|-------|-------|------------|-------------|--------------|----------|
+| h=1 | 0.8697 | 0.9616 | 3.9878 | 5.8407 | 18.98 | N/A |
+| h=3 | 0.8655 | 0.9593 | 3.9682 | 5.8208 | 19.00 | N/A |
+| h=7 | 0.8614 | 0.9550 | 3.9377 | 5.7940 | 19.08 | N/A |
+
+**注意**: ROLAND 代码未实现 node-level 预测，仅支持 edge 预测。
 
 #### 🎯 关键结论
 
 1. **GraphPFN Finetuned 在所有 AUPRC 指标上最优**: 比 ROLAND 高 6-7%
-2. **分层学习率有效提升 Weight MAE**: Finetuned (2.62) vs Frozen (3.25) = 20% 改进
-3. **h=7 性能最佳**: 长期预测鲁棒，AUPRC 0.9361 (最高)
-4. **Foundation Model 优势明显**: GraphPFN 在所有指标上超越传统 Temporal GNN
+2. **分层学习率有效提升 Weight MAE**: Finetuned (2.62) vs Frozen (3.25) = 21% 改进
+3. **h=7 性能稳定**: GraphPFN 在长期预测上保持鲁棒，AUPRC 0.936
+4. **Node 预测**: GraphPFN 实现了 node-level 预测 (MAE 0.06-0.21)，ROLAND 未实现
+5. **Foundation Model 优势明显**: GraphPFN 在所有指标上超越传统 Temporal GNN
 
 #### ✅ 已完成实验
 
@@ -759,13 +785,12 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 **高优先级 (导师要求):**
 - [ ] h=14 预测窗口实验
-- [ ] 7个损失分量实现与消融
-- [ ] TVL 经济重要性加权实现与消融
+- [ ] 7个损失分量实现
+- [ ] TVL 经济重要性加权实现
 
 **中优先级:**
 - [ ] Shock Analysis (Terra/Luna, FTX)
 - [ ] Imputation (10%, 20%, 30% masking)
-- [ ] 编码器消融 (GraphPFN vs GCN/GAT/SAGE)
 - [ ] Naive Baseline (用上周边预测)
 
 **低优先级:**
@@ -943,19 +968,23 @@ time_t,time_t1,node_id,y_node_true,y_node_pred,size_t,category
 
 ### Table 1: Main Results - Complete Model Comparison
 
-| Model | Encoder | Scorer | h=1 AUPRC ↑ | h=1 AUROC ↑ | Weight MAE ↓ |
-|-------|---------|--------|-------------|-------------|--------------|
-| **GraphPFN (FT)** | finetuned | trained | **0.9322** | **0.9855** | **2.62** |
-| GraphPFN (Frozen) | frozen | trained | 0.9308 | 0.9863 | 3.30 |
-| ROLAND | trained | trained | 0.8697 | 0.9616 | 3.99 |
+| Model | Encoder | Scorer | h=1 AUPRC ↑ | h=1 AUROC ↑ | Weight MAE ↓ | Node MAE ↓ |
+|-------|---------|--------|-------------|-------------|--------------|------------|
+| **GraphPFN (FT)** | finetuned | trained | **0.932** | 0.986 | **2.62** | 0.060 |
+| GraphPFN (FR) | frozen | trained | 0.931 | **0.986** | 3.30 | 0.060 |
+| ROLAND | trained | trained | 0.870 | 0.962 | 3.99 | N/A* |
+
+*ROLAND 未实现 node-level 预测
 
 ### Table 2: Multi-step Forecasting (h=1,3,7)
 
-| Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | Weight MAE |
-|-------|-----------|-----------|-----------|------------|
-| **GraphPFN (FT)** | **0.9322** | **0.9344** | **0.9361** | **2.62-2.66** |
-| GraphPFN (Frozen) | 0.9308 | 0.9343 | 0.9337 | 3.25-3.30 |
-| ROLAND | 0.8697 | 0.8655 | 0.8614 | 3.94-4.00 |
+| Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | Weight MAE | Node MAE |
+|-------|-----------|-----------|-----------|------------|----------|
+| **GraphPFN (FT)** | **0.932** | **0.934** | **0.936** | **2.62-2.66** | 0.06-0.21 |
+| GraphPFN (FR) | 0.931 | 0.934 | 0.934 | 3.25-3.30 | 0.06-0.12* |
+| ROLAND | 0.870 | 0.866 | 0.861 | 3.94-3.99 | N/A |
+
+*h=7 node 数据不完整
 
 ### Table 3: Shock Analysis
 

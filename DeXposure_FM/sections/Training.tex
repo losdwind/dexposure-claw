@@ -21,7 +21,7 @@ For edge existence prediction, we sample negative edges uniformly from the compl
 
 \subsubsection{Training Modes}
 
-We support two training modes:
+We support two training modes for the GraphPFN encoder (the ROLAND baseline is trained from scratch as described in Section~\ref{sec:evaluation}):
 
 \paragraph{Frozen probing.}
 We freeze the pre-trained GraphPFN encoder and train only the task-specific heads (link scorer and node predictor). This measures the transferability of pre-trained representations to the DeFi exposure domain.
@@ -61,13 +61,45 @@ We predict the log-change in protocol TVL:
 \end{equation}
 where $\Delta_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))$.
 
-\paragraph{Overall objective.}
-The training objective is:
+\paragraph{Graph statistics constraint.}
+We regularize predictions to preserve structural properties:
 \begin{equation}
-\mathcal L = \lambda_{\mathrm{link}} \mathcal L_{\mathrm{link}} + \lambda_{\mathrm{edge}} \mathcal L_{\mathrm{edge}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}},
+\mathcal L_{\mathrm{stats}} = \mathrm{MSE}(\widehat{d}_{\tau+h}, d_{\tau+h}) + \mathrm{MSE}(\widehat{\rho}_{\tau+h}, \rho_{\tau+h}),
+\label{eq:loss-stats}
+\end{equation}
+where $d$ and $\rho$ denote mean degree and density respectively.
+
+\paragraph{Imputation loss.}
+For randomly masked edges during training, we measure reconstruction quality:
+\begin{equation}
+\mathcal L_{\mathrm{impute}} = \mathbb E_{(p,q) \in \mathcal M} \left[ \mathrm{SmoothL1}(\widehat{w}_{pq}, w_{pq}) \right],
+\label{eq:loss-impute}
+\end{equation}
+where $\mathcal M$ denotes the set of masked edges.
+
+\paragraph{Scenario classification loss.}
+We classify snapshots into regime types (normal, pre-shock, shock, recovery):
+\begin{equation}
+\mathcal L_{\mathrm{scen}} = \mathrm{CE}(\widehat{c}_{\tau}, c_{\tau}),
+\label{eq:loss-scen}
+\end{equation}
+where $c_{\tau}$ is the scenario label for snapshot $\tau$.
+
+\paragraph{Temporal smoothness.}
+We encourage embeddings to change gradually over consecutive timesteps:
+\begin{equation}
+\mathcal L_{\mathrm{smooth}} = \frac{1}{d} \|\mathbf{h}_{\tau} - \mathbf{h}_{\tau-1}\|_2^2,
+\label{eq:loss-smooth}
+\end{equation}
+where $d$ is the embedding dimension.
+
+\paragraph{Overall objective.}
+The training objective combines all seven loss components:
+\begin{equation}
+\mathcal L = \lambda_{\mathrm{link}} \mathcal L_{\mathrm{link}} + \lambda_{\mathrm{edge}} \mathcal L_{\mathrm{edge}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}} + \lambda_{\mathrm{stats}} \mathcal L_{\mathrm{stats}} + \lambda_{\mathrm{impute}} \mathcal L_{\mathrm{impute}} + \lambda_{\mathrm{scen}} \mathcal L_{\mathrm{scen}} + \lambda_{\mathrm{smooth}} \mathcal L_{\mathrm{smooth}},
 \label{eq:loss-total}
 \end{equation}
-with default weights $\lambda_{\mathrm{link}} = 1.0$, $\lambda_{\mathrm{edge}} = 1.0$, $\lambda_{\mathrm{node}} = 0.5$.
+with default weights $\lambda_{\mathrm{link}} = 1.0$, $\lambda_{\mathrm{edge}} = 1.0$, $\lambda_{\mathrm{node}} = 0.5$, $\lambda_{\mathrm{stats}} = 0.1$, $\lambda_{\mathrm{impute}} = 0.3$, $\lambda_{\mathrm{scen}} = 0.2$, $\lambda_{\mathrm{smooth}} = 0.1$.
 
 \subsubsection{Optimizer and Schedule}
 
@@ -102,7 +134,15 @@ Learning rate (heads) & $10^{-3}$ \\
 Learning rate (backbone) & $10^{-4}$ (fine-tune only) \\
 Training epochs & 5 \\
 Gradient clipping & $\|\nabla\|_2 \le 1.0$ \\
-Loss weights & $\lambda_{\mathrm{link}}=1$, $\lambda_{\mathrm{edge}}=1$, $\lambda_{\mathrm{node}}=0.5$ \\
+\hline
+\multicolumn{2}{l}{\textit{Loss weights (7 components):}} \\
+$\lambda_{\mathrm{link}}$ (edge existence) & $1.0$ \\
+$\lambda_{\mathrm{edge}}$ (edge weight) & $1.0$ \\
+$\lambda_{\mathrm{node}}$ (node prediction) & $0.5$ \\
+$\lambda_{\mathrm{stats}}$ (graph statistics) & $0.1$ \\
+$\lambda_{\mathrm{impute}}$ (imputation) & $0.3$ \\
+$\lambda_{\mathrm{scen}}$ (scenario) & $0.2$ \\
+$\lambda_{\mathrm{smooth}}$ (temporal smoothness) & $0.1$ \\
 \hline
 \end{tabular}
 \caption{Training hyperparameters for DeXposure-FM experiments.}

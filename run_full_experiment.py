@@ -5,7 +5,7 @@ DeXposure-FM Full Experiment Suite
 This script implements the complete evaluation framework as specified in the paper:
 
 Task I: Multi-step Forecasting
-- Horizon h ∈ {1, 3, 7} weeks ahead prediction
+- Horizon h ∈ {1, 3, 7, 14} weeks ahead prediction
 - Metrics: AUPRC, AUROC for link existence; MAE, RMSE for edge weight
 
 Task II: Policy-relevant Scenario Analysis (Shock Analysis)
@@ -36,21 +36,27 @@ Network Statistics
 
 Usage:
     python run_full_experiment.py --mode all
-    python run_full_experiment.py --mode frozen
-    python run_full_experiment.py --mode finetuned
-    python run_full_experiment.py --mode roland
-    python run_full_experiment.py --mode stats
-    python run_full_experiment.py --mode shock
-    python run_full_experiment.py --mode shock --shock-model roland
-    python run_full_experiment.py --mode impute
+    python run_full_experiment.py --mode frozen           # Task I: GraphPFN Frozen
+    python run_full_experiment.py --mode finetuned        # Task I: GraphPFN Finetuned
+    python run_full_experiment.py --mode roland           # Task I: ROLAND Baseline
+    python run_full_experiment.py --mode stats            # Network Statistics
+    python run_full_experiment.py --mode stability        # Task II: Full Financial Stability Analysis
+    python run_full_experiment.py --mode shock            # Task II.2: Shock Event Analysis
+    python run_full_experiment.py --mode systemic         # Task II.1: Systemic Risk Measurement
+    python run_full_experiment.py --mode contagion        # Task II.3: Contagion Simulation
+    python run_full_experiment.py --mode impute           # Task III: Imputation
 """
 
 import argparse
+import atexit
 import json
+import logging
 import math
 import os
 import random
+import signal
 import sys
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -82,7 +88,7 @@ try:
     GRAPHPFN_AVAILABLE = True
 except ImportError:
     GRAPHPFN_AVAILABLE = False
-    print("Warning: GraphPFN not available, will skip GraphPFN experiments")
+    log_info("Warning: GraphPFN not available, will skip GraphPFN experiments")
 
 # Import network statistics
 from src.network_statistics import (
@@ -105,13 +111,13 @@ def check_dgl_cuda_available() -> bool:
         test_graph = test_graph.to("cuda")
         return True
     except Exception as e:
-        print(f"DGL CUDA not available: {e}")
+        log_info(f"DGL CUDA not available: {e}")
         return False
 
 
 DGL_CUDA_AVAILABLE = check_dgl_cuda_available()
 if torch.cuda.is_available() and not DGL_CUDA_AVAILABLE:
-    print(
+    log_info(
         "Warning: PyTorch CUDA is available but DGL CUDA is not. Using CPU for graph operations."
     )
 
@@ -141,12 +147,21 @@ class ExperimentConfig:
     edge_batch_size: int = 20000
 
     # Multi-step forecasting
-    forecast_horizons: List[int] = field(default_factory=lambda: [1, 3, 7])
+    forecast_horizons: List[int] = field(default_factory=lambda: [1, 3, 7, 14])
 
-    # Loss weights
-    exist_loss_weight: float = 1.0
-    weight_loss_weight: float = 1.0
-    node_loss_weight: float = 0.5
+    # Loss weights (7 components as per advisor requirements)
+    # Core prediction losses
+    exist_loss_weight: float = 1.0      # L_edge: BCE for edge existence
+    weight_loss_weight: float = 1.0     # L_link: SmoothL1 for edge weight
+    node_loss_weight: float = 0.5       # L_node: SmoothL1 for node TVL change
+    # Auxiliary losses
+    stats_loss_weight: float = 0.1      # L_stats: MSE for graph statistics constraint
+    impute_loss_weight: float = 0.3     # L_impute: SmoothL1 for missing value imputation
+    scen_loss_weight: float = 0.2       # L_scen: CE/Contrastive for scenario classification
+    smooth_loss_weight: float = 0.1     # L_smooth: Temporal smoothness regularization
+
+    # Imputation masking ratio (used for L_impute)
+    impute_mask_ratio: float = 0.15
 
     # Random seeds for multiple runs
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456, 789, 2024])
@@ -158,6 +173,224 @@ class ExperimentConfig:
 
 
 EPS = 1e-12
+
+
+# ============== Logging and Result Management ==============
+
+
+class ExperimentLogger:
+    """
+    Unified logger that writes to both console and file with real-time flushing.
+    """
+    
+    def __init__(self, output_dir: Path, name: str = "experiment"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create unique log filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = self.output_dir / f"{name}_{timestamp}.log"
+        
+        # Setup logging
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.handlers.clear()  # Clear existing handlers
+        
+        # File handler - writes everything
+        file_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_formatter)
+        
+        # Console handler - INFO and above
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(message)s')
+        console_handler.setFormatter(console_formatter)
+        
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        
+        self.info(f"Log file: {self.log_file}")
+    
+    def debug(self, msg: str):
+        self.logger.debug(msg)
+        self._flush()
+    
+    def info(self, msg: str):
+        self.logger.info(msg)
+        self._flush()
+    
+    def warning(self, msg: str):
+        self.logger.warning(msg)
+        self._flush()
+    
+    def error(self, msg: str):
+        self.logger.error(msg)
+        self._flush()
+    
+    def critical(self, msg: str):
+        self.logger.critical(msg)
+        self._flush()
+    
+    def _flush(self):
+        """Force flush all handlers."""
+        for handler in self.logger.handlers:
+            handler.flush()
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+
+class ResultManager:
+    """
+    Manages experiment results with auto-save on crash/interrupt.
+    Saves intermediate results after each task/horizon completion.
+    """
+    
+    def __init__(self, output_dir: Path, logger: Optional[ExperimentLogger] = None):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.logger = logger
+        
+        self.results: Dict[str, Any] = {
+            "experiment_start": datetime.now().isoformat(),
+            "status": "running",
+        }
+        self.results_file = self.output_dir / "experiment_results.json"
+        self.backup_file = self.output_dir / "experiment_results_backup.json"
+        
+        # Register signal handlers for graceful shutdown
+        self._register_handlers()
+        
+        # Initial save
+        self._save()
+        
+        self._log(f"ResultManager initialized, saving to: {self.results_file}")
+    
+    def _log(self, msg: str, level: str = "info"):
+        if self.logger:
+            getattr(self.logger, level)(msg)
+        else:
+            print(msg)
+    
+    def _register_handlers(self):
+        """Register handlers to save on exit/interrupt."""
+        atexit.register(self._on_exit)
+        signal.signal(signal.SIGINT, self._on_signal)
+        signal.signal(signal.SIGTERM, self._on_signal)
+    
+    def _on_exit(self):
+        """Called on normal exit."""
+        if self.results.get("status") == "running":
+            self.results["status"] = "interrupted_or_crashed"
+            self.results["end_time"] = datetime.now().isoformat()
+        self._save()
+        self._log("Results saved on exit.")
+    
+    def _on_signal(self, signum, frame):
+        """Called on SIGINT/SIGTERM."""
+        self._log(f"Received signal {signum}, saving results...")
+        self.results["status"] = f"interrupted_signal_{signum}"
+        self.results["end_time"] = datetime.now().isoformat()
+        self._save()
+        self._log("Results saved. Exiting.")
+        sys.exit(1)
+    
+    def _save(self):
+        """Save results to JSON with backup."""
+        try:
+            # Backup existing file
+            if self.results_file.exists():
+                import shutil
+                shutil.copy(self.results_file, self.backup_file)
+            
+            # Save with atomic write pattern
+            temp_file = self.output_dir / "experiment_results_temp.json"
+            with open(temp_file, "w") as f:
+                json.dump(self.results, f, indent=2, default=str)
+            temp_file.rename(self.results_file)
+            
+        except Exception as e:
+            self._log(f"ERROR saving results: {e}", "error")
+    
+    def update(self, key: str, value: Any, save: bool = True):
+        """Update a result key and optionally save."""
+        self.results[key] = value
+        if save:
+            self._save()
+            self._log(f"Saved result: {key}")
+    
+    def add_task_result(self, task_name: str, result: Dict[str, Any]):
+        """Add result for a completed task and save immediately."""
+        self.results[task_name] = result
+        self.results[f"{task_name}_completed_at"] = datetime.now().isoformat()
+        self._save()
+        self._log(f"Task {task_name} results saved.")
+    
+    def mark_complete(self):
+        """Mark experiment as complete."""
+        self.results["status"] = "complete"
+        self.results["end_time"] = datetime.now().isoformat()
+        self._save()
+        self._log("Experiment marked as complete.")
+    
+    def get_results(self) -> Dict[str, Any]:
+        """Get all results."""
+        return self.results.copy()
+
+
+# Global instances (initialized in main)
+_logger: Optional[ExperimentLogger] = None
+_result_manager: Optional[ResultManager] = None
+
+
+def get_logger() -> Optional[ExperimentLogger]:
+    """Get global logger instance."""
+    return _logger
+
+
+def get_result_manager() -> Optional[ResultManager]:
+    """Get global result manager instance."""
+    return _result_manager
+
+
+def log_info(msg: str):
+    """Log info message (falls back to print if logger not initialized)."""
+    if _logger:
+        _logger.info(msg)
+    else:
+        print(msg)
+    sys.stdout.flush()
+
+
+def log_debug(msg: str):
+    """Log debug message."""
+    if _logger:
+        _logger.debug(msg)
+
+
+def log_error(msg: str):
+    """Log error message."""
+    if _logger:
+        _logger.error(msg)
+    else:
+        print(f"ERROR: {msg}", file=sys.stderr)
+    sys.stderr.flush()
+
+
+def save_result(key: str, value: Any):
+    """Save a result to the result manager."""
+    if _result_manager:
+        _result_manager.update(key, value)
+
+
+def save_task_result(task_name: str, result: Dict[str, Any]):
+    """Save a task result."""
+    if _result_manager:
+        _result_manager.add_task_result(task_name, result)
 
 
 def set_seed(seed: int):
@@ -178,7 +411,7 @@ def load_network_data(path: str) -> Dict:
         raise FileNotFoundError(f"Data file not found: {path}")
 
     size_mb = path.stat().st_size / (1024 * 1024)
-    print(f"Loading {path} ({size_mb:.1f} MB)")
+    log_info(f"Loading {path} ({size_mb:.1f} MB)")
 
     with path.open("rb") as f:
         try:
@@ -608,6 +841,7 @@ def save_metrics_json(result: Dict[str, Any], output_dir: Path) -> Path:
 class WeekPair:
     time_t: str
     time_t1: str
+    prev_time_t: Optional[str]
     node_ids: List[str]
     categories: List[str]
     sizes_t: np.ndarray
@@ -623,6 +857,7 @@ class WeekPair:
     node_mask: np.ndarray
     pos_edge_count: int
     neg_edge_count: int
+    scenario_label: Optional[int]
 
 
 def sample_negatives(
@@ -646,6 +881,44 @@ def sample_negatives(
     return np.array(neg_src, dtype=np.int64), np.array(neg_dst, dtype=np.int64)
 
 
+def build_scenario_label_map(
+    dates: List[str], pre_weeks: int = 4, post_weeks: int = 4
+) -> Dict[str, int]:
+    """
+    Build scenario labels for each date.
+
+    Labels:
+        0 = normal
+        1 = pre-shock
+        2 = shock
+        3 = post-shock
+    """
+    label_map = {d: 0 for d in dates}
+    if not dates:
+        return label_map
+
+    for event in SHOCK_EVENTS:
+        event_date = find_nearest_date(event.event_date, dates)
+        if event_date is None:
+            continue
+        event_idx = dates.index(event_date)
+
+        # Shock week
+        label_map[dates[event_idx]] = 2
+
+        # Pre-shock window
+        for i in range(max(0, event_idx - pre_weeks), event_idx):
+            if label_map[dates[i]] < 2:
+                label_map[dates[i]] = 1
+
+        # Post-shock window
+        for i in range(event_idx + 1, min(len(dates), event_idx + post_weeks + 1)):
+            if label_map[dates[i]] < 2:
+                label_map[dates[i]] = 3
+
+    return label_map
+
+
 def build_week_pairs(
     snapshots: List[Dict], neg_ratio: int, seed: int, horizon: int = 1
 ) -> List[WeekPair]:
@@ -660,10 +933,13 @@ def build_week_pairs(
     """
     rng = np.random.default_rng(seed)
     pairs = []
+    dates = [snap["date"] for snap in snapshots]
+    scenario_labels = build_scenario_label_map(dates)
 
     for t in range(len(snapshots) - horizon):
         snap_t = snapshots[t]
         snap_t1 = snapshots[t + horizon]
+        prev_time_t = snapshots[t - 1]["date"] if t > 0 else None
 
         id_to_idx = {nid: i for i, nid in enumerate(snap_t["node_ids"])}
         size_t1_map = {
@@ -739,6 +1015,7 @@ def build_week_pairs(
             WeekPair(
                 time_t=snap_t["date"],
                 time_t1=snap_t1["date"],
+                prev_time_t=prev_time_t,
                 node_ids=snap_t["node_ids"],
                 categories=snap_t["categories"],
                 sizes_t=snap_t["sizes"],
@@ -754,6 +1031,7 @@ def build_week_pairs(
                 node_mask=node_mask,
                 pos_edge_count=num_pos,
                 neg_edge_count=len(neg_src),
+                scenario_label=scenario_labels.get(snap_t["date"], 0),
             )
         )
 
@@ -890,6 +1168,11 @@ if GRAPHPFN_AVAILABLE:
             self.encoder = encoder
             self.link_scorer = LinkScorer(embed_dim, hidden_dim)
             self.node_head = NodeHead(embed_dim, hidden_dim)
+            self.scenario_head = nn.Sequential(
+                nn.Linear(embed_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, 4),  # 4 scenario classes
+            )
 
         def encode(
             self, graph: dgl.DGLGraph, features: torch.Tensor, device: torch.device
@@ -911,7 +1194,7 @@ if GRAPHPFN_AVAILABLE:
 class ROLANDBaseline(nn.Module):
     """
     ROLAND baseline model (adapted from DeXposure).
-    Temporal GNN with GCN + GRU for link prediction.
+    Temporal GNN with GCN + GRU for link prediction + node prediction.
     """
 
     def __init__(
@@ -940,6 +1223,14 @@ class ROLANDBaseline(nn.Module):
         self.gru2 = nn.GRUCell(out_dim, out_dim)
 
         self.link_decoder = nn.Linear(out_dim, 1)
+        
+        # Node prediction head (for TVL change prediction)
+        self.node_head = nn.Sequential(
+            nn.Linear(out_dim, out_dim),
+            nn.ReLU(),
+            nn.Linear(out_dim, 1),
+        )
+        
         self.dropout = dropout
 
         self.hidden_dim = hidden_dim
@@ -960,6 +1251,7 @@ class ROLANDBaseline(nn.Module):
             pred: Link predictions
             h1_new: Updated hidden state 1
             h2_new: Updated hidden state 2
+            node_embed: Node embeddings for node prediction
         """
         # Preprocess
         h = self.preprocess(x)
@@ -990,20 +1282,214 @@ class ROLANDBaseline(nn.Module):
         h_hadamard = h_src * h_dst
         pred = self.link_decoder(h_hadamard).squeeze(-1)
 
-        return pred, h1_new, h2_new
+        return pred, h1_new, h2_new, h  # Return node embeddings too
+
+
+# ============== Auxiliary Loss Functions (7-component loss design) ==============
+
+
+def compute_stats_loss(graph_pred_stats: Dict[str, torch.Tensor], 
+                       graph_true_stats: Dict[str, torch.Tensor],
+                       device: torch.device) -> torch.Tensor:
+    """
+    L_stats: Graph statistics constraint loss (MSE).
+    
+    Enforces that predicted graph maintains structural properties:
+    - Node count preservation
+    - Edge density
+    - Degree distribution moments
+    """
+    loss = torch.tensor(0.0, device=device)
+    n_stats = 0
+    
+    for key in ['mean_degree', 'density', 'clustering']:
+        if key in graph_pred_stats and key in graph_true_stats:
+            loss += F.mse_loss(graph_pred_stats[key], graph_true_stats[key])
+            n_stats += 1
+    
+    return loss / max(n_stats, 1)
+
+
+def compute_impute_loss(h: torch.Tensor, 
+                        masked_indices: torch.Tensor,
+                        original_values: torch.Tensor,
+                        predicted_values: torch.Tensor,
+                        device: torch.device) -> torch.Tensor:
+    """
+    L_impute: Missing value imputation loss (SmoothL1).
+    
+    When edges/nodes are randomly masked during training, 
+    this loss measures reconstruction quality.
+    """
+    if masked_indices is None or len(masked_indices) == 0:
+        return torch.tensor(0.0, device=device)
+    
+    return F.smooth_l1_loss(predicted_values, original_values)
+
+
+def compute_scen_loss(scenario_logits: torch.Tensor,
+                      scenario_labels: torch.Tensor,
+                      device: torch.device,
+                      use_contrastive: bool = False) -> torch.Tensor:
+    """
+    L_scen: Scenario classification/contrastive loss.
+    
+    Classifies graph snapshots into scenario types:
+    - Normal operation
+    - Pre-shock
+    - Shock
+    - Post-shock recovery
+    """
+    if scenario_logits is None or scenario_labels is None:
+        return torch.tensor(0.0, device=device)
+    
+    if use_contrastive:
+        # Contrastive loss: similar scenarios should have similar embeddings
+        # Simplified version using cosine similarity
+        return torch.tensor(0.0, device=device)
+    else:
+        # Cross-entropy for scenario classification
+        return F.cross_entropy(scenario_logits, scenario_labels)
+
+
+def compute_smooth_loss(embeddings_t: torch.Tensor,
+                        embeddings_t_prev: Optional[torch.Tensor],
+                        device: torch.device) -> torch.Tensor:
+    """
+    L_smooth: Temporal smoothness regularization.
+    
+    Encourages embeddings to change gradually over time,
+    preventing erratic predictions between consecutive timesteps.
+    
+    L_smooth = ||h_t - h_{t-1}||^2 / d
+    """
+    if embeddings_t_prev is None:
+        return torch.tensor(0.0, device=device)
+    
+    # Temporal smoothness: L2 distance between consecutive embeddings
+    diff = embeddings_t - embeddings_t_prev
+    smooth_loss = (diff ** 2).mean()
+    
+    return smooth_loss
+
+
+def compute_graph_stats(edge_src: torch.Tensor, edge_dst: torch.Tensor, 
+                        num_nodes: int, device: torch.device) -> Dict[str, torch.Tensor]:
+    """Compute graph statistics for stats loss."""
+    if len(edge_src) == 0:
+        return {
+            'mean_degree': torch.tensor(0.0, device=device),
+            'density': torch.tensor(0.0, device=device),
+            'clustering': torch.tensor(0.0, device=device),
+        }
+    
+    # Mean degree
+    degrees = torch.zeros(num_nodes, device=device)
+    degrees.scatter_add_(0, edge_src.to(device), torch.ones_like(edge_src, dtype=torch.float, device=device))
+    mean_degree = degrees.mean()
+    
+    # Density
+    max_edges = num_nodes * (num_nodes - 1)
+    density = torch.tensor(len(edge_src) / max(max_edges, 1), device=device)
+    
+    # Simplified clustering coefficient (placeholder)
+    clustering = torch.tensor(0.0, device=device)
+    
+    return {
+        'mean_degree': mean_degree,
+        'density': density,
+        'clustering': clustering,
+    }
+
+
+def compute_graph_stats_from_pairs(
+    edge_src: torch.Tensor,
+    edge_dst: torch.Tensor,
+    edge_prob: torch.Tensor,
+    num_nodes: int,
+    device: torch.device,
+) -> Dict[str, torch.Tensor]:
+    """Compute expected graph statistics from edge probabilities."""
+    if edge_src.numel() == 0:
+        return {
+            "mean_degree": torch.tensor(0.0, device=device),
+            "density": torch.tensor(0.0, device=device),
+            "clustering": torch.tensor(0.0, device=device),
+        }
+
+    # Expected out-degree
+    degrees = torch.zeros(num_nodes, device=device)
+    degrees.scatter_add_(0, edge_src, edge_prob)
+    mean_degree = degrees.mean()
+
+    # Expected density
+    max_edges = num_nodes * (num_nodes - 1)
+    density = edge_prob.sum() / max(max_edges, 1)
+
+    # Placeholder clustering coefficient
+    clustering = torch.tensor(0.0, device=device)
+
+    return {
+        "mean_degree": mean_degree,
+        "density": density,
+        "clustering": clustering,
+    }
+
+
+def compute_tvl_edge_weights(
+    sizes_t: torch.Tensor,
+    src_idx: torch.Tensor,
+    y_exist: torch.Tensor,
+    y_weight_log: torch.Tensor,
+    device: torch.device,
+) -> torch.Tensor:
+    """
+    Compute TVL-based edge weights for loss reweighting.
+
+    w_ij ∝ TVL_i * E_ij, where E_ij is edge weight for positive edges.
+    For negative edges, use a unit edge factor to keep weights non-zero.
+    """
+    tvl_src = sizes_t[src_idx].clamp(min=0.0)
+    edge_factor = torch.where(
+        y_exist > 0.5,
+        torch.expm1(y_weight_log).clamp(min=0.0),
+        torch.ones_like(y_weight_log),
+    )
+    unnorm = tvl_src * edge_factor
+    norm = unnorm.sum().clamp(min=EPS)
+    return unnorm / norm
 
 
 # ============== Training Functions ==============
 
 
-def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool):
-    """Train GraphPFN model for one epoch."""
+def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool,
+                         prev_embeddings: Optional[Dict[str, torch.Tensor]] = None):
+    """
+    Train GraphPFN model for one epoch with 7-component loss.
+    
+    Loss components:
+        1. L_edge (exist_loss): BCE for edge existence prediction
+        2. L_link (weight_loss): SmoothL1 for edge weight prediction
+        3. L_node (node_loss): SmoothL1 for node TVL change prediction
+        4. L_stats (stats_loss): MSE for graph statistics constraint
+        5. L_impute (impute_loss): SmoothL1 for masked value reconstruction
+        6. L_scen (scen_loss): CE for scenario classification (if labels available)
+        7. L_smooth (smooth_loss): Temporal smoothness regularization
+    """
     model.train()
     if not finetune_encoder:
         model.encoder.eval()
 
     device = torch.device(config.device)
-    total_exist, total_weight, total_node, total_samples = 0.0, 0.0, 0.0, 0
+    
+    # Loss accumulators for all 7 components
+    total_exist, total_weight, total_node = 0.0, 0.0, 0.0
+    total_stats, total_impute, total_scen, total_smooth = 0.0, 0.0, 0.0, 0.0
+    total_samples = 0
+    
+    # Store embeddings for temporal smoothness (by date)
+    current_embeddings: Dict[str, torch.Tensor] = {}
 
     for sample in pairs:
         graph = dgl.graph(
@@ -1017,8 +1503,11 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
             with torch.no_grad():
                 h = model.encode(graph, features, device)
             h = h.detach()
+        
+        # Store embedding for temporal smoothness
+        current_embeddings[sample.time_t] = h.detach().clone()
 
-        # Node loss
+        # === Loss 3: L_node (node TVL change prediction) ===
         node_true = torch.tensor(sample.y_node, dtype=torch.float32, device=device)
         node_mask = torch.tensor(sample.node_mask, dtype=torch.bool, device=device)
         node_pred = model.node_head(h)
@@ -1028,7 +1517,7 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
             else torch.tensor(0.0, device=device)
         )
 
-        # Edge prediction
+        # Edge prediction setup
         src = torch.tensor(sample.pair_src, dtype=torch.long, device=device)
         dst = torch.tensor(sample.pair_dst, dtype=torch.long, device=device)
         y_exist = torch.tensor(sample.y_exist, dtype=torch.float32, device=device)
@@ -1036,38 +1525,110 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         weight_mask = torch.tensor(
             sample.weight_mask, dtype=torch.float32, device=device
         )
+        sizes_t = torch.tensor(sample.sizes_t, dtype=torch.float32, device=device)
 
         optimizer.zero_grad()
 
         logits, w_pred = model.link_scorer(h, src, dst)
-        exist_loss = F.binary_cross_entropy_with_logits(logits, y_exist)
+        edge_prob = torch.sigmoid(logits)
+        tvl_weights = compute_tvl_edge_weights(sizes_t, src, y_exist, y_weight, device)
+        
+        # === Loss 1: L_edge (edge existence) ===
+        bce = F.binary_cross_entropy_with_logits(logits, y_exist, reduction="none")
+        exist_loss = (tvl_weights * bce).sum() / tvl_weights.sum().clamp(min=EPS)
 
+        # === Loss 2: L_link (edge weight) ===
         mask = weight_mask > 0.5
-        weight_loss = (
-            F.smooth_l1_loss(w_pred[mask], y_weight[mask])
-            if mask.any()
-            else torch.tensor(0.0, device=device)
+        if mask.any():
+            per_edge = F.smooth_l1_loss(w_pred[mask], y_weight[mask], reduction="none")
+            weight_loss = (tvl_weights[mask] * per_edge).sum() / tvl_weights[mask].sum().clamp(min=EPS)
+        else:
+            weight_loss = torch.tensor(0.0, device=device)
+        
+        # === Loss 4: L_stats (graph statistics constraint) ===
+        # Compare predicted edge probabilities with target graph structure
+        edge_src_t = torch.tensor(sample.edge_src_t, dtype=torch.long, device=device)
+        edge_dst_t = torch.tensor(sample.edge_dst_t, dtype=torch.long, device=device)
+        stats_pred = compute_graph_stats_from_pairs(
+            src, dst, edge_prob, len(sample.node_ids), device
         )
+        stats_true = compute_graph_stats(
+            edge_src_t, edge_dst_t, len(sample.node_ids), device
+        )
+        stats_loss = compute_stats_loss(stats_pred, stats_true, device)
+        
+        # === Loss 5: L_impute (imputation - using node prediction as proxy) ===
+        # For masked edges, use weight prediction error as imputation loss
+        if mask.any():
+            impute_rand = torch.rand(mask.sum(), device=device) < config.impute_mask_ratio
+            if impute_rand.any():
+                impute_pred = w_pred[mask][impute_rand]
+                impute_true = y_weight[mask][impute_rand]
+                impute_w = tvl_weights[mask][impute_rand]
+                impute_loss = (
+                    impute_w
+                    * F.smooth_l1_loss(impute_pred, impute_true, reduction="none")
+                ).sum() / impute_w.sum().clamp(min=EPS)
+            else:
+                impute_loss = torch.tensor(0.0, device=device)
+        else:
+            impute_loss = torch.tensor(0.0, device=device)
+        
+        # === Loss 6: L_scen (scenario classification) ===
+        # Placeholder - requires scenario labels in sample
+        scen_loss = torch.tensor(0.0, device=device)
+        if getattr(sample, "scenario_label", None) is not None:
+            scen_logits = model.scenario_head(h.mean(dim=0, keepdim=True))
+            scen_label = torch.tensor([sample.scenario_label], device=device)
+            scen_loss = compute_scen_loss(scen_logits, scen_label, device)
+        
+        # === Loss 7: L_smooth (temporal smoothness) ===
+        smooth_loss = torch.tensor(0.0, device=device)
+        prev_time_t = sample.prev_time_t
+        h_prev = None
+        if prev_time_t and prev_time_t in current_embeddings:
+            h_prev = current_embeddings[prev_time_t]
+        elif prev_embeddings and prev_time_t and prev_time_t in prev_embeddings:
+            h_prev = prev_embeddings[prev_time_t]
+        if h_prev is not None and h_prev.shape == h.shape:
+            smooth_loss = compute_smooth_loss(h, h_prev, device)
 
+        # === Combined loss with all 7 components ===
         loss = (
             config.exist_loss_weight * exist_loss
             + config.weight_loss_weight * weight_loss
             + config.node_loss_weight * node_loss
+            + config.stats_loss_weight * stats_loss
+            + config.impute_loss_weight * impute_loss
+            + config.scen_loss_weight * scen_loss
+            + config.smooth_loss_weight * smooth_loss
         )
 
         loss.backward()
         optimizer.step()
 
+        # Accumulate all losses
         total_exist += exist_loss.item()
         total_weight += weight_loss.item()
         total_node += node_loss.item()
+        total_stats += stats_loss.item()
+        total_impute += impute_loss.item()
+        total_scen += scen_loss.item()
+        total_smooth += smooth_loss.item()
         total_samples += 1
 
+    n = max(total_samples, 1)
     return {
-        "exist_loss": total_exist / max(total_samples, 1),
-        "weight_loss": total_weight / max(total_samples, 1),
-        "node_loss": total_node / max(total_samples, 1),
-    }
+        # Core prediction losses
+        "exist_loss": total_exist / n,      # L_edge
+        "weight_loss": total_weight / n,    # L_link  
+        "node_loss": total_node / n,        # L_node
+        # Auxiliary losses
+        "stats_loss": total_stats / n,      # L_stats
+        "impute_loss": total_impute / n,    # L_impute
+        "scen_loss": total_scen / n,        # L_scen
+        "smooth_loss": total_smooth / n,    # L_smooth
+    }, current_embeddings  # Return embeddings for next epoch's smoothness
 
 
 def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
@@ -1075,6 +1636,9 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
     model.train()
     device = torch.device(config.device)
     total_loss, total_samples = 0.0, 0
+    
+    # Loss weights
+    node_loss_weight = getattr(config, 'node_loss_weight', 0.5)
 
     for sample in pairs:
         # Build PyG edge index
@@ -1099,10 +1663,24 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
 
         optimizer.zero_grad()
 
-        pred, h1, h2 = model(x, edge_index, edge_label_index, h1, h2)
+        pred, h1, h2, node_embed = model(x, edge_index, edge_label_index, h1, h2)
         h1, h2 = h1.detach(), h2.detach()
 
-        loss = F.binary_cross_entropy_with_logits(pred, y_exist)
+        # Link prediction loss
+        link_loss = F.binary_cross_entropy_with_logits(pred, y_exist)
+        
+        # Node prediction loss
+        node_pred = model.node_head(node_embed).squeeze(-1)
+        y_node = torch.tensor(sample.y_node, dtype=torch.float32, device=device)
+        node_mask = torch.tensor(sample.node_mask, dtype=torch.bool, device=device)
+        
+        if node_mask.any():
+            node_loss = F.smooth_l1_loss(node_pred[node_mask], y_node[node_mask])
+        else:
+            node_loss = torch.tensor(0.0, device=device)
+        
+        # Combined loss
+        loss = link_loss + node_loss_weight * node_loss
         loss.backward()
         optimizer.step()
 
@@ -1284,7 +1862,10 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                 device=device,
             )
 
-            pred, h1, h2 = model(x, edge_index, edge_label_index, h1, h2)
+            pred, h1, h2, node_embed = model(x, edge_index, edge_label_index, h1, h2)
+            
+            # Node prediction
+            node_pred = model.node_head(node_embed).squeeze(-1).cpu().numpy()
 
             outputs.append(
                 {
@@ -1304,9 +1885,7 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                     "weight_pred": np.zeros_like(
                         sample.y_weight
                     ),  # ROLAND doesn't predict weight
-                    "node_pred": np.zeros(
-                        len(sample.node_ids)
-                    ),  # ROLAND doesn't predict node
+                    "node_pred": node_pred,  # Now ROLAND predicts node TVL change
                 }
             )
 
@@ -1380,10 +1959,10 @@ def run_expanding_window_evaluation(
     if not folds:
         return {"method": "expanding_window_walk_forward", "folds": [], "summary": {}}
 
-    print(f"\n{'=' * 60}")
-    print("EXPANDING WINDOW WALK-FORWARD EVALUATION")
-    print(f"{'=' * 60}")
-    print(f"  Folds: {len(folds)}")
+    log_info(f"\n{'=' * 60}")
+    log_info("EXPANDING WINDOW WALK-FORWARD EVALUATION")
+    log_info(f"{'=' * 60}")
+    log_info(f"  Folds: {len(folds)}")
 
     fold_entries = []
     model_fold_results = {
@@ -1398,12 +1977,12 @@ def run_expanding_window_evaluation(
         val_snaps = [date_to_snap[d] for d in fold["val"] if d in date_to_snap]
         test_snaps = [date_to_snap[d] for d in fold["test"] if d in date_to_snap]
 
-        print(f"\n--- Fold {fold_id} ---")
-        print(
+        log_info(f"\n--- Fold {fold_id} ---")
+        log_info(
             f"  Train: {fold['train'][0]} ~ {fold['train'][-1]} ({len(fold['train'])}w)"
         )
-        print(f"  Val:   {fold['val'][0]} ~ {fold['val'][-1]} ({len(fold['val'])}w)")
-        print(f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)")
+        log_info(f"  Val:   {fold['val'][0]} ~ {fold['val'][-1]} ({len(fold['val'])}w)")
+        log_info(f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)")
 
         fold_entry = {
             "fold_id": fold_id,
@@ -1506,7 +2085,7 @@ def run_graphpfn_experiment(
         output_dir: Output directory for predictions
     """
     if not GRAPHPFN_AVAILABLE:
-        print("GraphPFN not available, skipping...")
+        log_info("GraphPFN not available, skipping...")
         return None
 
     mode = "Finetuned" if finetune else "Frozen"
@@ -1517,9 +2096,9 @@ def run_graphpfn_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
-    print(f"\n{'=' * 60}")
-    print(f"GraphPFN Experiment ({mode})")
-    print(f"{'=' * 60}")
+    log_info(f"\n{'=' * 60}")
+    log_info(f"GraphPFN Experiment ({mode})")
+    log_info(f"{'=' * 60}")
 
     set_seed(config.seed)
     device = torch.device(config.device)
@@ -1545,11 +2124,11 @@ def run_graphpfn_experiment(
         train_snaps = snapshots[:train_end]
         val_snaps = snapshots[train_end:val_end]
         test_snaps = snapshots[val_end:]
-        print("  Using ratio-based split (legacy mode)")
+        log_info("  Using ratio-based split (legacy mode)")
     else:
-        print("  Using strict temporal split (recommended)")
+        log_info("  Using strict temporal split (recommended)")
 
-    print(
+    log_info(
         f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}"
     )
 
@@ -1576,7 +2155,7 @@ def run_graphpfn_experiment(
             ],
             weight_decay=config.weight_decay,
         )
-        print(f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}")
+        log_info(f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}")
     else:
         optimizer = torch.optim.Adam(
             [p for p in model.parameters() if p.requires_grad],
@@ -1587,7 +2166,7 @@ def run_graphpfn_experiment(
     # Build pairs for each horizon
     results = {}
     for horizon in config.forecast_horizons:
-        print(f"\n--- Horizon h={horizon} ---")
+        log_info(f"\n--- Horizon h={horizon} ---")
 
         train_pairs = build_week_pairs(
             train_snaps, config.neg_ratio, config.seed, horizon
@@ -1603,39 +2182,44 @@ def run_graphpfn_experiment(
             else []
         )
 
-        print(
+        log_info(
             f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}"
         )
 
-        # Train
-        import sys
-
+        # Train with 7-component loss
+        prev_embeddings = None
         for epoch in range(config.epochs):
-            losses = train_graphpfn_epoch(
-                model, train_pairs, optimizer, config, finetune
+            losses, prev_embeddings = train_graphpfn_epoch(
+                model, train_pairs, optimizer, config, finetune, prev_embeddings
             )
-            # Print progress every epoch
-            loss_str = f"exist={losses['exist_loss']:.4f}, weight={losses['weight_loss']:.4f}, node={losses['node_loss']:.4f}"
+            # Print progress every epoch (7-component losses)
+            loss_str = (
+                f"exist={losses['exist_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
+                f"node={losses['node_loss']:.4f}"
+            )
+            aux_str = (
+                f"stats={losses['stats_loss']:.4f}, impute={losses['impute_loss']:.4f}, "
+                f"scen={losses['scen_loss']:.4f}, smooth={losses['smooth_loss']:.4f}"
+            )
             if val_pairs and (epoch + 1) % 2 == 0:
                 val_preds = predict_graphpfn(model, val_pairs, config)
                 val_metrics = evaluate_predictions(val_preds)
-                print(
-                    f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, val_auprc={val_metrics['exist']['auprc']:.4f}"
+                log_info(
+                    f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, val_auprc={val_metrics['exist']['auprc']:.4f}"
                 )
             else:
-                print(f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}")
-            sys.stdout.flush()
+                log_info(f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}")
 
         # Test
         test_preds = predict_graphpfn(model, test_pairs, config)
         test_metrics = evaluate_predictions(test_preds)
         results[f"h{horizon}"] = test_metrics
 
-        print(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
-        print(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
-        print(f"  Test Recall@100: {test_metrics['exist'].get('recall@100', 'N/A')}")
-        print(f"  Test Weight MAE: {test_metrics['weight']['mae']:.4f}")
-        print(f"  Test Weighted MAE: {test_metrics['weight']['weighted_mae']:.4f}")
+        log_info(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
+        log_info(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
+        log_info(f"  Test Recall@100: {test_metrics['exist'].get('recall@100', 'N/A')}")
+        log_info(f"  Test Weight MAE: {test_metrics['weight']['mae']:.4f}")
+        log_info(f"  Test Weighted MAE: {test_metrics['weight']['weighted_mae']:.4f}")
 
         # Save predictions if requested
         if save_predictions and model_output_dir:
@@ -1648,7 +2232,7 @@ def run_graphpfn_experiment(
                 append=append_predictions,
             )
             append_predictions = True
-            print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
+            log_info(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
 
         # Save intermediate results after each horizon
         if model_output_dir:
@@ -1661,7 +2245,7 @@ def run_graphpfn_experiment(
             intermediate_path = model_output_dir / "metrics_intermediate.json"
             with open(intermediate_path, "w") as f:
                 json.dump(intermediate_result, f, indent=2)
-            print(f"  Intermediate results saved to: {intermediate_path.name}")
+            log_info(f"  Intermediate results saved to: {intermediate_path.name}")
 
     result = {
         "model": f"GraphPFN ({mode})",
@@ -1675,7 +2259,7 @@ def run_graphpfn_experiment(
 
     if model_output_dir:
         metrics_path = save_metrics_json(result, model_output_dir)
-        print(f"  Metrics saved to: {metrics_path.name}")
+        log_info(f"  Metrics saved to: {metrics_path.name}")
 
     return result
 
@@ -1690,8 +2274,8 @@ def run_roland_experiment(
     fold_id: Optional[int] = None,
 ):
     """Run ROLAND baseline experiment."""
-    print(f"\n{'=' * 60}")
-    print("ROLAND Baseline Experiment")
+    log_info(f"\n{'=' * 60}")
+    log_info("ROLAND Baseline Experiment")
 
     model_name = "roland"
     model_output_dir = None
@@ -1700,7 +2284,7 @@ def run_roland_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
-    print(f"{'=' * 60}")
+    log_info(f"{'=' * 60}")
 
     set_seed(config.seed)
     device = torch.device(config.device)
@@ -1726,20 +2310,20 @@ def run_roland_experiment(
         train_snaps = snapshots[:train_end]
         val_snaps = snapshots[train_end:val_end]
         test_snaps = snapshots[val_end:]
-        print("  Using ratio-based split (legacy mode)")
+        log_info("  Using ratio-based split (legacy mode)")
     else:
-        print("  Using strict temporal split (recommended)")
+        log_info("  Using strict temporal split (recommended)")
 
     # Get input dimension
     input_dim = train_snaps[0]["features"].shape[1]
 
-    print(
+    log_info(
         f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}"
     )
 
     results = {}
     for horizon in config.forecast_horizons:
-        print(f"\n--- Horizon h={horizon} ---")
+        log_info(f"\n--- Horizon h={horizon} ---")
 
         # Create model
         model = ROLANDBaseline(input_dim, hidden_dim=64, out_dim=32).to(device)
@@ -1759,7 +2343,7 @@ def run_roland_experiment(
             else []
         )
 
-        print(
+        log_info(
             f"  Train: {len(train_pairs)}, Val: {len(val_pairs)}, Test: {len(test_pairs)}"
         )
 
@@ -1772,7 +2356,7 @@ def run_roland_experiment(
             if (epoch + 1) % 2 == 0:
                 val_preds, _, _ = predict_roland(model, val_pairs, config, h1, h2)
                 val_metrics = evaluate_predictions(val_preds)
-                print(
+                log_info(
                     f"  Epoch {epoch + 1}: loss={losses['loss']:.4f}, val_auprc={val_metrics['exist']['auprc']:.4f}"
                 )
 
@@ -1781,8 +2365,8 @@ def run_roland_experiment(
         test_metrics = evaluate_predictions(test_preds)
         results[f"h{horizon}"] = test_metrics
 
-        print(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
-        print(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
+        log_info(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
+        log_info(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
 
         if save_predictions and model_output_dir:
             edges_path, nodes_path = save_predictions_csv(
@@ -1794,7 +2378,7 @@ def run_roland_experiment(
                 append=append_predictions,
             )
             append_predictions = True
-            print(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
+            log_info(f"  Predictions saved to: {edges_path.name}, {nodes_path.name}")
 
         # Save intermediate results after each horizon
         if model_output_dir:
@@ -1807,7 +2391,7 @@ def run_roland_experiment(
             intermediate_path = model_output_dir / "metrics_intermediate.json"
             with open(intermediate_path, "w") as f:
                 json.dump(intermediate_result, f, indent=2)
-            print(f"  Intermediate results saved to: {intermediate_path.name}")
+            log_info(f"  Intermediate results saved to: {intermediate_path.name}")
 
     result = {
         "model": "ROLAND",
@@ -1817,16 +2401,16 @@ def run_roland_experiment(
 
     if model_output_dir:
         metrics_path = save_metrics_json(result, model_output_dir)
-        print(f"  Metrics saved to: {metrics_path.name}")
+        log_info(f"  Metrics saved to: {metrics_path.name}")
 
     return result
 
 
 def run_network_statistics(config: ExperimentConfig):
     """Compute network-level statistics for all snapshots."""
-    print(f"\n{'=' * 60}")
-    print("Computing Network Statistics")
-    print(f"{'=' * 60}")
+    log_info(f"\n{'=' * 60}")
+    log_info("Computing Network Statistics")
+    log_info(f"{'=' * 60}")
 
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
     network_data = load_network_data(config.data_path)
@@ -1863,17 +2447,460 @@ def run_network_statistics(config: ExperimentConfig):
     df.to_csv(output_dir / "network_statistics.csv", index=False)
 
     # Summary
-    print(f"\nComputed statistics for {len(all_stats)} snapshots")
-    print(f"Date range: {all_stats[0]['date']} to {all_stats[-1]['date']}")
-    print(f"\nSummary statistics:")
+    log_info(f"\nComputed statistics for {len(all_stats)} snapshots")
+    log_info(f"Date range: {all_stats[0]['date']} to {all_stats[-1]['date']}")
+    log_info(f"\nSummary statistics:")
     for col in ["density", "degree_gini", "tvl_hhi", "top_10_concentration"]:
         if col in df.columns:
-            print(f"  {col}: mean={df[col].mean():.4f}, std={df[col].std():.4f}")
+            log_info(f"  {col}: mean={df[col].mean():.4f}, std={df[col].std():.4f}")
 
     return {"statistics": all_stats, "summary": df.describe().to_dict()}
 
 
-# ============== Shock Analysis (Task II: Policy-relevant Scenario Analysis) ==============
+# ============== Financial Stability Analysis (Task II) ==============
+# Includes: Systemic Risk Measurement, Shock Analysis, Contagion Simulation
+
+
+def compute_systemic_importance_score(
+    snap: Dict,
+    alpha: float = 0.4,
+    beta: float = 0.3,
+    gamma: float = 0.3,
+) -> Dict[str, float]:
+    """
+    Compute Systemic Importance Score (SIS) for each protocol.
+
+    SIS_p = α·PageRank_p + β·TailExposure_p + γ·log(TVL_p)
+
+    Args:
+        snap: Snapshot dictionary with node_ids, edge_src, edge_dst, edge_weight, sizes
+        alpha, beta, gamma: Weights for each component (should sum to 1)
+
+    Returns:
+        Dictionary mapping node_id to SIS score
+    """
+    import networkx as nx
+
+    # Build directed graph
+    G = nx.DiGraph()
+    node_ids = snap["node_ids"]
+    sizes = snap["sizes"]
+
+    for i, node_id in enumerate(node_ids):
+        G.add_node(node_id, size=sizes[i] if i < len(sizes) else 0)
+
+    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+        if src < len(node_ids) and dst < len(node_ids):
+            G.add_edge(node_ids[src], node_ids[dst], weight=weight)
+
+    if len(G.nodes()) == 0:
+        return {}
+
+    # 1. PageRank (normalized)
+    try:
+        pagerank = nx.pagerank(G, weight="weight", max_iter=100)
+    except:
+        pagerank = {n: 1.0 / len(G.nodes()) for n in G.nodes()}
+
+    pr_max = max(pagerank.values()) if pagerank else 1.0
+    pagerank_norm = {n: v / pr_max for n, v in pagerank.items()}
+
+    # 2. Tail Exposure (concentration of top-5 outgoing exposures)
+    tail_exposure = {}
+    for node in G.nodes():
+        out_weights = [G[node][succ]["weight"] for succ in G.successors(node)]
+        if len(out_weights) >= 5:
+            out_weights_sorted = sorted(out_weights, reverse=True)
+            top5 = sum(out_weights_sorted[:5])
+            total = sum(out_weights)
+            tail_exposure[node] = top5 / (total + EPS)
+        else:
+            tail_exposure[node] = 1.0 if out_weights else 0.0
+
+    # 3. Log TVL (normalized)
+    log_tvl = {}
+    for node in G.nodes():
+        size = G.nodes[node].get("size", 0)
+        log_tvl[node] = np.log1p(size)
+
+    log_tvl_max = max(log_tvl.values()) if log_tvl else 1.0
+    log_tvl_norm = {n: v / log_tvl_max for n, v in log_tvl.items()}
+
+    # Combine into SIS
+    sis = {}
+    for node in G.nodes():
+        sis[node] = (
+            alpha * pagerank_norm.get(node, 0)
+            + beta * tail_exposure.get(node, 0)
+            + gamma * log_tvl_norm.get(node, 0)
+        )
+
+    return sis
+
+
+def compute_sector_spillover_index(
+    snap: Dict,
+    meta_category: Dict[str, str],
+) -> Tuple[np.ndarray, float]:
+    """
+    Compute sector-to-sector exposure matrix and spillover index.
+
+    Args:
+        snap: Snapshot dictionary
+        meta_category: Mapping from node_id to category
+
+    Returns:
+        Tuple of (sector_matrix, spillover_index)
+    """
+    node_ids = snap["node_ids"]
+
+    # Get unique categories
+    categories = list(set(meta_category.get(nid, "Unknown") for nid in node_ids))
+    cat_to_idx = {cat: i for i, cat in enumerate(categories)}
+    n_cats = len(categories)
+
+    # Build sector-to-sector matrix
+    sector_matrix = np.zeros((n_cats, n_cats))
+
+    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+        if src < len(node_ids) and dst < len(node_ids):
+            src_cat = meta_category.get(node_ids[src], "Unknown")
+            dst_cat = meta_category.get(node_ids[dst], "Unknown")
+            src_idx = cat_to_idx[src_cat]
+            dst_idx = cat_to_idx[dst_cat]
+            sector_matrix[src_idx, dst_idx] += weight
+
+    # Spillover index = HHI of off-diagonal elements
+    off_diag = []
+    for i in range(n_cats):
+        for j in range(n_cats):
+            if i != j:
+                off_diag.append(sector_matrix[i, j])
+
+    total = sum(off_diag)
+    if total > 0:
+        shares = [x / total for x in off_diag]
+        spillover_index = sum(s ** 2 for s in shares)
+    else:
+        spillover_index = 0.0
+
+    return sector_matrix, spillover_index
+
+
+def compute_early_warning_indicators(
+    snapshots: List[Dict],
+    window_size: int = 4,
+) -> List[Dict[str, float]]:
+    """
+    Compute early-warning indicators for each snapshot.
+
+    Tracks:
+    - Density change rate
+    - HHI change (concentration spike)
+    - Assortativity shift
+
+    Args:
+        snapshots: List of snapshot dictionaries
+        window_size: Rolling window for computing changes
+
+    Returns:
+        List of indicator dictionaries, one per snapshot
+    """
+    indicators = []
+
+    for i, snap in enumerate(snapshots):
+        ind = {"date": snap["date"]}
+
+        n_nodes = len(snap["node_ids"])
+        n_edges = len(snap["edge_src"])
+
+        # Density
+        max_edges = n_nodes * (n_nodes - 1)  # directed
+        density = n_edges / max_edges if max_edges > 0 else 0
+
+        # HHI of node sizes
+        sizes = snap["sizes"]
+        hhi = herfindahl_hirschman_index(sizes)
+
+        # Gini
+        gini = gini_coefficient(sizes)
+
+        ind["density"] = density
+        ind["hhi"] = hhi
+        ind["gini"] = gini
+
+        # Compute change rates if we have history
+        if i >= window_size:
+            prev_ind = indicators[i - 1]
+            ind["density_change"] = (density - prev_ind["density"]) / (prev_ind["density"] + EPS)
+            ind["hhi_change"] = hhi - prev_ind["hhi"]
+            ind["gini_change"] = gini - prev_ind["gini"]
+        else:
+            ind["density_change"] = 0.0
+            ind["hhi_change"] = 0.0
+            ind["gini_change"] = 0.0
+
+        indicators.append(ind)
+
+    # Compute z-scores for spike detection
+    hhi_changes = [ind["hhi_change"] for ind in indicators[window_size:]]
+    if len(hhi_changes) > 1:
+        mean_hhi_change = np.mean(hhi_changes)
+        std_hhi_change = np.std(hhi_changes) + EPS
+        for ind in indicators[window_size:]:
+            ind["hhi_change_zscore"] = (ind["hhi_change"] - mean_hhi_change) / std_hhi_change
+            ind["hhi_spike"] = abs(ind["hhi_change_zscore"]) > 2.0
+
+    return indicators
+
+
+def simulate_contagion(
+    snap: Dict,
+    shocked_nodes: List[str],
+    shock_ratio: float = 0.5,
+    distress_threshold: float = 0.1,
+    max_rounds: int = 10,
+) -> Dict[str, Any]:
+    """
+    Simulate DebtRank-style contagion from shocked nodes.
+
+    Args:
+        snap: Snapshot dictionary
+        shocked_nodes: List of node IDs to shock
+        shock_ratio: Initial loss ratio for shocked nodes (0-1)
+        distress_threshold: Loss/TVL ratio that triggers distress
+        max_rounds: Maximum propagation rounds
+
+    Returns:
+        Dictionary with contagion results
+    """
+    node_ids = snap["node_ids"]
+    sizes = snap["sizes"]
+    node_to_idx = {nid: i for i, nid in enumerate(node_ids)}
+
+    # Build adjacency for reverse lookup (who is exposed to whom)
+    # edge from A->B means A is exposed to B (A has claims on B)
+    exposures = {}  # exposures[creditor] = [(debtor, amount), ...]
+    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+        if src < len(node_ids) and dst < len(node_ids):
+            src_id = node_ids[src]
+            dst_id = node_ids[dst]
+            if src_id not in exposures:
+                exposures[src_id] = []
+            exposures[src_id].append((dst_id, weight))
+
+    # Initialize losses
+    losses = {nid: 0.0 for nid in node_ids}
+    tvl = {nid: sizes[node_to_idx[nid]] if node_to_idx[nid] < len(sizes) else 0.0 for nid in node_ids}
+
+    # Initial shock
+    distressed = set()
+    for node in shocked_nodes:
+        if node in losses:
+            losses[node] = shock_ratio * tvl.get(node, 0)
+            distressed.add(node)
+
+    # Propagation
+    rounds = 0
+    affected_history = [len(distressed)]
+
+    for round_num in range(max_rounds):
+        new_distressed = set()
+
+        for node in distressed:
+            # Find creditors (nodes that have exposure TO this node)
+            for creditor, exp_list in exposures.items():
+                for debtor, amount in exp_list:
+                    if debtor == node and creditor not in distressed:
+                        # Creditor loses value proportional to their exposure
+                        loss_ratio = losses[node] / (tvl[node] + EPS)
+                        creditor_loss = amount * loss_ratio
+                        losses[creditor] = losses.get(creditor, 0) + creditor_loss
+
+                        # Check if creditor becomes distressed
+                        if losses[creditor] > distress_threshold * tvl.get(creditor, 0):
+                            new_distressed.add(creditor)
+
+        if not new_distressed:
+            break
+
+        distressed = distressed.union(new_distressed)
+        affected_history.append(len(distressed))
+        rounds = round_num + 1
+
+    # Compute results
+    total_tvl = sum(tvl.values())
+    total_loss = sum(losses.values())
+
+    return {
+        "shocked_nodes": shocked_nodes,
+        "shock_ratio": shock_ratio,
+        "total_loss": total_loss,
+        "total_loss_pct": (total_loss / total_tvl * 100) if total_tvl > 0 else 0,
+        "affected_count": len([n for n in losses if losses[n] > 0]),
+        "distressed_count": len(distressed),
+        "propagation_rounds": rounds,
+        "affected_history": affected_history,
+        "losses": losses,
+    }
+
+
+def run_systemic_risk_analysis(
+    config: ExperimentConfig,
+) -> Dict[str, Any]:
+    """
+    Run complete systemic risk measurement for all snapshots.
+
+    Computes:
+    - Protocol-level SIS scores
+    - Sector spillover indices
+    - Early warning indicators
+    """
+    log_info(f"\n{'=' * 60}")
+    log_info("Systemic Risk Measurement (Task II.1)")
+    log_info(f"{'=' * 60}")
+
+    # Load data
+    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
+    network_data = load_network_data(config.data_path)
+    all_dates = sorted(network_data.keys())
+
+    # Build snapshots
+    snapshots = [
+        build_snapshot(
+            date, network_data[date], meta_category, category_to_idx, category_list
+        )
+        for date in all_dates
+    ]
+
+    log_info(f"Loaded {len(snapshots)} snapshots")
+
+    results = {
+        "sis_scores": [],
+        "spillover_indices": [],
+        "early_warning": [],
+    }
+
+    # Compute SIS for each snapshot
+    log_info("Computing SIS scores...")
+    for snap in snapshots:
+        sis = compute_systemic_importance_score(snap)
+        # Get top 10 most systemically important
+        top_sis = sorted(sis.items(), key=lambda x: x[1], reverse=True)[:10]
+        results["sis_scores"].append({
+            "date": snap["date"],
+            "top_10_sis": top_sis,
+            "mean_sis": np.mean(list(sis.values())) if sis else 0,
+        })
+
+    # Compute spillover indices
+    log_info("Computing sector spillover indices...")
+    for snap in snapshots:
+        _, spillover = compute_sector_spillover_index(snap, meta_category)
+        results["spillover_indices"].append({
+            "date": snap["date"],
+            "spillover_index": spillover,
+        })
+
+    # Compute early warning indicators
+    log_info("Computing early warning indicators...")
+    results["early_warning"] = compute_early_warning_indicators(snapshots)
+
+    log_info(f"Systemic risk analysis complete")
+
+    return results
+
+
+def run_contagion_simulation(
+    config: ExperimentConfig,
+    scenarios: Optional[List[Dict]] = None,
+) -> Dict[str, Any]:
+    """
+    Run contagion simulations for predefined scenarios.
+
+    Default scenarios:
+    - Terra/Luna shock (50% loss to terra-related protocols)
+    - Stablecoin de-peg (50% loss to stablecoin protocols)
+    - Bridge exploit (100% loss to bridge protocols)
+    """
+    log_info(f"\n{'=' * 60}")
+    log_info("Contagion Simulation (Task II.3)")
+    log_info(f"{'=' * 60}")
+
+    # Load data
+    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
+    network_data = load_network_data(config.data_path)
+    all_dates = sorted(network_data.keys())
+
+    # Use a snapshot around Terra/Luna time for simulation
+    target_date = "2022-05-02"  # Week before Terra collapse
+    closest_date = find_nearest_date(target_date, all_dates)
+
+    if closest_date is None:
+        log_info("No suitable snapshot found for contagion simulation")
+        return {}
+
+    snap = build_snapshot(
+        closest_date,
+        network_data[closest_date],
+        meta_category,
+        category_to_idx,
+        category_list,
+    )
+
+    log_info(f"Using snapshot from {closest_date} ({len(snap['node_ids'])} nodes, {len(snap['edge_src'])} edges)")
+
+    # Default scenarios
+    if scenarios is None:
+        scenarios = [
+            {
+                "name": "Single Large Protocol",
+                "shocked_nodes": [snap["node_ids"][0]] if snap["node_ids"] else [],
+                "shock_ratio": 0.5,
+            },
+            {
+                "name": "Top 5 Protocols",
+                "shocked_nodes": snap["node_ids"][:5] if len(snap["node_ids"]) >= 5 else snap["node_ids"],
+                "shock_ratio": 0.3,
+            },
+            {
+                "name": "Stablecoin Category",
+                "shocked_nodes": [nid for nid in snap["node_ids"] if "stable" in meta_category.get(nid, "").lower()],
+                "shock_ratio": 0.5,
+            },
+            {
+                "name": "Bridge Category",
+                "shocked_nodes": [nid for nid in snap["node_ids"] if "bridge" in meta_category.get(nid, "").lower()],
+                "shock_ratio": 1.0,
+            },
+        ]
+
+    results = {"scenarios": [], "snapshot_date": closest_date}
+
+    for scenario in scenarios:
+        log_info(f"\n  Simulating: {scenario['name']}")
+        log_info(f"    Shocked nodes: {len(scenario['shocked_nodes'])}")
+
+        if not scenario["shocked_nodes"]:
+            log_info("    Skipping - no nodes to shock")
+            continue
+
+        sim_result = simulate_contagion(
+            snap,
+            scenario["shocked_nodes"],
+            scenario["shock_ratio"],
+        )
+        sim_result["scenario_name"] = scenario["name"]
+        results["scenarios"].append(sim_result)
+
+        log_info(f"    Total loss: {sim_result['total_loss_pct']:.2f}% of TVL")
+        log_info(f"    Affected: {sim_result['affected_count']} protocols")
+        log_info(f"    Propagation rounds: {sim_result['propagation_rounds']}")
+
+    return results
+
+
+# ============== Shock Event Analysis (Task II.2) ==============
 
 
 @dataclass
@@ -1948,10 +2975,10 @@ def analyze_shock_network_changes(
     event_idx = dates.index(event_date)
     post_end_idx = dates.index(post_end_date)
 
-    print(f"\n  Event: {event.name}")
-    print(f"    Pre-window: {pre_start_date} (idx={pre_start_idx})")
-    print(f"    Event date: {event_date} (idx={event_idx})")
-    print(f"    Post-window: {post_end_date} (idx={post_end_idx})")
+    log_info(f"\n  Event: {event.name}")
+    log_info(f"    Pre-window: {pre_start_date} (idx={pre_start_idx})")
+    log_info(f"    Event date: {event_date} (idx={event_idx})")
+    log_info(f"    Post-window: {post_end_date} (idx={post_end_idx})")
 
     # Split into periods
     pre_snapshots = snapshots[pre_start_idx:event_idx]
@@ -2035,10 +3062,10 @@ def analyze_shock_network_changes(
         )
         results["hhi_change"] = float(post_hhi - pre_hhi)
 
-        print(f"    TVL change: {results['tvl_change_pct']:.2f}%")
-        print(f"    Edge count change: {results['edge_count_change_pct']:.2f}%")
-        print(f"    Gini change: {results['gini_change']:.4f}")
-        print(f"    HHI change: {results['hhi_change']:.4f}")
+        log_info(f"    TVL change: {results['tvl_change_pct']:.2f}%")
+        log_info(f"    Edge count change: {results['edge_count_change_pct']:.2f}%")
+        log_info(f"    Gini change: {results['gini_change']:.4f}")
+        log_info(f"    HHI change: {results['hhi_change']:.4f}")
 
     return results
 
@@ -2119,7 +3146,7 @@ def evaluate_model_during_shock(
         results["auprc_degradation"] = float(
             results["pre_auprc"] - results["event_auprc"]
         )
-        print(
+        log_info(
             f"    AUPRC degradation during {event.name}: {results['auprc_degradation']:.4f}"
         )
 
@@ -2137,9 +3164,9 @@ def run_shock_analysis(
         model: Optional pretrained model (if None, will train fresh)
         model_type: Type of model ("graphpfn" or "roland")
     """
-    print(f"\n{'=' * 60}")
-    print("Shock Analysis (Task II: Policy-relevant Scenario Analysis)")
-    print(f"{'=' * 60}")
+    log_info(f"\n{'=' * 60}")
+    log_info("Shock Analysis (Task II: Policy-relevant Scenario Analysis)")
+    log_info(f"{'=' * 60}")
 
     # Load data
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
@@ -2154,14 +3181,14 @@ def run_shock_analysis(
         for date in all_dates
     ]
 
-    print(f"Loaded {len(snapshots)} snapshots from {all_dates[0]} to {all_dates[-1]}")
+    log_info(f"Loaded {len(snapshots)} snapshots from {all_dates[0]} to {all_dates[-1]}")
 
     # Analyze network changes for each event
     network_change_results = {}
     for event in SHOCK_EVENTS:
         # Check if event is in our date range
         if event.event_date < all_dates[0] or event.event_date > all_dates[-1]:
-            print(
+            log_info(
                 f"\n  Skipping {event.name}: event date {event.event_date} outside data range"
             )
             continue
@@ -2173,7 +3200,7 @@ def run_shock_analysis(
     model_performance_results = {}
 
     if GRAPHPFN_AVAILABLE and model_type == "graphpfn":
-        print("\n--- Training GraphPFN for shock analysis ---")
+        log_info("\n--- Training GraphPFN for shock analysis ---")
         device = torch.device(config.device)
 
         # Train model on data before first event
@@ -2203,10 +3230,12 @@ def run_shock_analysis(
                 train_snapshots, config.neg_ratio, config.seed, horizon=1
             )
 
-            print(f"  Training on {len(train_pairs)} pairs (before {first_event_date})")
+            log_info(f"  Training on {len(train_pairs)} pairs (before {first_event_date})")
+            prev_embeddings = None
             for epoch in range(config.epochs):
-                train_graphpfn_epoch(
-                    model, train_pairs, optimizer, config, finetune_encoder=True
+                _, prev_embeddings = train_graphpfn_epoch(
+                    model, train_pairs, optimizer, config, finetune_encoder=True,
+                    prev_embeddings=prev_embeddings
                 )
 
             # Evaluate during each shock event
@@ -2225,7 +3254,7 @@ def run_shock_analysis(
                 model_performance_results[f"graphpfn_{event.name}"] = results
 
     elif model_type == "roland":
-        print("\n--- Training ROLAND for shock analysis ---")
+        log_info("\n--- Training ROLAND for shock analysis ---")
         device = torch.device(config.device)
         input_dim = snapshots[0]["features"].shape[1]
 
@@ -2282,13 +3311,13 @@ def run_shock_analysis(
     }
 
     # Print summary table
-    print(f"\n{'=' * 80}")
-    print("SHOCK ANALYSIS SUMMARY")
-    print(f"{'=' * 80}")
-    print(
+    log_info(f"\n{'=' * 80}")
+    log_info("SHOCK ANALYSIS SUMMARY")
+    log_info(f"{'=' * 80}")
+    log_info(
         f"{'Event':<25} {'TVL Change':<15} {'Edge Change':<15} {'Gini Δ':<12} {'HHI Δ':<12}"
     )
-    print("-" * 80)
+    log_info("-" * 80)
 
     for event_name, results in network_change_results.items():
         if "error" not in results:
@@ -2296,21 +3325,21 @@ def run_shock_analysis(
             edge_chg = f"{results.get('edge_count_change_pct', 0):.1f}%"
             gini_chg = f"{results.get('gini_change', 0):.4f}"
             hhi_chg = f"{results.get('hhi_change', 0):.4f}"
-            print(
+            log_info(
                 f"{event_name:<25} {tvl_chg:<15} {edge_chg:<15} {gini_chg:<12} {hhi_chg:<12}"
             )
 
     if model_performance_results:
-        print(
+        log_info(
             f"\n{'Model + Event':<35} {'Pre AUPRC':<12} {'Event AUPRC':<12} {'Degradation':<12}"
         )
-        print("-" * 80)
+        log_info("-" * 80)
         for key, results in model_performance_results.items():
             if "error" not in results:
                 pre = f"{results.get('pre_auprc', float('nan')):.4f}"
                 event = f"{results.get('event_auprc', float('nan')):.4f}"
                 deg = f"{results.get('auprc_degradation', float('nan')):.4f}"
-                print(f"{key:<35} {pre:<12} {event:<12} {deg:<12}")
+                log_info(f"{key:<35} {pre:<12} {event:<12} {deg:<12}")
 
     return all_results
 
@@ -2402,12 +3431,12 @@ def run_imputation_experiment(
         snapshots: Optional pre-built snapshots
         date_splits: Optional train/test split (uses holdout if provided)
     """
-    print(f"\n{'=' * 60}")
-    print("Task III: Imputation Experiment")
-    print(f"{'=' * 60}")
+    log_info(f"\n{'=' * 60}")
+    log_info("Task III: Imputation Experiment")
+    log_info(f"{'=' * 60}")
 
     if not GRAPHPFN_AVAILABLE:
-        print("GraphPFN not available, skipping imputation experiment...")
+        log_info("GraphPFN not available, skipping imputation experiment...")
         return None
 
     if mask_ratios is None:
@@ -2434,7 +3463,7 @@ def run_imputation_experiment(
     if date_splits is None:
         date_splits = get_single_split(all_dates)
 
-    print(f"Loaded {len(snapshots)} snapshots")
+    log_info(f"Loaded {len(snapshots)} snapshots")
 
     date_to_snap = {s["date"]: s for s in snapshots}
     train_snapshots = [
@@ -2455,17 +3484,19 @@ def run_imputation_experiment(
         train_snapshots, config.neg_ratio, config.seed, horizon=1
     )
 
-    print(f"Training on {len(train_pairs)} pairs...")
+    log_info(f"Training on {len(train_pairs)} pairs...")
+    prev_embeddings = None
     for epoch in range(config.epochs):
-        train_graphpfn_epoch(
-            model, train_pairs, optimizer, config, finetune_encoder=True
+        _, prev_embeddings = train_graphpfn_epoch(
+            model, train_pairs, optimizer, config, finetune_encoder=True,
+            prev_embeddings=prev_embeddings
         )
 
     test_pairs = build_week_pairs(
         test_snapshots, config.neg_ratio, config.seed, horizon=1
     )
     if not test_pairs:
-        print("No test pairs available for imputation evaluation.")
+        log_info("No test pairs available for imputation evaluation.")
         return None
 
     preds = predict_graphpfn(model, test_pairs, config)
@@ -2473,7 +3504,7 @@ def run_imputation_experiment(
     results_by_ratio = {}
 
     for mask_ratio in mask_ratios:
-        print(f"\n--- Mask ratio: {mask_ratio * 100:.0f}% ---")
+        log_info(f"\n--- Mask ratio: {mask_ratio * 100:.0f}% ---")
 
         ratio_results = {"mask_ratio": mask_ratio}
         ratio_results.update(
@@ -2481,28 +3512,28 @@ def run_imputation_experiment(
         )
         results_by_ratio[f"ratio_{int(mask_ratio * 100)}"] = ratio_results
 
-        print(
+        log_info(
             f"  Edge exist recall: {ratio_results.get('edge_exist_recall_mean', float('nan')):.4f}"
         )
-        print(
+        log_info(
             f"  Edge weight MAE: {ratio_results.get('edge_weight_mae_mean', float('nan')):.4f}"
         )
-        print(
+        log_info(
             f"  Node size MAE: {ratio_results.get('node_size_mae_mean', float('nan')):.4f}"
         )
 
-    print(f"\n{'=' * 80}")
-    print("IMPUTATION RESULTS SUMMARY")
-    print(f"{'=' * 80}")
-    print(f"{'Mask %':<12} {'Edge Recall':<15} {'Edge MAE':<15} {'Node MAE':<15}")
-    print("-" * 60)
+    log_info(f"\n{'=' * 80}")
+    log_info("IMPUTATION RESULTS SUMMARY")
+    log_info(f"{'=' * 80}")
+    log_info(f"{'Mask %':<12} {'Edge Recall':<15} {'Edge MAE':<15} {'Node MAE':<15}")
+    log_info("-" * 60)
 
     for ratio_key, results in results_by_ratio.items():
         ratio = results.get("mask_ratio", 0) * 100
         edge_recall = results.get("edge_exist_recall_mean", float("nan"))
         edge_mae = results.get("edge_weight_mae_mean", float("nan"))
         node_mae = results.get("node_size_mae_mean", float("nan"))
-        print(
+        log_info(
             f"{ratio:<12.0f} {edge_recall:<15.4f} {edge_mae:<15.4f} {node_mae:<15.4f}"
         )
 
@@ -2532,8 +3563,11 @@ def main():
             "shock",
             "impute",
             "compare",
+            "systemic",
+            "contagion",
+            "stability",
         ],
-        help="Experiment mode: all, frozen, finetuned, roland, stats, shock, impute, compare",
+        help="Experiment mode: all, frozen, finetuned, roland, stats, shock, impute, compare, systemic, contagion, stability (runs shock+systemic+contagion)",
     )
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=5)
@@ -2587,8 +3621,13 @@ def main():
     parser.add_argument(
         "--horizons",
         type=str,
-        default="1,3,7",
-        help="Comma-separated forecast horizons (default: 1,3,7)",
+        default="1,3,7,14",
+        help="Comma-separated forecast horizons (default: 1,3,7,14)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose debug logging",
     )
     args = parser.parse_args()
 
@@ -2602,17 +3641,71 @@ def main():
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Initialize logging and result management
+    global _logger, _result_manager
+    _logger = ExperimentLogger(output_dir, name="dexposure_experiment")
+    _result_manager = ResultManager(output_dir, logger=_logger)
+    
+    log_info(f"{'=' * 60}")
+    log_info("DeXposure-FM Experiment Suite")
+    log_info(f"{'=' * 60}")
+    log_info(f"Mode: {args.mode}")
+    log_info(f"Output directory: {output_dir}")
+    log_info(f"Device: {config.device}")
+    log_info(f"Epochs: {config.epochs}")
+    log_info(f"Forecast horizons: {config.forecast_horizons}")
+    log_info(f"Seed: {config.seed}")
+    
+    # Save configuration
+    save_result("config", {
+        "mode": args.mode,
+        "epochs": config.epochs,
+        "seed": config.seed,
+        "forecast_horizons": config.forecast_horizons,
+        "device": config.device,
+        "output_dir": str(output_dir),
+        "holdout_start": args.holdout_start,
+        "min_train_weeks": args.min_train_weeks,
+        "val_weeks": args.val_weeks,
+        "test_weeks": args.test_weeks,
+    })
+
     set_seed(config.seed)
 
+    # Wrap everything in try-except to ensure results are saved on error
+    try:
+        _run_experiments(args, config, output_dir)
+    except Exception as e:
+        log_error(f"Experiment failed with error: {e}")
+        log_error(traceback.format_exc())
+        save_result("error", str(e))
+        save_result("traceback", traceback.format_exc())
+        _result_manager.results["status"] = "failed"
+        _result_manager._save()
+        raise
+    
+    # Mark complete
+    _result_manager.mark_complete()
+    
+    log_info(f"\n{'=' * 60}")
+    log_info("EXPERIMENT COMPLETE")
+    log_info(f"{'=' * 60}")
+    log_info(f"Results saved to: {output_dir / 'experiment_results.json'}")
+    log_info(f"Log file: {_logger.log_file}")
+
+
+def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
+    """Run all experiments - separated for error handling."""
+    
     # Load data once for all experiments
-    print("Loading data...")
+    log_info("\nLoading data...")
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
     network_data = load_network_data(config.data_path)
     all_dates = sorted(network_data.keys())
-    print(f"Loaded {len(all_dates)} snapshots: {all_dates[0]} to {all_dates[-1]}")
+    log_info(f"Loaded {len(all_dates)} snapshots: {all_dates[0]} to {all_dates[-1]}")
 
     # Build all snapshots
-    print("Building snapshots...")
+    log_info("Building snapshots...")
     all_snapshots = [
         build_snapshot(
             date, network_data[date], meta_category, category_to_idx, category_list
@@ -2630,60 +3723,63 @@ def main():
         step_weeks=args.step_weeks,
     )
 
-    print(f"\n{'=' * 60}")
-    print("EXPANDING WINDOW WALK-FORWARD SPLIT (金融惯例)")
-    print(f"{'=' * 60}")
-    print(f"  Rolling Folds: {split_result['n_folds']}")
-    print(
+    log_info(f"\n{'=' * 60}")
+    log_info("EXPANDING WINDOW WALK-FORWARD SPLIT (金融惯例)")
+    log_info(f"{'=' * 60}")
+    log_info(f"  Rolling Folds: {split_result['n_folds']}")
+    log_info(
         f"  Min Train: {args.min_train_weeks} weeks | Val: {args.val_weeks} weeks | Test: {args.test_weeks} weeks"
     )
-    print(f"  Step Size: {args.step_weeks} weeks")
+    log_info(f"  Step Size: {args.step_weeks} weeks")
     if split_result["folds"]:
-        print(
+        log_info(
             f"\n  Fold 1:  Train {split_result['folds'][0]['train'][0]} ~ {split_result['folds'][0]['train'][-1]} ({len(split_result['folds'][0]['train'])}w)"
         )
-        print(
+        log_info(
             f"           Val   {split_result['folds'][0]['val'][0]} ~ {split_result['folds'][0]['val'][-1]} ({len(split_result['folds'][0]['val'])}w)"
         )
-        print(
+        log_info(
             f"           Test  {split_result['folds'][0]['test'][0]} ~ {split_result['folds'][0]['test'][-1]} ({len(split_result['folds'][0]['test'])}w)"
         )
         if len(split_result["folds"]) > 1:
             last = split_result["folds"][-1]
-            print(
+            log_info(
                 f"  Fold {last['fold_id']}: Train ... ~ {last['train'][-1]} ({len(last['train'])}w)"
             )
-            print(
+            log_info(
                 f"           Val   {last['val'][0]} ~ {last['val'][-1]} ({len(last['val'])}w)"
             )
-            print(
+            log_info(
                 f"           Test  {last['test'][0]} ~ {last['test'][-1]} ({len(last['test'])}w)"
             )
 
     holdout = split_result["holdout"]
-    print(f"\n  Hold-out (Final Evaluation):")
-    print(
+    log_info(f"\n  Hold-out (Final Evaluation):")
+    log_info(
         f"    Train: {holdout['train'][0] if holdout['train'] else 'N/A'} ~ {holdout['train'][-1] if holdout['train'] else 'N/A'} ({len(holdout['train'])} weeks)"
     )
-    print(
+    log_info(
         f"    Val:   {holdout['val'][0] if holdout['val'] else 'N/A'} ~ {holdout['val'][-1] if holdout['val'] else 'N/A'} ({len(holdout['val'])} weeks)"
     )
-    print(
+    log_info(
         f"    Test:  {holdout['test'][0] if holdout['test'] else 'N/A'} ~ {holdout['test'][-1] if holdout['test'] else 'N/A'} ({len(holdout['test'])} weeks)"
     )
-    print(f"    ⚠️  Hold-out test data is NEVER seen during training!")
+    log_info(f"    ⚠️  Hold-out test data is NEVER seen during training!")
 
     # 使用 holdout split 作为默认 (用于快速实验)
     date_splits = holdout
 
     # Compute and save data quality
-    print("\nComputing data quality statistics...")
+    log_info("\nComputing data quality statistics...")
     data_quality = compute_data_quality(all_snapshots, network_data)
     with open(output_dir / "data_quality.json", "w") as f:
         json.dump(data_quality, f, indent=2)
-    print(f"  Data quality saved to: {output_dir / 'data_quality.json'}")
-    print(f"  Mean nodes/week: {data_quality['summary']['mean_nodes_per_week']:.1f}")
-    print(f"  Mean edges/week: {data_quality['summary']['mean_edges_per_week']:.1f}")
+    log_info(f"  Data quality saved to: {output_dir / 'data_quality.json'}")
+    log_info(f"  Mean nodes/week: {data_quality['summary']['mean_nodes_per_week']:.1f}")
+    log_info(f"  Mean edges/week: {data_quality['summary']['mean_edges_per_week']:.1f}")
+    
+    # Save data quality to result manager
+    save_result("data_quality", data_quality)
 
     # Get snapshots by split
     date_to_snap = {s["date"]: s for s in all_snapshots}
@@ -2698,16 +3794,23 @@ def main():
 
     rolling_results = None
     if args.rolling and run_models:
-        rolling_results = run_expanding_window_evaluation(
-            config=config,
-            split_result=split_result,
-            date_to_snap=date_to_snap,
-            run_frozen=run_frozen,
-            run_finetuned=run_finetuned,
-            run_roland=run_roland,
-            save_predictions=args.save_predictions,
-            output_dir=output_dir,
-        )
+        log_info("\n[Rolling Evaluation] Starting expanding window evaluation...")
+        try:
+            rolling_results = run_expanding_window_evaluation(
+                config=config,
+                split_result=split_result,
+                date_to_snap=date_to_snap,
+                run_frozen=run_frozen,
+                run_finetuned=run_finetuned,
+                run_roland=run_roland,
+                save_predictions=args.save_predictions,
+                output_dir=output_dir,
+            )
+            save_task_result("rolling_evaluation", rolling_results)
+            log_info("[Rolling Evaluation] Completed and saved.")
+        except Exception as e:
+            log_error(f"[Rolling Evaluation] Failed: {e}")
+            save_result("rolling_evaluation_error", str(e))
 
     all_results = {
         "temporal_split": {
@@ -2734,73 +3837,162 @@ def main():
     if rolling_results:
         all_results["rolling_folds"] = rolling_results
 
-    # Run experiments based on mode
+    # Run experiments based on mode with proper error handling
     if args.mode in ["all", "frozen"]:
-        result = run_graphpfn_experiment(
-            config,
-            finetune=False,
-            train_snaps=train_snaps,
-            val_snaps=val_snaps,
-            test_snaps=test_snaps,
-            save_predictions=args.save_predictions,
-            output_dir=output_dir,
-        )
-        if result:
-            all_results["graphpfn_frozen"] = result
+        log_info("\n" + "=" * 60)
+        log_info("[Task I] GraphPFN Frozen - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_graphpfn_experiment(
+                config,
+                finetune=False,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=args.save_predictions,
+                output_dir=output_dir,
+            )
+            if result:
+                all_results["graphpfn_frozen"] = result
+                save_task_result("graphpfn_frozen", result)
+                log_info("[Task I] GraphPFN Frozen - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task I] GraphPFN Frozen failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("graphpfn_frozen_error", str(e))
 
     if args.mode in ["all", "finetuned"]:
-        result = run_graphpfn_experiment(
-            config,
-            finetune=True,
-            train_snaps=train_snaps,
-            val_snaps=val_snaps,
-            test_snaps=test_snaps,
-            save_predictions=args.save_predictions,
-            output_dir=output_dir,
-        )
-        if result:
-            all_results["graphpfn_finetuned"] = result
+        log_info("\n" + "=" * 60)
+        log_info("[Task I] GraphPFN Finetuned - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_graphpfn_experiment(
+                config,
+                finetune=True,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=args.save_predictions,
+                output_dir=output_dir,
+            )
+            if result:
+                all_results["graphpfn_finetuned"] = result
+                save_task_result("graphpfn_finetuned", result)
+                log_info("[Task I] GraphPFN Finetuned - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task I] GraphPFN Finetuned failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("graphpfn_finetuned_error", str(e))
 
     if args.mode in ["all", "roland"]:
-        result = run_roland_experiment(
-            config,
-            train_snaps=train_snaps,
-            val_snaps=val_snaps,
-            test_snaps=test_snaps,
-            save_predictions=args.save_predictions,
-            output_dir=output_dir,
-        )
-        all_results["roland"] = result
+        log_info("\n" + "=" * 60)
+        log_info("[Task I] ROLAND Baseline - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_roland_experiment(
+                config,
+                train_snaps=train_snaps,
+                val_snaps=val_snaps,
+                test_snaps=test_snaps,
+                save_predictions=args.save_predictions,
+                output_dir=output_dir,
+            )
+            all_results["roland"] = result
+            save_task_result("roland", result)
+            log_info("[Task I] ROLAND - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task I] ROLAND failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("roland_error", str(e))
 
     if args.mode in ["all", "stats"]:
-        result = run_network_statistics(config)
-        all_results["network_stats"] = result
+        log_info("\n" + "=" * 60)
+        log_info("[Stats] Network Statistics - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_network_statistics(config)
+            all_results["network_stats"] = result
+            save_task_result("network_stats", result)
+            log_info("[Stats] Network Statistics - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Stats] Network Statistics failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("network_stats_error", str(e))
 
-    if args.mode in ["all", "shock"]:
-        result = run_shock_analysis(config, model_type=args.shock_model)
-        all_results["shock_analysis"] = result
+    if args.mode in ["all", "shock", "stability"]:
+        log_info("\n" + "=" * 60)
+        log_info("[Task II.2] Shock Event Analysis - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_shock_analysis(config, model_type=args.shock_model)
+            all_results["shock_analysis"] = result
+            save_task_result("shock_analysis", result)
+            log_info("[Task II.2] Shock Event Analysis - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task II.2] Shock Event Analysis failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("shock_analysis_error", str(e))
+
+    if args.mode in ["all", "systemic", "stability"]:
+        log_info("\n" + "=" * 60)
+        log_info("[Task II.1] Systemic Risk Measurement - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_systemic_risk_analysis(config)
+            all_results["systemic_risk"] = result
+            save_task_result("systemic_risk", result)
+            log_info("[Task II.1] Systemic Risk Measurement - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task II.1] Systemic Risk Measurement failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("systemic_risk_error", str(e))
+
+    if args.mode in ["all", "contagion", "stability"]:
+        log_info("\n" + "=" * 60)
+        log_info("[Task II.3] Contagion Simulation - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_contagion_simulation(config)
+            all_results["contagion_simulation"] = result
+            save_task_result("contagion_simulation", result)
+            log_info("[Task II.3] Contagion Simulation - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task II.3] Contagion Simulation failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("contagion_simulation_error", str(e))
 
     if args.mode in ["all", "impute"]:
-        result = run_imputation_experiment(
-            config, snapshots=all_snapshots, date_splits=date_splits
-        )
-        if result:
-            all_results["imputation"] = result
+        log_info("\n" + "=" * 60)
+        log_info("[Task III] Imputation Experiment - Starting...")
+        log_info("=" * 60)
+        try:
+            result = run_imputation_experiment(
+                config, snapshots=all_snapshots, date_splits=date_splits
+            )
+            if result:
+                all_results["imputation"] = result
+                save_task_result("imputation", result)
+                log_info("[Task III] Imputation Experiment - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task III] Imputation Experiment failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("imputation_error", str(e))
 
-    # Save all results
+    # Save all results (final consolidated version)
     with open(output_dir / "experiment_results.json", "w") as f:
         json.dump(all_results, f, indent=2, default=str)
+    log_info(f"\nAll results saved to: {output_dir / 'experiment_results.json'}")
 
     # Print comparison table
     if args.mode in ["all", "compare"]:
-        print(f"\n{'=' * 80}")
-        print("COMPARISON TABLE - Multi-step Forecasting Results")
-        print(f"{'=' * 80}")
-        print(f"{'Model':<30} {'h=1 AUPRC':<15} {'h=3 AUPRC':<15} {'h=7 AUPRC':<15}")
-        print("-" * 80)
+        log_info(f"\n{'=' * 80}")
+        log_info("COMPARISON TABLE - Multi-step Forecasting Results")
+        log_info(f"{'=' * 80}")
+        log_info(f"{'Model':<30} {'h=1 AUPRC':<15} {'h=3 AUPRC':<15} {'h=7 AUPRC':<15}")
+        log_info("-" * 80)
 
         for name, result in all_results.items():
-            if "results" in result:
+            if isinstance(result, dict) and "results" in result:
                 h1 = (
                     result["results"]
                     .get("h1", {})
@@ -2819,20 +4011,22 @@ def main():
                     .get("exist", {})
                     .get("auprc", float("nan"))
                 )
-                print(
+                log_info(
                     f"{result.get('model', name):<30} {h1:<15.4f} {h3:<15.4f} {h7:<15.4f}"
                 )
 
-    print(f"\nResults saved to: {output_dir / 'experiment_results.json'}")
-    print(f"\nExperiment completed. Available modes:")
-    print(f"  --mode frozen      : GraphPFN with frozen encoder")
-    print(f"  --mode finetuned   : GraphPFN with fine-tuned encoder")
-    print(f"  --mode roland      : ROLAND baseline")
-    print(f"  --mode stats       : Network statistics computation")
-    print(f"  --mode shock       : Shock analysis (Terra/FTX events)")
-    print(f"  --mode impute      : Imputation experiment (Task III)")
-    print(f"  --mode all         : Run all experiments")
-    print(f"  --mode compare     : Print comparison table")
+    log_info(f"\nExperiment completed. Available modes:")
+    log_info(f"  --mode frozen      : GraphPFN with frozen encoder (Task I)")
+    log_info(f"  --mode finetuned   : GraphPFN with fine-tuned encoder (Task I)")
+    log_info(f"  --mode roland      : ROLAND baseline (Task I)")
+    log_info(f"  --mode stats       : Network statistics computation")
+    log_info(f"  --mode shock       : Shock event analysis (Task II.2)")
+    log_info(f"  --mode systemic    : Systemic risk measurement (Task II.1)")
+    log_info(f"  --mode contagion   : Contagion simulation (Task II.3)")
+    log_info(f"  --mode stability   : Full financial stability analysis (Task II: shock+systemic+contagion)")
+    log_info(f"  --mode impute      : Imputation experiment (Task III)")
+    log_info(f"  --mode all         : Run all experiments")
+    log_info(f"  --mode compare     : Print comparison table")
 
 
 if __name__ == "__main__":

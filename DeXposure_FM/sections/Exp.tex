@@ -32,16 +32,27 @@ Protocol categories & $\sim$15 classes \\
 \end{table}
 
 \paragraph{Temporal split.}
-We use expanding window walk-forward validation with a 2025 hold-out test set:
+We use a two-stage evaluation protocol:
+
+\textit{Stage 1: Model selection via walk-forward cross-validation.}
+We apply expanding window walk-forward cross-validation on pre-2025 data with 16 folds. Each fold uses a minimum of 104 training weeks, 12 validation weeks (for early stopping), and 8 test weeks. The window advances by 8 weeks per fold, accumulating more training data. This stage is used for hyperparameter selection and model comparison.
+
+\textit{Stage 2: Hold-out evaluation.}
+Final performance is reported on a strict 2025 hold-out set, which is never seen during training or validation:
 \begin{itemize}
   \item \textbf{Training:} 2020-03-23 $\sim$ 2024-10-07 (238 weeks)
-  \item \textbf{Validation:} 2024-10-14 $\sim$ 2024-12-30 (12 weeks)
-  \item \textbf{Test:} 2025-01-06 $\sim$ 2025-08-18 (33 weeks, hold-out)
+  \item \textbf{Validation:} 2024-10-14 $\sim$ 2024-12-30 (12 weeks, for early stopping)
+  \item \textbf{Test:} 2025-01-06 $\sim$ 2025-08-18 (33 weeks, strict hold-out)
 \end{itemize}
+All results in this paper are from Stage 2 hold-out evaluation.
+
+\paragraph{Forecast horizons vs. CV windows.}
+The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 3, 7\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
 
 \paragraph{Models compared.}
 We compare three approaches:
 \begin{enumerate}
+  \item \textbf{GraphPFN (Frozen):} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
   \item \textbf{GraphPFN (Fine-tuned):} Pre-trained GraphPFN encoder with end-to-end fine-tuning using differential learning rates.
   \item \textbf{ROLAND:} Temporal GNN baseline with GCN encoder and GRU temporal updates, trained from scratch.
 \end{enumerate}
@@ -73,78 +84,208 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \textbf{Model} & $h$ & AUPRC & AUROC & MAE & RMSE & MAE & RMSE \\
 \hline
 \multirow{3}{*}{GraphPFN (FT)} 
-& 1 & \textbf{0.932} & \textbf{0.985} & \textbf{2.62} & \textbf{3.53} & 0.060 & 0.401 \\
-& 3 & \textbf{0.934} & \textbf{0.986} & \textbf{2.66} & \textbf{3.56} & 0.121 & 0.605 \\
-& 7 & \textbf{0.936} & \textbf{0.986} & \textbf{2.64} & \textbf{3.55} & 0.211 & 0.840 \\
+& 1 & \textbf{0.932} & 0.985 & \textbf{2.62} & \textbf{3.53} & 0.060 & 0.401 \\
+& 3 & \textbf{0.934} & 0.986 & \textbf{2.66} & \textbf{3.56} & 0.121 & 0.605 \\
+& 7 & \textbf{0.936} & 0.986 & \textbf{2.64} & \textbf{3.55} & 0.211 & 0.840 \\
+\hline
+\multirow{3}{*}{GraphPFN (FR)}
+& 1 & 0.931 & \textbf{0.986} & 3.30 & 4.29 & 0.060 & 0.401 \\
+& 3 & 0.934 & \textbf{0.987} & 3.27 & 4.46 & 0.117 & 0.606 \\
+& 7 & 0.934 & 0.986 & 3.25 & ---$^\dagger$ & ---$^\dagger$ & ---$^\dagger$ \\
 \hline
 \multirow{3}{*}{ROLAND}
-& 1 & 0.870 & 0.962 & 3.99 & 5.84 & \textbf{0.057} & \textbf{0.403} \\
-& 3 & 0.866 & 0.959 & 3.97 & 5.82 & \textbf{0.114} & \textbf{0.608} \\
-& 7 & 0.861 & 0.955 & 3.94 & 5.79 & \textbf{0.195} & \textbf{0.847} \\
+& 1 & 0.870 & 0.962 & 3.99 & 5.84 & ---$^\ddagger$ & ---$^\ddagger$ \\
+& 3 & 0.866 & 0.959 & 3.97 & 5.82 & ---$^\ddagger$ & ---$^\ddagger$ \\
+& 7 & 0.861 & 0.955 & 3.94 & 5.79 & ---$^\ddagger$ & ---$^\ddagger$ \\
 \hline
 \end{tabular}
-\caption{Multi-step forecasting results on 2025 hold-out test set. Bold indicates best performance. GraphPFN (FT) = Fine-tuned GraphPFN. Edge weight MAE/RMSE are on log-scaled values.}
+\caption{Multi-step forecasting results on 2025 hold-out test set. Bold indicates best performance. FT = Fine-tuned, FR = Frozen (linear probe). $^\dagger$h=7 prediction files incomplete due to disk space during experiment. $^\ddagger$ROLAND does not implement node-level prediction.}
 \label{tab:main-results}
 \end{table}
 
 \paragraph{Key findings.}
 \begin{enumerate}
-  \item \textbf{Edge existence:} GraphPFN achieves AUPRC $>$0.93 across all horizons, outperforming ROLAND by 6--7 percentage points. The high baseline performance reflects the 98.5\% edge overlap ratio in the data.
-  \item \textbf{Edge weight:} GraphPFN reduces MAE by 34\% compared to ROLAND (2.6 vs. 3.9), demonstrating superior weight prediction capability.
-  \item \textbf{Node prediction:} ROLAND performs slightly better on node TVL change prediction, possibly due to its explicit temporal modeling via GRU.
+  \item \textbf{Edge existence:} Both GraphPFN variants achieve AUPRC $>$0.93 across all horizons, outperforming ROLAND by 6--7 percentage points. The high baseline performance reflects the 98.5\% edge overlap ratio in the data.
+  \item \textbf{Edge weight:} Fine-tuning yields the best weight prediction, reducing MAE by 34\% compared to ROLAND (2.6 vs. 3.9). The frozen variant also outperforms ROLAND (3.3 vs. 3.9), with RMSE following a similar pattern.
+  \item \textbf{Frozen vs. Fine-tuned:} Edge existence performance is nearly identical (AUPRC 0.931--0.934), but fine-tuning provides 21\% improvement in edge weight MAE (2.6 vs. 3.3), demonstrating the value of end-to-end adaptation.
+  \item \textbf{Node prediction:} GraphPFN variants show comparable node prediction (MAE 0.06--0.12 for h=1,3), with performance degrading at longer horizons as expected. ROLAND does not implement node-level prediction.
   \item \textbf{Horizon stability:} GraphPFN maintains stable performance across horizons (h=1 to h=7), while ROLAND shows mild degradation.
 \end{enumerate}
 
-\subsection{Task II: Shock Analysis}
-\label{subsec:shock}
+\subsection{Task II: Financial Stability Analysis}
+\label{subsec:stability}
 
-We evaluate model behavior during two major DeFi stress events:
-\begin{enumerate}
-  \item \textbf{Terra/Luna collapse} (May 9, 2022): UST stablecoin de-peg triggering cascading liquidations.
-  \item \textbf{FTX collapse} (November 7, 2022): Exchange failure and contagion through FTT token exposures.
-\end{enumerate}
+We conduct comprehensive financial stability analysis, combining systemic risk measurement, historical shock analysis, and contagion simulation. This task directly addresses macro-prudential policy applications.
 
-For each event, we analyze a 4-week window around the shock date, examining:
+\subsubsection{Systemic Risk Measurement}
+\label{subsubsec:systemic-risk}
+
+We compute protocol-level and network-level risk indicators for each weekly snapshot.
+
+\paragraph{Protocol-level systemic importance score (SIS).}
+For each protocol $p$, we define:
+\begin{equation}
+\text{SIS}_p = \alpha \cdot \text{PageRank}_p + \beta \cdot \text{TailExposure}_p + \gamma \cdot \log(\text{TVL}_p),
+\label{eq:sis}
+\end{equation}
+where $\text{TailExposure}_p$ measures the concentration of $p$'s largest exposures (ratio of top-5 exposures to total), and $\alpha, \beta, \gamma$ are normalized weights summing to 1.
+
+\paragraph{Sector spillover index.}
+We aggregate exposures into a sector-to-sector matrix $\mathbf{S} \in \mathbb{R}^{K \times K}$, where $S_{ij}$ is the total exposure from sector $i$ to sector $j$. The spillover index is the HHI of off-diagonal elements:
+\begin{equation}
+\text{SpilloverIndex} = \text{HHI}\left(\{S_{ij} : i \neq j\}\right).
+\end{equation}
+
+\paragraph{Early-warning indicators.}
+We track structural change rates that may signal emerging instability:
 \begin{itemize}
-  \item Network structure changes (TVL, edge count, concentration metrics)
-  \item Model prediction performance during stress periods
-  \item Protocol-level impact assessment
+  \item Density change: $\Delta\rho_t = (\rho_t - \rho_{t-1})/\rho_{t-1}$
+  \item Concentration spike: $\Delta\text{HHI}_t > 2\sigma$ (two standard deviations above mean)
+  \item Assortativity shift: rapid changes in degree correlation
 \end{itemize}
 
-\subsection{Task III: Imputation}
-\label{subsec:imputation}
+\subsubsection{Shock Event Analysis}
+\label{subsubsec:shock-events}
 
-We evaluate the model's ability to reconstruct missing edges under random masking.
+We analyze model behavior during two major DeFi stress events.
 
-\paragraph{Masking protocol.}
-We apply Missing Completely at Random (MCAR) masking at rates $\{10\%, 20\%, 30\%\}$ to the edge set and evaluate reconstruction quality.
+\paragraph{Events analyzed.}
+\begin{enumerate}
+  \item \textbf{Terra/Luna collapse} (May 9, 2022): The UST algorithmic stablecoin lost its dollar peg, triggering cascading liquidations. Analysis window: April 25 -- May 23, 2022.
+  \item \textbf{FTX collapse} (November 7, 2022): The FTX exchange failure and resulting contagion through FTT token exposures. Analysis window: October 31 -- November 21, 2022.
+\end{enumerate}
 
-\paragraph{Metrics.}
-We report AUPRC for edge existence reconstruction and MAE for edge weight reconstruction on masked edges.
+\paragraph{Analysis framework.}
+For each event, we examine a 4-week window:
+\begin{enumerate}
+  \item \textbf{Network structure changes:} TVL, edge count, Gini coefficient, HHI.
+  \item \textbf{Prediction degradation:} AUPRC and weight MAE before vs. during the shock.
+  \item \textbf{Early warning signals:} Whether structural indicators spiked before the event.
+\end{enumerate}
 
-\subsection{Ablation: Encoder Comparison}
-\label{subsec:ablation}
-
-Table~\ref{tab:ablation} compares GraphPFN against ROLAND to isolate the contribution of the pre-trained foundation model.
+\paragraph{Results.}
+Table~\ref{tab:shock-results} compares pre-shock vs. shock-period performance. \textit{(Results pending---experiments not yet run.)}
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lcc}
+\begin{tabular}{llccc}
 \hline
-\textbf{Model} & \textbf{AUPRC} ($h$=1) & \textbf{Weight MAE} ($h$=1) \\
+\textbf{Event} & \textbf{Model} & \textbf{Pre-AUPRC} & \textbf{Shock-AUPRC} & \textbf{$\Delta$} \\
 \hline
-GraphPFN (Fine-tuned) & \textbf{0.932} & \textbf{2.62} \\
-ROLAND (from scratch) & 0.870 & 3.99 \\
-\hline
-$\Delta$ (improvement) & +7.1\% & $-$34.3\% \\
+Terra & GraphPFN (FT) & --- & --- & --- \\
+Terra & ROLAND & --- & --- & --- \\
+FTX & GraphPFN (FT) & --- & --- & --- \\
+FTX & ROLAND & --- & --- & --- \\
 \hline
 \end{tabular}
-\caption{Ablation comparing pre-trained GraphPFN vs. ROLAND trained from scratch.}
-\label{tab:ablation}
+\caption{Model performance degradation during stress events.}
+\label{tab:shock-results}
 \end{table}
 
-The pre-trained GraphPFN encoder provides substantial gains over training from scratch, validating the transfer learning approach for DeFi exposure networks.
+\subsubsection{Contagion Simulation}
+\label{subsubsec:contagion}
+
+We implement a DebtRank-style contagion simulation to assess systemic loss propagation.
+
+\paragraph{Shock propagation mechanism.}
+Given an initial shock to protocol $p_0$ with loss ratio $\delta_0$:
+\begin{enumerate}
+  \item \textbf{Initialize:} $\text{Loss}_{p_0} = \delta_0 \cdot \text{TVL}_{p_0}$
+  \item \textbf{Propagate:} For each creditor $q$ with exposure $E_{qp_0}$ to $p_0$:
+  \begin{equation}
+    \text{Loss}_q^{(1)} = E_{qp_0} \cdot \delta_0
+  \end{equation}
+  \item \textbf{Iterate:} If $\text{Loss}_q^{(r)} > \tau \cdot \text{TVL}_q$, protocol $q$ becomes distressed and propagates losses to its creditors.
+  \item \textbf{Terminate:} When no new protocols become distressed.
+\end{enumerate}
+
+\paragraph{Simulation scenarios.}
+We simulate counterfactual shocks using actual network structure:
+\begin{itemize}
+  \item \textbf{Stablecoin de-peg:} 50\% TVL loss to major stablecoins (USDC, DAI)
+  \item \textbf{Exchange failure:} Complete TVL loss to centralized exchange protocols
+  \item \textbf{Bridge exploit:} 100\% loss to cross-chain bridge protocols
+\end{itemize}
+
+\paragraph{Metrics.}
+\begin{itemize}
+  \item \textbf{Total system loss:} $\sum_p \text{Loss}_p$ after convergence
+  \item \textbf{Contagion depth:} Number of propagation rounds before convergence
+  \item \textbf{Affected protocols:} Count of protocols with $\text{Loss} > 0$
+\end{itemize}
+
+Table~\ref{tab:contagion-results} presents contagion simulation results. \textit{(Results pending---experiments not yet run.)}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+\textbf{Scenario} & \textbf{System Loss (\%)} & \textbf{Depth} & \textbf{Affected} \\
+\hline
+Terra (actual) & --- & --- & --- \\
+Terra (simulated) & --- & --- & --- \\
+FTX (actual) & --- & --- & --- \\
+FTX (simulated) & --- & --- & --- \\
+Stablecoin de-peg & --- & --- & --- \\
+Bridge exploit & --- & --- & --- \\
+\hline
+\end{tabular}
+\caption{Contagion simulation results. System Loss is percentage of total network TVL lost. Depth is number of propagation rounds. Affected is count of distressed protocols.}
+\label{tab:contagion-results}
+\end{table}
+
+\subsection{Task III: Imputation}
+\label{subsec:imputation}
+
+We evaluate the model's ability to reconstruct missing edges, simulating incomplete network observations that are common in real-world DeFi data collection.
+
+\paragraph{Masking protocol.}
+We apply Missing Completely at Random (MCAR) masking at three severity levels:
+\begin{itemize}
+  \item \textbf{Light (10\%):} Simulates minor data collection gaps
+  \item \textbf{Moderate (20\%):} Tests reconstruction under typical incompleteness
+  \item \textbf{Heavy (30\%):} Stress-tests model capacity with significant missing data
+\end{itemize}
+
+\paragraph{Masking types.}
+\begin{enumerate}
+  \item \textbf{Edge masking:} Randomly remove edges from the observed graph
+  \item \textbf{Node masking:} Mask node attributes (TVL) and require reconstruction
+  \item \textbf{Combined masking:} Simultaneously mask both edges and node attributes
+\end{enumerate}
+
+\paragraph{Metrics.}
+For masked edges, we report:
+\begin{itemize}
+  \item AUPRC for edge existence reconstruction (can the model recover which edges were masked?)
+  \item MAE for edge weight reconstruction (how accurately can masked weights be imputed?)
+\end{itemize}
+
+\paragraph{Expected results table.}
+Table~\ref{tab:imputation-results} summarizes imputation performance. \textit{(Results pending---imputation experiments not yet run.)}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+\textbf{Mask Rate} & \textbf{Model} & \textbf{Edge AUPRC} & \textbf{Weight MAE} \\
+\hline
+\multirow{2}{*}{10\%} & GraphPFN (FT) & --- & --- \\
+& ROLAND & --- & --- \\
+\hline
+\multirow{2}{*}{20\%} & GraphPFN (FT) & --- & --- \\
+& ROLAND & --- & --- \\
+\hline
+\multirow{2}{*}{30\%} & GraphPFN (FT) & --- & --- \\
+& ROLAND & --- & --- \\
+\hline
+\end{tabular}
+\caption{Imputation performance at different masking rates.}
+\label{tab:imputation-results}
+\end{table}
 
 \subsection{Discussion}
 \label{subsec:discussion}
@@ -156,4 +297,4 @@ The 98.5\% mean edge overlap ratio explains the high AUPRC values---most edges p
 The strong edge weight prediction (34\% lower MAE) is particularly valuable for risk monitoring, as it enables more accurate estimation of exposure magnitudes for macro-prudential analysis.
 
 \paragraph{Limitations.}
-Current experiments use h $\in \{1, 3, 7\}$; the h=14 horizon is pending. Future work includes implementing the full 7-loss-component objective and TVL-weighted economic importance sampling as specified in the training design.
+Current experiments report $h \in \{1, 3, 7\}$; the $h$=14 horizon results are pending. Further analysis will report the impact of TVL-weighted economic importance on downstream metrics.

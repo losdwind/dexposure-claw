@@ -22,26 +22,26 @@
 | # | 原论文描述 | 实现状态 | 说明 |
 |---|-----------|----------|------|
 | 5 | **三阶段训练**: Phase A (冻结backbone+训练adapter) → Phase B (域内预训练) → Phase C (任务微调) | **两阶段训练**: Frozen (冻结编码器) 或 Finetuned (端到端) | 简化为两种模式，adapter 预热可作为 Future Work |
-| 6 | **7 个损失分量**: $\mathcal{L}_{\text{edge}}, \mathcal{L}_{\text{link}}, \mathcal{L}_{\text{node}}, \mathcal{L}_{\text{stats}}, \mathcal{L}_{\text{impute}}, \mathcal{L}_{\text{scen}}, \mathcal{L}_{\text{smooth}}$ | ✅ **需要实现全部 7 个损失分量** | 导师要求保留完整的多任务损失设计 |
-| 7 | **经济重要性加权**: $w_{ij} \propto \text{TVL}_i \cdot (\mathbf{E}_t)_{ij}$ | ✅ **需要实现 TVL 加权** | 导师要求保留经济重要性加权机制 |
+| 6 | **7 个损失分量**: $\mathcal{L}_{\text{edge}}, \mathcal{L}_{\text{link}}, \mathcal{L}_{\text{node}}, \mathcal{L}_{\text{stats}}, \mathcal{L}_{\text{impute}}, \mathcal{L}_{\text{scen}}, \mathcal{L}_{\text{smooth}}$ | ✅ **已实现全部 7 个损失分量** | 代码位置: `run_full_experiment.py` L1234-1500 |
+| 7 | **经济重要性加权**: $w_{ij} \propto \text{TVL}_i \cdot (\mathbf{E}_t)_{ij}$ | 🔴 **待实现 TVL 加权** | 导师要求保留经济重要性加权机制 |
 | 8 | **时间衰减**: $\gamma^{h-1}$ 对远期预测降权 | **无衰减**: 所有预测窗口等权 | 代码中未实现 horizon decay |
-| 9 | **SAM 优化器 + 分层学习率**: 不同模块使用不同 lr | **Adam + 统一学习率**: 所有参数使用相同 lr=1e-3 | 代码使用标准 Adam |
+| 9 | **SAM 优化器 + 分层学习率**: 不同模块使用不同 lr | ✅ **分层学习率已实现**: encoder 用 1e-4, heads 用 1e-3 | Adam with differential LR |
 | 10 | **Masked 预训练**: 类似 BERT 的掩码预训练 | **无预训练**: 使用现成的 GraphPFN checkpoint | 直接加载预训练权重，无需自己预训练 |
 
-### 📝 待实现的训练组件
+### ✅ 已实现的训练组件
 
-#### 7个损失分量 (导师要求保留)
-| 损失 | 公式 | 用途 |
-|------|------|------|
-| $\mathcal{L}_{\text{edge}}$ | BCE | 边存在预测 |
-| $\mathcal{L}_{\text{link}}$ | SmoothL1 | 边权重预测 |
-| $\mathcal{L}_{\text{node}}$ | SmoothL1 | 节点属性预测 |
-| $\mathcal{L}_{\text{stats}}$ | MSE | 图统计量约束 |
-| $\mathcal{L}_{\text{impute}}$ | SmoothL1 | 缺失值填补 |
-| $\mathcal{L}_{\text{scen}}$ | CE/Contrastive | 场景分类/对比 |
-| $\mathcal{L}_{\text{smooth}}$ | Temporal Smoothness | 时序平滑约束 |
+#### 7个损失分量 (已实现)
+| 损失 | 公式 | 用途 | 权重 λ |
+|------|------|------|--------|
+| $\mathcal{L}_{\text{edge}}$ | BCE | 边存在预测 | 1.0 |
+| $\mathcal{L}_{\text{link}}$ | SmoothL1 | 边权重预测 | 1.0 |
+| $\mathcal{L}_{\text{node}}$ | SmoothL1 | 节点属性预测 | 0.5 |
+| $\mathcal{L}_{\text{stats}}$ | MSE | 图统计量约束 | 0.1 |
+| $\mathcal{L}_{\text{impute}}$ | SmoothL1 | 缺失值填补 | 0.3 |
+| $\mathcal{L}_{\text{scen}}$ | CE/Contrastive | 场景分类/对比 | 0.2 |
+| $\mathcal{L}_{\text{smooth}}$ | Temporal Smoothness | 时序平滑约束 | 0.1 |
 
-#### 经济重要性加权 (导师要求保留)
+#### 经济重要性加权 (🔴 待实现)
 $$w_{ij} = \frac{\text{TVL}_i \cdot (\mathbf{E}_t)_{ij}}{\sum_{(i',j') \in \mathcal{E}} \text{TVL}_{i'} \cdot (\mathbf{E}_t)_{i'j'}}$$
 
 ---
@@ -52,9 +52,12 @@ $$w_{ij} = \frac{\text{TVL}_i \cdot (\mathbf{E}_t)_{ij}}{\sum_{(i',j') \in \math
 |---|-----------|----------|------|
 | 11 | **预测窗口**: h ∈ {1, 3, 7, 14} weeks | ✅ **保留全部窗口**: h ∈ {1, 3, 7, 14} weeks | 导师要求保留完整的预测窗口设置 |
 | 12 | **多个传统/深度 Baselines**: Naïve, ARIMA, VAR/SVAR, Dynamic factor, Low-rank tensor, TGAT, TGN, DySAT | **单一 Baseline**: ROLAND (Temporal GNN: GCN + GRU) | 选择 ROLAND 作为代表性时序图神经网络基线，未实现传统统计方法 |
-| 13 | **Scenario Analysis**: 抽象的政策场景生成 + 反事实推理 | **Shock Analysis**: 具体历史事件 (Terra/Luna, FTX) 的回溯分析 | 更务实，使用真实历史数据验证 |
+| 13 | **Scenario Analysis**: 抽象的政策场景生成 + 反事实推理 | **Financial Stability Analysis**: 综合性金融稳定分析 | 包含 Systemic Risk Measurement + Shock Analysis + Contagion Simulation |
+| 13a | - 系统性风险测量 | ✅ **Systemic Risk Measurement**: SIS评分 + 部门溢出指数 + 预警指标 | 使用 PageRank/HHI/结构变化率 |
+| 13b | - 冲击事件分析 | ✅ **Shock Analysis**: Terra/Luna, FTX 历史回测 | 已实现网络变化 + 模型退化分析 |
+| 13c | - 传染模拟压测 | ✅ **Contagion Simulation**: DebtRank-style 传染模拟 | 简化版压测,不含反事实政策 |
 | 14 | **Imputation + Denoising**: 多种缺失机制 + 噪声鲁棒性 | **仅 Imputation**: MCAR 随机掩码 (10/20/30%) | 代码只实现了随机掩码 |
-| 15 | **复杂消融**: 模态消融、上下文长度、预训练策略 | **简单消融**: Frozen vs Finetuned + 超参敏感性 | 匹配代码实际可做的实验 |
+| 15 | **复杂分析**: 模态/上下文长度/预训练策略 | **不做额外分析** | 导师要求删除相关实验 |
 | 16 | **Rolling-origin + 两种窗口**: 滚动窗口 + 扩展窗口 + Diebold-Mariano 显著性检验 | **Expanding Window Walk-Forward**: 训练窗口扩展 + 固定 val/test 窗口 + 2025 Hold-out 最终测试 | 实现了扩展窗口，但未实现滑动窗口和 DM 检验 |
 
 ---
@@ -214,116 +217,7 @@ for t in range(len(snapshots) - horizon):
 
 ---
 
-## 🧪 消融实验清单 (Ablation Studies)
 
-根据论文设计和导师要求，需要补充以下消融实验：
-
-### 1️⃣ 损失分量消融 (Loss Component Ablation) 🔴 高优先级
-
-验证每个损失分量的贡献：
-
-| 配置 | AUPRC | Edge MAE | Node MAE | 说明 |
-|------|-------|----------|----------|------|
-| **Full (all 7 losses)** | ⏳ | ⏳ | ⏳ | 完整7个损失 |
-| $-\mathcal{L}_{\text{smooth}}$ | ⏳ | ⏳ | ⏳ | 移除时序平滑 |
-| $-\mathcal{L}_{\text{scen}}$ | ⏳ | ⏳ | ⏳ | 移除场景损失 |
-| $-\mathcal{L}_{\text{impute}}$ | ⏳ | ⏳ | ⏳ | 移除填补损失 |
-| $-\mathcal{L}_{\text{stats}}$ | ⏳ | ⏳ | ⏳ | 移除图统计量损失 |
-| $-\mathcal{L}_{\text{node}}$ | ⏳ | ⏳ | -- | 移除节点损失 |
-| $-\mathcal{L}_{\text{edge}}$ | ⏳ | -- | ⏳ | 移除边权重损失 |
-| Only $\mathcal{L}_{\text{link}}$ | ⏳ | -- | -- | 仅链接预测 |
-
-### 2️⃣ 经济重要性加权消融 (TVL Weighting Ablation) 🔴 高优先级
-
-验证 TVL 加权机制的效果：
-
-| 配置 | AUPRC | W-MAE | Top-10 Recall | 说明 |
-|------|-------|-------|---------------|------|
-| **With TVL weighting** | ⏳ | ⏳ | ⏳ | $w_{ij} \propto \text{TVL}_i \cdot E_{ij}$ |
-| Without weighting | ⏳ | ⏳ | ⏳ | 等权处理 |
-| TVL-only weighting | ⏳ | ⏳ | ⏳ | $w_{ij} \propto \text{TVL}_i$ |
-| Edge-only weighting | ⏳ | ⏳ | ⏳ | $w_{ij} \propto E_{ij}$ |
-
-**关键指标**: Top-K Recall 应重点关注高 TVL 协议的大额暴露预测准确性
-
-### 3️⃣ 编码器消融 (Encoder Ablation) 🟡 中优先级
-
-验证 GraphPFN 预训练表示的价值：
-
-| 编码器 | AUPRC | Edge MAE | W-MAE | 说明 |
-|--------|-------|----------|-------|------|
-| **GraphPFN** | 0.934 | 3.27 | 13.66 | 预训练图基础模型 |
-| GCN | ⏳ | ⏳ | ⏳ | 经典图卷积 |
-| GAT | ⏳ | ⏳ | ⏳ | 图注意力 |
-| GraphSAGE | ⏳ | ⏳ | ⏳ | 采样聚合 |
-| MLP (no graph) | ⏳ | ⏳ | ⏳ | 消融图结构 |
-
-### 4️⃣ Frozen vs Finetuned 消融 ✅ 已实现
-
-| 配置 | AUPRC | Edge MAE | W-MAE | 状态 |
-|------|-------|----------|-------|------|
-| GraphPFN Frozen | 0.934 | 3.27 | 13.66 | ✅ 已完成 |
-| GraphPFN Finetuned | 0.934 | 2.64 | 6.10 | ✅ 已完成 |
-
-### 5️⃣ 预测窗口敏感性 (Horizon Sensitivity) 🟡 中优先级
-
-| Horizon | AUPRC | Edge MAE | W-MAE | 说明 |
-|---------|-------|----------|-------|------|
-| h=1 | 0.931 | 3.30 | 13.78 | ✅ 已完成 |
-| h=3 | 0.934 | 3.27 | 13.44 | ✅ 已完成 |
-| h=7 | 0.934 | 3.25 | 13.75 | ✅ 已完成 |
-| h=14 | ⏳ | ⏳ | ⏳ | 🔴 导师要求 |
-
-### 5️⃣ Naive Baseline 对比 🟡 中优先级
-
-验证模型是否比简单基线更好：
-
-### 7️⃣ Naive Baseline 对比 🟡 中优先级
-
-验证模型是否比简单基线更好：
-
-| 方法 | AUPRC | Edge MAE | 说明 |
-|------|-------|----------|------|
-| **DeXposure-FM** | 0.934 | 3.27 | GraphPFN 模型 |
-| Naive (last week) | ⏳ | ⏳ | 直接用上周的边预测 |
-| Persistence | ⏳ | ⏳ | 假设边永不变化 |
-| Random | ⏳ | ⏳ | 随机预测 |
-
-**重要**: 边重叠率 98.5%，Naive baseline 可能表现不错，需证明模型优于 Naive
-
-### 8️⃣ Shock 期间分层评估 🟡 中优先级
-
-验证模型在极端情况下的表现：
-
-| 时期 | Edge Overlap | AUPRC | Edge MAE | 说明 |
-|------|--------------|-------|----------|------|
-| 正常期 | ~98.5% | ⏳ | ⏳ | 平稳期 |
-| Terra/Luna (2022.05) | ⏳ | ⏳ | ⏳ | 网络剧变期 |
-| FTX (2022.11) | ⏳ | ⏳ | ⏳ | 网络剧变期 |
-| 恢复期 | ⏳ | ⏳ | ⏳ | 事件后恢复 |
-
----
-
-### 📋 消融实验优先级总结 (共8组)
-
-| # | 消融类型 | 优先级 | 预计工作量 | 状态 |
-|---|----------|--------|------------|------|
-| 1 | 损失分量消融 (7个) | 🔴 高 | 2-3 天 | 需先实现7个损失 |
-| 2 | TVL 加权消融 | 🔴 高 | 1 天 | 需先实现 TVL 加权 |
-| 3 | 编码器消融 (GraphPFN vs GNN) | 🟡 中 | 1 天 | 可直接运行 |
-| 4 | Frozen vs Finetuned | ✅ 完成 | -- | 已有结果 |
-| 5 | 预测窗口 h=14 | 🔴 高 | 0.5 天 | 导师要求 |
-| 6 | Naive Baseline | 🟡 中 | 0.5 天 | 可直接实现 |
-| 7 | Shock 分层评估 | 🟡 中 | 1 天 | 需数据划分 |
-
-**论文建议**: 主文 3-4 个消融表 + 附录 2-3 个详细分析
-
-| 位置 | 消融内容 |
-|------|----------|
-| **主文 Table** | Frozen vs Finetuned, 编码器消融 (GraphPFN vs ROLAND) |
-| **主文 Table** | 预测窗口敏感性 h={1,3,7,14} |
-| **主文 Table** | 损失分量消融 (简化版: Full vs 核心3个) |
-| **附录** | 完整7损失消融、TVL加权消融、Naive baseline |
 
 ---
 
@@ -344,10 +238,19 @@ cp DeXposure_FM/sections/Exp.tex.backup DeXposure_FM/sections/Exp.tex
 
 ---
 
-## 📝 待完成实验 (论文中用 XX.XX 占位)
+## 📝 待完成实验 (论文中用 --- 占位)
 
-- [ ] GraphPFN Finetuned 模式
-- [ ] ROLAND Baseline
-- [ ] Shock Analysis (Terra/Luna, FTX)
-- [ ] Imputation (10%, 20%, 30% masking)
-- [ ] 训练时间统计
+### Task I: Multi-step Forecasting
+- [x] GraphPFN Frozen (h=1,3,7)
+- [x] GraphPFN Finetuned (h=1,3,7)
+- [x] ROLAND Baseline (h=1,3,7)
+- [ ] 所有模型 h=14 窗口
+
+### Task II: Financial Stability Analysis
+- [ ] II.1 Systemic Risk Measurement (SIS, Spillover Index)
+- [ ] II.2 Shock Event Analysis (Terra/FTX)
+- [ ] II.3 Contagion Simulation (DebtRank)
+
+### Task III: Imputation
+- [ ] Edge masking (10%, 20%, 30%)
+- [ ] Node masking
