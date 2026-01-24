@@ -24,8 +24,8 @@ Rolling Walk-forward Evaluation (Expanding Window)
 - No look-ahead bias in evaluation
 
 Model Comparison
-- GraphPFN (Frozen encoder): Linear probe on pretrained embeddings
-- GraphPFN (Finetuned): End-to-end fine-tuning
+- GraphPFN-Frozen (encoder): Linear probe on pretrained embeddings
+- DeXposure-FM: End-to-end fine-tuning
 - ROLAND baseline: Temporal GNN (GCN + GRU)
 
 Network Statistics
@@ -36,8 +36,8 @@ Network Statistics
 
 Usage:
     python run_full_experiment.py --mode all
-    python run_full_experiment.py --mode frozen           # Task I: GraphPFN Frozen
-    python run_full_experiment.py --mode finetuned        # Task I: GraphPFN Finetuned
+    python run_full_experiment.py --mode frozen           # Task I: GraphPFN-Frozen
+    python run_full_experiment.py --mode deposure-fm       # Task I: DeXposure-FM
     python run_full_experiment.py --mode roland           # Task I: ROLAND Baseline
     python run_full_experiment.py --mode stats            # Network Statistics
     python run_full_experiment.py --mode stability        # Task II: Full Financial Stability Analysis
@@ -48,29 +48,20 @@ Usage:
 
 Output Directory Structure:
     output/
-    └── YYYY-MM-DD_<experiment_name>/     # Date-stamped experiment folder
-        ├── experiment_results.json        # All results consolidated
-        ├── experiment_results_backup.json # Backup for crash recovery
-        ├── data_quality.json              # Data quality statistics
-        ├── dexposure_experiment_*.log     # Timestamped log file
-        ├── network_statistics.csv         # Network stats (if --mode stats)
-        ├── graphpfn_frozen/               # Frozen model outputs
-        │   ├── metrics.json
-        │   └── predictions_*.csv
-        ├── graphpfn_finetuned/            # Finetuned model outputs
-        │   ├── metrics.json
-        │   └── predictions_*.csv
+    └── YYYY-MM-DD_HHMMSS/                # Timestamped experiment folder
+        ├── frozen/                        # GraphPFN-Frozen outputs
+        ├── finetuned/                     # DeXposure-FM outputs
         └── roland/                        # ROLAND baseline outputs
-            ├── metrics.json
-            └── predictions_*.csv
 """
 
 import argparse
 import os as _os
 import atexit
+import copy
 import json
 import logging
 import math
+
 _os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
 _os.environ.setdefault("DGL_DISABLE_GRAPHBOLT", "1")
 import os
@@ -115,6 +106,7 @@ def log_info(msg: str):
     else:
         print(msg)
     sys.stdout.flush()
+
 
 # Import GraphPFN components
 try:
@@ -172,7 +164,7 @@ class ExperimentConfig:
 
     # Experiment settings
     seed: int = 42
-    neg_ratio: int = 10
+    neg_ratio: int = 5
     train_ratio: float = 0.60
     val_ratio: float = 0.20
     test_ratio: float = 0.20
@@ -181,25 +173,30 @@ class ExperimentConfig:
     hidden_dim: int = 256
     lr: float = 5e-4
     weight_decay: float = 1e-4
-    epochs: int = 10
+    epochs: int = 20
     edge_batch_size: int = 20000
 
     # Multi-step forecasting
-    forecast_horizons: List[int] = field(default_factory=lambda: [1, 3, 7, 14])
+    forecast_horizons: List[int] = field(default_factory=lambda: [1])
 
     # Loss weights (7 components as per advisor requirements)
     # Core prediction losses
-    exist_loss_weight: float = 1.0      # L_edge: BCE for edge existence
-    weight_loss_weight: float = 1.8     # L_link: SmoothL1 for edge weight
-    node_loss_weight: float = 0.4       # L_node: SmoothL1 for node TVL change
+    exist_loss_weight: float = 2.0  # L_edge: BCE for edge existence
+    weight_loss_weight: float = 0.5  # L_link: SmoothL1 for edge weight
+    node_loss_weight: float = 0.4  # L_node: SmoothL1 for node TVL change
     # Auxiliary losses
-    stats_loss_weight: float = 0.0      # L_stats: MSE for graph statistics constraint
-    impute_loss_weight: float = 0.2     # L_impute: SmoothL1 for missing value imputation
-    scen_loss_weight: float = 0.1       # L_scen: CE/Contrastive for scenario classification
-    smooth_loss_weight: float = 0.05    # L_smooth: Temporal smoothness regularization
+    stats_loss_weight: float = 0.0  # L_stats: MSE for graph statistics constraint
+    impute_loss_weight: float = 0.0  # L_impute: SmoothL1 for missing value imputation
+    scen_loss_weight: float = 0.0  # L_scen: CE/Contrastive for scenario classification
+    smooth_loss_weight: float = 0.0  # L_smooth: Temporal smoothness regularization
 
     # Imputation masking ratio (used for L_impute)
     impute_mask_ratio: float = 0.15
+
+    # Early stopping
+    early_stop_patience: int = 3
+    early_stop_metric: str = "auprc"  # "auprc" or "auroc"
+    val_eval_every: int = 1
 
     # Random seeds for multiple runs
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456, 789, 2024])
@@ -220,60 +217,59 @@ class ExperimentLogger:
     """
     Unified logger that writes to both console and file with real-time flushing.
     """
-    
+
     def __init__(self, output_dir: Path, name: str = "experiment"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create unique log filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = self.output_dir / f"{name}_{timestamp}.log"
-        
+
         # Setup logging
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
         self.logger.handlers.clear()  # Clear existing handlers
-        
+
         # File handler - writes everything
-        file_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
+        file_handler = logging.FileHandler(self.log_file, mode="w", encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         file_handler.setFormatter(file_formatter)
-        
+
         # Console handler - INFO and above
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
-        console_formatter = logging.Formatter('%(message)s')
+        console_formatter = logging.Formatter("%(message)s")
         console_handler.setFormatter(console_formatter)
-        
+
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
-        
+
         self.info(f"Log file: {self.log_file}")
-    
+
     def debug(self, msg: str):
         self.logger.debug(msg)
         self._flush()
-    
+
     def info(self, msg: str):
         self.logger.info(msg)
         self._flush()
-    
+
     def warning(self, msg: str):
         self.logger.warning(msg)
         self._flush()
-    
+
     def error(self, msg: str):
         self.logger.error(msg)
         self._flush()
-    
+
     def critical(self, msg: str):
         self.logger.critical(msg)
         self._flush()
-    
+
     def _flush(self):
         """Force flush all handlers."""
         for handler in self.logger.handlers:
@@ -287,39 +283,39 @@ class ResultManager:
     Manages experiment results with auto-save on crash/interrupt.
     Saves intermediate results after each task/horizon completion.
     """
-    
+
     def __init__(self, output_dir: Path, logger: Optional[ExperimentLogger] = None):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.logger = logger
-        
+
         self.results: Dict[str, Any] = {
             "experiment_start": datetime.now().isoformat(),
             "status": "running",
         }
         self.results_file = self.output_dir / "experiment_results.json"
         self.backup_file = self.output_dir / "experiment_results_backup.json"
-        
+
         # Register signal handlers for graceful shutdown
         self._register_handlers()
-        
+
         # Initial save
         self._save()
-        
+
         self._log(f"ResultManager initialized, saving to: {self.results_file}")
-    
+
     def _log(self, msg: str, level: str = "info"):
         if self.logger:
             getattr(self.logger, level)(msg)
         else:
             print(msg)
-    
+
     def _register_handlers(self):
         """Register handlers to save on exit/interrupt."""
         atexit.register(self._on_exit)
         signal.signal(signal.SIGINT, self._on_signal)
         signal.signal(signal.SIGTERM, self._on_signal)
-    
+
     def _on_exit(self):
         """Called on normal exit."""
         if self.results.get("status") == "running":
@@ -327,7 +323,7 @@ class ResultManager:
             self.results["end_time"] = datetime.now().isoformat()
         self._save()
         self._log("Results saved on exit.")
-    
+
     def _on_signal(self, signum, frame):
         """Called on SIGINT/SIGTERM."""
         self._log(f"Received signal {signum}, saving results...")
@@ -336,45 +332,46 @@ class ResultManager:
         self._save()
         self._log("Results saved. Exiting.")
         sys.exit(1)
-    
+
     def _save(self):
         """Save results to JSON with backup."""
         try:
             # Backup existing file
             if self.results_file.exists():
                 import shutil
+
                 shutil.copy(self.results_file, self.backup_file)
-            
+
             # Save with atomic write pattern
             temp_file = self.output_dir / "experiment_results_temp.json"
             with open(temp_file, "w") as f:
                 json.dump(self.results, f, indent=2, default=str)
             temp_file.rename(self.results_file)
-            
+
         except Exception as e:
             self._log(f"ERROR saving results: {e}", "error")
-    
+
     def update(self, key: str, value: Any, save: bool = True):
         """Update a result key and optionally save."""
         self.results[key] = value
         if save:
             self._save()
             self._log(f"Saved result: {key}")
-    
+
     def add_task_result(self, task_name: str, result: Dict[str, Any]):
         """Add result for a completed task and save immediately."""
         self.results[task_name] = result
         self.results[f"{task_name}_completed_at"] = datetime.now().isoformat()
         self._save()
         self._log(f"Task {task_name} results saved.")
-    
+
     def mark_complete(self):
         """Mark experiment as complete."""
         self.results["status"] = "complete"
         self.results["end_time"] = datetime.now().isoformat()
         self._save()
         self._log("Experiment marked as complete.")
-    
+
     def get_results(self) -> Dict[str, Any]:
         """Get all results."""
         return self.results.copy()
@@ -383,6 +380,22 @@ class ResultManager:
 # Global instances (initialized in main)
 _result_manager: Optional[ResultManager] = None
 _run_lock_path: Optional[Path] = None
+
+
+def init_run_context(output_dir: Path) -> None:
+    """Initialize logger and result manager for a specific output directory."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    results_file = output_dir / "experiment_results.json"
+    if results_file.exists():
+        backup_name = f"experiment_results_{datetime.now().strftime('%H%M%S')}.json.bak"
+        results_file.rename(output_dir / backup_name)
+        print(f"Backed up existing results to: {backup_name}")
+
+    global _logger, _result_manager
+    _logger = ExperimentLogger(output_dir, name="dexposure_experiment")
+    _result_manager = ResultManager(output_dir, logger=_logger)
 
 
 def get_logger() -> Optional[ExperimentLogger]:
@@ -1252,6 +1265,7 @@ if GRAPHPFN_AVAILABLE:
         """Load pretrained GraphPFN encoder."""
         model = GraphPFN(edge_head=False)
         checkpoint = torch.load(checkpoint_path, map_location=device)
+        # Allow partial loads because graphpfn-v1.ckpt only contains adapter weights.
         model.load_state_dict(checkpoint["model"], strict=False)
         model.to(device)
         return model
@@ -1297,14 +1311,14 @@ class ROLANDBaseline(nn.Module):
             nn.ReLU(),
             nn.Linear(out_dim, 1),
         )
-        
+
         # Node prediction head (for TVL change prediction)
         self.node_head = nn.Sequential(
             nn.Linear(out_dim, out_dim),
             nn.ReLU(),
             nn.Linear(out_dim, 1),
         )
-        
+
         self.dropout = dropout
 
         self.hidden_dim = hidden_dim
@@ -1364,12 +1378,14 @@ class ROLANDBaseline(nn.Module):
 # ============== Auxiliary Loss Functions (7-component loss design) ==============
 
 
-def compute_stats_loss(graph_pred_stats: Dict[str, torch.Tensor], 
-                       graph_true_stats: Dict[str, torch.Tensor],
-                       device: torch.device) -> torch.Tensor:
+def compute_stats_loss(
+    graph_pred_stats: Dict[str, torch.Tensor],
+    graph_true_stats: Dict[str, torch.Tensor],
+    device: torch.device,
+) -> torch.Tensor:
     """
     L_stats: Graph statistics constraint loss (MSE).
-    
+
     Enforces that predicted graph maintains structural properties:
     - Node count preservation
     - Edge density
@@ -1377,39 +1393,43 @@ def compute_stats_loss(graph_pred_stats: Dict[str, torch.Tensor],
     """
     loss = torch.tensor(0.0, device=device)
     n_stats = 0
-    
-    for key in ['mean_degree', 'density', 'clustering']:
+
+    for key in ["mean_degree", "density", "clustering"]:
         if key in graph_pred_stats and key in graph_true_stats:
             loss += F.mse_loss(graph_pred_stats[key], graph_true_stats[key])
             n_stats += 1
-    
+
     return loss / max(n_stats, 1)
 
 
-def compute_impute_loss(h: torch.Tensor, 
-                        masked_indices: torch.Tensor,
-                        original_values: torch.Tensor,
-                        predicted_values: torch.Tensor,
-                        device: torch.device) -> torch.Tensor:
+def compute_impute_loss(
+    h: torch.Tensor,
+    masked_indices: torch.Tensor,
+    original_values: torch.Tensor,
+    predicted_values: torch.Tensor,
+    device: torch.device,
+) -> torch.Tensor:
     """
     L_impute: Missing value imputation loss (SmoothL1).
-    
-    When edges/nodes are randomly masked during training, 
+
+    When edges/nodes are randomly masked during training,
     this loss measures reconstruction quality.
     """
     if masked_indices is None or len(masked_indices) == 0:
         return torch.tensor(0.0, device=device)
-    
+
     return F.smooth_l1_loss(predicted_values, original_values)
 
 
-def compute_scen_loss(scenario_logits: torch.Tensor,
-                      scenario_labels: torch.Tensor,
-                      device: torch.device,
-                      use_contrastive: bool = False) -> torch.Tensor:
+def compute_scen_loss(
+    scenario_logits: torch.Tensor,
+    scenario_labels: torch.Tensor,
+    device: torch.device,
+    use_contrastive: bool = False,
+) -> torch.Tensor:
     """
     L_scen: Scenario classification/contrastive loss.
-    
+
     Classifies graph snapshots into scenario types:
     - Normal operation
     - Pre-shock
@@ -1418,7 +1438,7 @@ def compute_scen_loss(scenario_logits: torch.Tensor,
     """
     if scenario_logits is None or scenario_labels is None:
         return torch.tensor(0.0, device=device)
-    
+
     if use_contrastive:
         # Contrastive loss: similar scenarios should have similar embeddings
         # Simplified version using cosine similarity
@@ -1428,53 +1448,60 @@ def compute_scen_loss(scenario_logits: torch.Tensor,
         return F.cross_entropy(scenario_logits, scenario_labels)
 
 
-def compute_smooth_loss(embeddings_t: torch.Tensor,
-                        embeddings_t_prev: Optional[torch.Tensor],
-                        device: torch.device) -> torch.Tensor:
+def compute_smooth_loss(
+    embeddings_t: torch.Tensor,
+    embeddings_t_prev: Optional[torch.Tensor],
+    device: torch.device,
+) -> torch.Tensor:
     """
     L_smooth: Temporal smoothness regularization.
-    
+
     Encourages embeddings to change gradually over time,
     preventing erratic predictions between consecutive timesteps.
-    
+
     L_smooth = ||h_t - h_{t-1}||^2 / d
     """
     if embeddings_t_prev is None:
         return torch.tensor(0.0, device=device)
-    
+
     # Temporal smoothness: L2 distance between consecutive embeddings
     diff = embeddings_t - embeddings_t_prev
-    smooth_loss = (diff ** 2).mean()
-    
+    smooth_loss = (diff**2).mean()
+
     return smooth_loss
 
 
-def compute_graph_stats(edge_src: torch.Tensor, edge_dst: torch.Tensor, 
-                        num_nodes: int, device: torch.device) -> Dict[str, torch.Tensor]:
+def compute_graph_stats(
+    edge_src: torch.Tensor, edge_dst: torch.Tensor, num_nodes: int, device: torch.device
+) -> Dict[str, torch.Tensor]:
     """Compute graph statistics for stats loss."""
     if len(edge_src) == 0:
         return {
-            'mean_degree': torch.tensor(0.0, device=device),
-            'density': torch.tensor(0.0, device=device),
-            'clustering': torch.tensor(0.0, device=device),
+            "mean_degree": torch.tensor(0.0, device=device),
+            "density": torch.tensor(0.0, device=device),
+            "clustering": torch.tensor(0.0, device=device),
         }
-    
+
     # Mean degree
     degrees = torch.zeros(num_nodes, device=device)
-    degrees.scatter_add_(0, edge_src.to(device), torch.ones_like(edge_src, dtype=torch.float, device=device))
+    degrees.scatter_add_(
+        0,
+        edge_src.to(device),
+        torch.ones_like(edge_src, dtype=torch.float, device=device),
+    )
     mean_degree = degrees.mean()
-    
+
     # Density
     max_edges = num_nodes * (num_nodes - 1)
     density = torch.tensor(len(edge_src) / max(max_edges, 1), device=device)
-    
+
     # Simplified clustering coefficient (placeholder)
     clustering = torch.tensor(0.0, device=device)
-    
+
     return {
-        'mean_degree': mean_degree,
-        'density': density,
-        'clustering': clustering,
+        "mean_degree": mean_degree,
+        "density": density,
+        "clustering": clustering,
     }
 
 
@@ -1539,11 +1566,17 @@ def compute_tvl_edge_weights(
 # ============== Training Functions ==============
 
 
-def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool,
-                         prev_embeddings: Optional[Dict[str, torch.Tensor]] = None):
+def train_graphpfn_epoch(
+    model,
+    pairs,
+    optimizer,
+    config,
+    finetune_encoder: bool,
+    prev_embeddings: Optional[Dict[str, torch.Tensor]] = None,
+):
     """
     Train GraphPFN model for one epoch with 7-component loss.
-    
+
     Loss components:
         1. L_edge (exist_loss): BCE for edge existence prediction
         2. L_link (weight_loss): SmoothL1 for edge weight prediction
@@ -1558,12 +1591,12 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         model.encoder.eval()
 
     device = torch.device(config.device)
-    
+
     # Loss accumulators for all 7 components
     total_exist, total_weight, total_node = 0.0, 0.0, 0.0
     total_stats, total_impute, total_scen, total_smooth = 0.0, 0.0, 0.0, 0.0
     total_samples = 0
-    
+
     # Store embeddings for temporal smoothness (by date)
     current_embeddings: Dict[str, torch.Tensor] = {}
 
@@ -1579,7 +1612,7 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
             with torch.no_grad():
                 h = model.encode(graph, features, device)
             h = h.detach()
-        
+
         # Store embedding for temporal smoothness
         current_embeddings[sample.time_t] = h.detach().clone()
 
@@ -1601,77 +1634,80 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         weight_mask = torch.tensor(
             sample.weight_mask, dtype=torch.float32, device=device
         )
-        sizes_t = torch.tensor(sample.sizes_t, dtype=torch.float32, device=device)
 
         optimizer.zero_grad()
 
         logits, w_pred = model.link_scorer(h, src, dst)
         edge_prob = torch.sigmoid(logits)
-        tvl_weights = compute_tvl_edge_weights(sizes_t, src, y_exist, y_weight, device)
-        
+
         # === Loss 1: L_edge (edge existence) ===
         pos_weight = torch.tensor([config.neg_ratio], device=device)
-        bce = F.binary_cross_entropy_with_logits(
-            logits, y_exist, pos_weight=pos_weight, reduction="none"
+        exist_loss = F.binary_cross_entropy_with_logits(
+            logits, y_exist, pos_weight=pos_weight, reduction="mean"
         )
-        exist_loss = (tvl_weights * bce).sum() / tvl_weights.sum().clamp(min=EPS)
 
         # === Loss 2: L_link (edge weight) ===
         mask = weight_mask > 0.5
         if mask.any():
-            per_edge = F.smooth_l1_loss(w_pred[mask], y_weight[mask], reduction="none")
-            weight_loss = (tvl_weights[mask] * per_edge).sum() / tvl_weights[mask].sum().clamp(min=EPS)
+            weight_loss = F.smooth_l1_loss(w_pred[mask], y_weight[mask], reduction="mean")
         else:
             weight_loss = torch.tensor(0.0, device=device)
-        
+
         # === Loss 4: L_stats (graph statistics constraint) ===
         # Compare predicted edge probabilities with target graph structure
         edge_src_t = torch.tensor(sample.edge_src_t, dtype=torch.long, device=device)
         edge_dst_t = torch.tensor(sample.edge_dst_t, dtype=torch.long, device=device)
-        stats_pred = compute_graph_stats_from_pairs(
-            src, dst, edge_prob, len(sample.node_ids), device
-        )
-        # Use the same pair set for true stats to keep scales consistent
-        stats_true = compute_graph_stats_from_pairs(
-            src, dst, y_exist, len(sample.node_ids), device
-        )
-        stats_loss = compute_stats_loss(stats_pred, stats_true, device)
-        
+        if config.stats_loss_weight > 0.0:
+            stats_pred = compute_graph_stats_from_pairs(
+                src, dst, edge_prob, len(sample.node_ids), device
+            )
+            # Use the same pair set for true stats to keep scales consistent
+            stats_true = compute_graph_stats_from_pairs(
+                src, dst, y_exist, len(sample.node_ids), device
+            )
+            stats_loss = compute_stats_loss(stats_pred, stats_true, device)
+        else:
+            stats_loss = torch.tensor(0.0, device=device)
+
         # === Loss 5: L_impute (imputation - using node prediction as proxy) ===
         # For masked edges, use weight prediction error as imputation loss
-        if mask.any():
-            impute_rand = torch.rand(mask.sum(), device=device) < config.impute_mask_ratio
+        if config.impute_loss_weight > 0.0 and mask.any():
+            impute_rand = (
+                torch.rand(mask.sum(), device=device) < config.impute_mask_ratio
+            )
             if impute_rand.any():
                 impute_pred = w_pred[mask][impute_rand]
                 impute_true = y_weight[mask][impute_rand]
-                impute_w = tvl_weights[mask][impute_rand]
-                impute_loss = (
-                    impute_w
-                    * F.smooth_l1_loss(impute_pred, impute_true, reduction="none")
-                ).sum() / impute_w.sum().clamp(min=EPS)
+                impute_loss = F.smooth_l1_loss(
+                    impute_pred, impute_true, reduction="mean"
+                )
             else:
                 impute_loss = torch.tensor(0.0, device=device)
         else:
             impute_loss = torch.tensor(0.0, device=device)
-        
+
         # === Loss 6: L_scen (scenario classification) ===
         # Placeholder - requires scenario labels in sample
         scen_loss = torch.tensor(0.0, device=device)
-        if getattr(sample, "scenario_label", None) is not None:
+        if (
+            config.scen_loss_weight > 0.0
+            and getattr(sample, "scenario_label", None) is not None
+        ):
             scen_logits = model.scenario_head(h.mean(dim=0, keepdim=True))
             scen_label = torch.tensor([sample.scenario_label], device=device)
             scen_loss = compute_scen_loss(scen_logits, scen_label, device)
-        
+
         # === Loss 7: L_smooth (temporal smoothness) ===
         smooth_loss = torch.tensor(0.0, device=device)
-        prev_time_t = sample.prev_time_t
-        h_prev = None
-        if prev_time_t and prev_time_t in current_embeddings:
-            h_prev = current_embeddings[prev_time_t]
-        elif prev_embeddings and prev_time_t and prev_time_t in prev_embeddings:
-            h_prev = prev_embeddings[prev_time_t]
-        if h_prev is not None and h_prev.shape == h.shape:
-            smooth_loss = compute_smooth_loss(h, h_prev, device)
+        if config.smooth_loss_weight > 0.0:
+            prev_time_t = sample.prev_time_t
+            h_prev = None
+            if prev_time_t and prev_time_t in current_embeddings:
+                h_prev = current_embeddings[prev_time_t]
+            elif prev_embeddings and prev_time_t and prev_time_t in prev_embeddings:
+                h_prev = prev_embeddings[prev_time_t]
+            if h_prev is not None and h_prev.shape == h.shape:
+                smooth_loss = compute_smooth_loss(h, h_prev, device)
 
         # === Combined loss with all 7 components ===
         loss = (
@@ -1700,14 +1736,14 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
     n = max(total_samples, 1)
     return {
         # Core prediction losses
-        "exist_loss": total_exist / n,      # L_edge
-        "weight_loss": total_weight / n,    # L_link  
-        "node_loss": total_node / n,        # L_node
+        "exist_loss": total_exist / n,  # L_edge
+        "weight_loss": total_weight / n,  # L_link
+        "node_loss": total_node / n,  # L_node
         # Auxiliary losses
-        "stats_loss": total_stats / n,      # L_stats
-        "impute_loss": total_impute / n,    # L_impute
-        "scen_loss": total_scen / n,        # L_scen
-        "smooth_loss": total_smooth / n,    # L_smooth
+        "stats_loss": total_stats / n,  # L_stats
+        "impute_loss": total_impute / n,  # L_impute
+        "scen_loss": total_scen / n,  # L_scen
+        "smooth_loss": total_smooth / n,  # L_smooth
     }, current_embeddings  # Return embeddings for next epoch's smoothness
 
 
@@ -1717,10 +1753,10 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
     device = torch.device(config.device)
     total_loss, total_samples = 0.0, 0
     total_link, total_weight, total_node = 0.0, 0.0, 0.0
-    
+
     # Loss weights
-    node_loss_weight = getattr(config, 'node_loss_weight', 0.4)
-    weight_loss_weight = getattr(config, 'weight_loss_weight', 1.8)
+    node_loss_weight = getattr(config, "node_loss_weight", 0.4)
+    weight_loss_weight = getattr(config, "weight_loss_weight", 1.8)
 
     for sample in pairs:
         # Build PyG edge index
@@ -1752,7 +1788,7 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
 
         # Link prediction loss
         link_loss = F.binary_cross_entropy_with_logits(pred, y_exist)
-        
+
         # Edge weight prediction loss (only for positive edges)
         y_weight = torch.tensor(sample.y_weight, dtype=torch.float32, device=device)
         weight_mask = torch.tensor(sample.weight_mask, dtype=torch.bool, device=device)
@@ -1767,17 +1803,15 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
         node_pred = model.node_head(node_embed).squeeze(-1)
         y_node = torch.tensor(sample.y_node, dtype=torch.float32, device=device)
         node_mask = torch.tensor(sample.node_mask, dtype=torch.bool, device=device)
-        
+
         if node_mask.any():
             node_loss = F.smooth_l1_loss(node_pred[node_mask], y_node[node_mask])
         else:
             node_loss = torch.tensor(0.0, device=device)
-        
+
         # Combined loss
         loss = (
-            link_loss
-            + weight_loss_weight * weight_loss
-            + node_loss_weight * node_loss
+            link_loss + weight_loss_weight * weight_loss + node_loss_weight * node_loss
         )
         loss.backward()
         optimizer.step()
@@ -1789,12 +1823,16 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
         total_samples += 1
 
     n = max(total_samples, 1)
-    return {
-        "loss": total_loss / n,
-        "link_loss": total_link / n,
-        "weight_loss": total_weight / n,
-        "node_loss": total_node / n,
-    }, h1, h2
+    return (
+        {
+            "loss": total_loss / n,
+            "link_loss": total_link / n,
+            "weight_loss": total_weight / n,
+            "node_loss": total_node / n,
+        },
+        h1,
+        h2,
+    )
 
 
 # ============== Evaluation Functions ==============
@@ -1972,7 +2010,7 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
             pred, weight_pred, h1, h2, node_embed = model(
                 x, edge_index, edge_label_index, h1, h2
             )
-            
+
             # Node prediction
             node_pred = model.node_head(node_embed).squeeze(-1).cpu().numpy()
 
@@ -2074,7 +2112,7 @@ def run_expanding_window_evaluation(
     fold_entries = []
     model_fold_results = {
         "graphpfn_frozen": [],
-        "graphpfn_finetuned": [],
+        "dexposure_fm": [],
         "roland": [],
     }
 
@@ -2089,7 +2127,9 @@ def run_expanding_window_evaluation(
             f"  Train: {fold['train'][0]} ~ {fold['train'][-1]} ({len(fold['train'])}w)"
         )
         log_info(f"  Val:   {fold['val'][0]} ~ {fold['val'][-1]} ({len(fold['val'])}w)")
-        log_info(f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)")
+        log_info(
+            f"  Test:  {fold['test'][0]} ~ {fold['test'][-1]} ({len(fold['test'])}w)"
+        )
 
         fold_entry = {
             "fold_id": fold_id,
@@ -2113,7 +2153,7 @@ def run_expanding_window_evaluation(
                 fold_entry["graphpfn_frozen"] = result
                 model_fold_results["graphpfn_frozen"].append(result)
 
-        if run_finetuned:
+        if run_deposure_fm:
             result = run_graphpfn_experiment(
                 config,
                 finetune=True,
@@ -2125,8 +2165,8 @@ def run_expanding_window_evaluation(
                 fold_id=fold_id,
             )
             if result:
-                fold_entry["graphpfn_finetuned"] = result
-                model_fold_results["graphpfn_finetuned"].append(result)
+                fold_entry["dexposure_fm"] = result
+                model_fold_results["dexposure_fm"].append(result)
 
         if run_roland:
             result = run_roland_experiment(
@@ -2149,9 +2189,9 @@ def run_expanding_window_evaluation(
         summary["graphpfn_frozen"] = aggregate_fold_metrics(
             model_fold_results["graphpfn_frozen"], config.forecast_horizons
         )
-    if model_fold_results["graphpfn_finetuned"]:
-        summary["graphpfn_finetuned"] = aggregate_fold_metrics(
-            model_fold_results["graphpfn_finetuned"], config.forecast_horizons
+    if model_fold_results["dexposure_fm"]:
+        summary["dexposure_fm"] = aggregate_fold_metrics(
+            model_fold_results["dexposure_fm"], config.forecast_horizons
         )
     if model_fold_results["roland"]:
         summary["roland"] = aggregate_fold_metrics(
@@ -2180,7 +2220,7 @@ def run_graphpfn_experiment(
     fold_id: Optional[int] = None,
 ):
     """
-    Run GraphPFN experiment (frozen or finetuned).
+    Run GraphPFN experiment (GraphPFN-Frozen or DeXposure-FM).
 
     Args:
         config: Experiment configuration
@@ -2195,12 +2235,15 @@ def run_graphpfn_experiment(
         log_info("GraphPFN not available, skipping...")
         return None
 
-    mode = "Finetuned" if finetune else "Frozen"
-    model_name = "graphpfn_finetuned" if finetune else "graphpfn_frozen"
+    mode = "DeXposure-FM" if finetune else "GraphPFN-Frozen"
+    model_name = "dexposure_fm" if finetune else "graphpfn_frozen"
     model_output_dir = None
     append_predictions = False
     if output_dir:
-        model_output_dir = output_dir / model_name
+        if output_dir.name in {"frozen", "finetuned", "roland", "deposure-fm"}:
+            model_output_dir = output_dir
+        else:
+            model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
         model_output_dir.mkdir(parents=True, exist_ok=True)
@@ -2258,12 +2301,17 @@ def run_graphpfn_experiment(
         head_params = [p for p in model.parameters() if p not in encoder_param_set]
         optimizer = torch.optim.Adam(
             [
-                {"params": encoder_params, "lr": config.lr * 0.1},  # Lower LR for pretrained encoder
-                {"params": head_params, "lr": config.lr},           # Full LR for new head
+                {
+                    "params": encoder_params,
+                    "lr": config.lr * 0.1,
+                },  # Lower LR for pretrained encoder
+                {"params": head_params, "lr": config.lr},  # Full LR for new head
             ],
             weight_decay=config.weight_decay,
         )
-        log_info(f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}")
+        log_info(
+            f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}"
+        )
     else:
         optimizer = torch.optim.Adam(
             [p for p in model.parameters() if p.requires_grad],
@@ -2296,9 +2344,10 @@ def run_graphpfn_experiment(
 
         # Train with 7-component loss
         prev_embeddings = None
-        best_auroc = -float('inf')
+        metric_name = config.early_stop_metric
+        best_metric = -float("inf")
         patience_counter = 0
-        patience = 3
+        patience = config.early_stop_patience
         best_model_state = None
 
         for epoch in range(config.epochs):
@@ -2337,25 +2386,25 @@ def run_graphpfn_experiment(
                 )
             else:
                 contrib_str = "contrib%=nan"
-            if val_pairs and (epoch + 1) % 2 == 0:
+            if val_pairs and (epoch + 1) % config.val_eval_every == 0:
                 val_preds = predict_graphpfn(model, val_pairs, config)
                 val_metrics = evaluate_predictions(val_preds)
-                val_auroc = val_metrics['exist']['auroc']
+                val_metric = val_metrics["exist"][metric_name]
 
                 # Early stopping check
-                if val_auroc > best_auroc:
-                    best_auroc = val_auroc
+                if val_metric > best_metric:
+                    best_metric = val_metric
                     patience_counter = 0
-                    best_model_state = model.state_dict().copy()
+                    best_model_state = copy.deepcopy(model.state_dict())
                     log_info(
                         f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
-                        f"{contrib_str}, val_auroc={val_auroc:.4f} ⭐ (best)"
+                        f"{contrib_str}, val_{metric_name}={val_metric:.4f} ⭐ (best)"
                     )
                 else:
                     patience_counter += 1
                     log_info(
                         f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
-                        f"{contrib_str}, val_auroc={val_auroc:.4f} (patience: {patience_counter}/{patience})"
+                        f"{contrib_str}, val_{metric_name}={val_metric:.4f} (patience: {patience_counter}/{patience})"
                     )
                     if patience_counter >= patience:
                         log_info(f"  Early stopping triggered after {epoch + 1} epochs")
@@ -2368,7 +2417,7 @@ def run_graphpfn_experiment(
         # Restore best model
         if best_model_state is not None:
             model.load_state_dict(best_model_state)
-            log_info(f"  Restored best model with val_auroc={best_auroc:.4f}")
+            log_info(f"  Restored best model with val_{metric_name}={best_metric:.4f}")
 
         # Test
         test_preds = predict_graphpfn(model, test_pairs, config)
@@ -2397,10 +2446,16 @@ def run_graphpfn_experiment(
         # Save intermediate results after each horizon
         if model_output_dir:
             intermediate_result = {
-                "model": f"GraphPFN ({mode})",
+                "model": mode,
                 "results": results.copy(),
-                "config": {"finetune": finetune, "epochs": config.epochs, "seed": config.seed},
-                "status": "partial" if horizon != config.forecast_horizons[-1] else "complete",
+                "config": {
+                    "finetune": finetune,
+                    "epochs": config.epochs,
+                    "seed": config.seed,
+                },
+                "status": "partial"
+                if horizon != config.forecast_horizons[-1]
+                else "complete",
             }
             intermediate_path = model_output_dir / "metrics_intermediate.json"
             with open(intermediate_path, "w") as f:
@@ -2408,7 +2463,7 @@ def run_graphpfn_experiment(
             log_info(f"  Intermediate results saved to: {intermediate_path.name}")
 
     result = {
-        "model": f"GraphPFN ({mode})",
+        "model": mode,
         "results": results,
         "config": {
             "finetune": finetune,
@@ -2510,6 +2565,11 @@ def run_roland_experiment(
 
         # Train
         h1, h2 = None, None
+        metric_name = config.early_stop_metric
+        best_metric = -float("inf")
+        patience_counter = 0
+        patience = config.early_stop_patience
+        best_model_state = None
         for epoch in range(config.epochs):
             losses, h1, h2 = train_roland_epoch(
                 model, train_pairs, optimizer, config, h1, h2
@@ -2529,21 +2589,37 @@ def run_roland_experiment(
                 )
             else:
                 contrib_str = "contrib%=nan"
-            if (epoch + 1) % 2 == 0:
+            if val_pairs and (epoch + 1) % config.val_eval_every == 0:
                 val_preds, _, _ = predict_roland(model, val_pairs, config, h1, h2)
                 val_metrics = evaluate_predictions(val_preds)
+                val_metric = val_metrics["exist"][metric_name]
+                if val_metric > best_metric:
+                    best_metric = val_metric
+                    patience_counter = 0
+                    best_model_state = copy.deepcopy(model.state_dict())
+                    tag = " ⭐ (best)"
+                else:
+                    patience_counter += 1
+                    tag = f" (patience: {patience_counter}/{patience})"
                 log_info(
                     f"  Epoch {epoch + 1}: loss={losses['loss']:.4f} "
                     f"(link={losses['link_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
                     f"node={losses['node_loss']:.4f}), {contrib_str}, "
-                    f"val_auprc={val_metrics['exist']['auprc']:.4f}"
+                    f"val_{metric_name}={val_metric:.4f}{tag}"
                 )
+                if patience_counter >= patience:
+                    log_info(f"  Early stopping triggered after {epoch + 1} epochs")
+                    break
             else:
                 log_info(
                     f"  Epoch {epoch + 1}: loss={losses['loss']:.4f} "
                     f"(link={losses['link_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
                     f"node={losses['node_loss']:.4f}), {contrib_str}"
                 )
+
+        if best_model_state is not None:
+            model.load_state_dict(best_model_state)
+            log_info(f"  Restored best model with val_{metric_name}={best_metric:.4f}")
 
         # Test
         test_preds, _, _ = predict_roland(model, test_pairs, config, h1, h2)
@@ -2571,7 +2647,9 @@ def run_roland_experiment(
                 "model": "ROLAND",
                 "results": results.copy(),
                 "config": {"epochs": config.epochs, "seed": config.seed},
-                "status": "partial" if horizon != config.forecast_horizons[-1] else "complete",
+                "status": "partial"
+                if horizon != config.forecast_horizons[-1]
+                else "complete",
             }
             intermediate_path = model_output_dir / "metrics_intermediate.json"
             with open(intermediate_path, "w") as f:
@@ -2646,7 +2724,9 @@ def run_network_statistics(config: ExperimentConfig):
 # Includes: Systemic Risk Measurement, Shock Analysis, Contagion Simulation
 
 
-def _sanitize_positive_values(values: np.ndarray, clip_quantile: float = 0.99) -> np.ndarray:
+def _sanitize_positive_values(
+    values: np.ndarray, clip_quantile: float = 0.99
+) -> np.ndarray:
     """Filter non-finite values and clip extreme positives for stability metrics."""
     if values is None:
         return np.array([], dtype=np.float64)
@@ -2691,10 +2771,14 @@ def compute_systemic_importance_score(
     sizes_raw = np.array(snap["sizes"], dtype=np.float64)
 
     for i, node_id in enumerate(node_ids):
-        size_val = sizes_raw[i] if i < len(sizes_raw) and np.isfinite(sizes_raw[i]) else 0.0
+        size_val = (
+            sizes_raw[i] if i < len(sizes_raw) and np.isfinite(sizes_raw[i]) else 0.0
+        )
         G.add_node(node_id, size=max(size_val, 0.0))
 
-    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+    for src, dst, weight in zip(
+        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
+    ):
         if src < len(node_ids) and dst < len(node_ids):
             if not np.isfinite(weight):
                 continue
@@ -2769,7 +2853,9 @@ def compute_sector_spillover_index(
     # Build sector-to-sector matrix
     sector_matrix = np.zeros((n_cats, n_cats))
 
-    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+    for src, dst, weight in zip(
+        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
+    ):
         if src < len(node_ids) and dst < len(node_ids):
             src_cat = meta_category.get(node_ids[src], "Unknown")
             dst_cat = meta_category.get(node_ids[dst], "Unknown")
@@ -2789,7 +2875,7 @@ def compute_sector_spillover_index(
     total = sum(off_diag)
     if total > 0:
         shares = [x / total for x in off_diag]
-        spillover_index = sum(s ** 2 for s in shares)
+        spillover_index = sum(s**2 for s in shares)
     else:
         spillover_index = 0.0
 
@@ -2841,7 +2927,9 @@ def compute_early_warning_indicators(
         # Compute change rates if we have history
         if i >= window_size:
             prev_ind = indicators[i - 1]
-            ind["density_change"] = (density - prev_ind["density"]) / (prev_ind["density"] + EPS)
+            ind["density_change"] = (density - prev_ind["density"]) / (
+                prev_ind["density"] + EPS
+            )
             ind["hhi_change"] = hhi - prev_ind["hhi"]
             ind["gini_change"] = gini - prev_ind["gini"]
         else:
@@ -2857,7 +2945,9 @@ def compute_early_warning_indicators(
         mean_hhi_change = np.mean(hhi_changes)
         std_hhi_change = np.std(hhi_changes) + EPS
         for ind in indicators[window_size:]:
-            ind["hhi_change_zscore"] = (ind["hhi_change"] - mean_hhi_change) / std_hhi_change
+            ind["hhi_change_zscore"] = (
+                ind["hhi_change"] - mean_hhi_change
+            ) / std_hhi_change
             ind["hhi_spike"] = abs(ind["hhi_change_zscore"]) > 2.0
 
     return indicators
@@ -2892,7 +2982,9 @@ def simulate_contagion(
     # Build adjacency for reverse lookup (who is exposed to whom)
     # edge from A->B means A is exposed to B (A has claims on B)
     exposures = {}  # exposures[creditor] = [(debtor, amount), ...]
-    for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
+    for src, dst, weight in zip(
+        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
+    ):
         if src < len(node_ids) and dst < len(node_ids):
             if not np.isfinite(weight):
                 continue
@@ -2904,7 +2996,10 @@ def simulate_contagion(
 
     # Initialize losses
     losses = {nid: 0.0 for nid in node_ids}
-    tvl = {nid: sizes[node_to_idx[nid]] if node_to_idx[nid] < len(sizes) else 0.0 for nid in node_ids}
+    tvl = {
+        nid: sizes[node_to_idx[nid]] if node_to_idx[nid] < len(sizes) else 0.0
+        for nid in node_ids
+    }
 
     # Initial shock
     distressed = set()
@@ -3006,20 +3101,24 @@ def run_systemic_risk_analysis(
         sis = compute_systemic_importance_score(snap)
         # Get top 10 most systemically important
         top_sis = sorted(sis.items(), key=lambda x: x[1], reverse=True)[:10]
-        results["sis_scores"].append({
-            "date": snap["date"],
-            "top_10_sis": top_sis,
-            "mean_sis": np.mean(list(sis.values())) if sis else 0,
-        })
+        results["sis_scores"].append(
+            {
+                "date": snap["date"],
+                "top_10_sis": top_sis,
+                "mean_sis": np.mean(list(sis.values())) if sis else 0,
+            }
+        )
 
     # Compute spillover indices
     log_info("Computing sector spillover indices...")
     for snap in snapshots:
         _, spillover = compute_sector_spillover_index(snap, meta_category)
-        results["spillover_indices"].append({
-            "date": snap["date"],
-            "spillover_index": spillover,
-        })
+        results["spillover_indices"].append(
+            {
+                "date": snap["date"],
+                "spillover_index": spillover,
+            }
+        )
 
     # Compute early warning indicators
     log_info("Computing early warning indicators...")
@@ -3067,7 +3166,9 @@ def run_contagion_simulation(
         category_list,
     )
 
-    log_info(f"Using snapshot from {closest_date} ({len(snap['node_ids'])} nodes, {len(snap['edge_src'])} edges)")
+    log_info(
+        f"Using snapshot from {closest_date} ({len(snap['node_ids'])} nodes, {len(snap['edge_src'])} edges)"
+    )
 
     # Default scenarios
     if scenarios is None:
@@ -3079,17 +3180,27 @@ def run_contagion_simulation(
             },
             {
                 "name": "Top 5 Protocols",
-                "shocked_nodes": snap["node_ids"][:5] if len(snap["node_ids"]) >= 5 else snap["node_ids"],
+                "shocked_nodes": snap["node_ids"][:5]
+                if len(snap["node_ids"]) >= 5
+                else snap["node_ids"],
                 "shock_ratio": 0.3,
             },
             {
                 "name": "Stablecoin Category",
-                "shocked_nodes": [nid for nid in snap["node_ids"] if "stable" in meta_category.get(nid, "").lower()],
+                "shocked_nodes": [
+                    nid
+                    for nid in snap["node_ids"]
+                    if "stable" in meta_category.get(nid, "").lower()
+                ],
                 "shock_ratio": 0.5,
             },
             {
                 "name": "Bridge Category",
-                "shocked_nodes": [nid for nid in snap["node_ids"] if "bridge" in meta_category.get(nid, "").lower()],
+                "shocked_nodes": [
+                    nid
+                    for nid in snap["node_ids"]
+                    if "bridge" in meta_category.get(nid, "").lower()
+                ],
                 "shock_ratio": 1.0,
             },
         ]
@@ -3400,7 +3511,9 @@ def run_shock_analysis(
         for date in all_dates
     ]
 
-    log_info(f"Loaded {len(snapshots)} snapshots from {all_dates[0]} to {all_dates[-1]}")
+    log_info(
+        f"Loaded {len(snapshots)} snapshots from {all_dates[0]} to {all_dates[-1]}"
+    )
 
     # Analyze network changes for each event
     network_change_results = {}
@@ -3449,12 +3562,18 @@ def run_shock_analysis(
                 train_snapshots, config.neg_ratio, config.seed, horizon=1
             )
 
-            log_info(f"  Training on {len(train_pairs)} pairs (before {first_event_date})")
+            log_info(
+                f"  Training on {len(train_pairs)} pairs (before {first_event_date})"
+            )
             prev_embeddings = None
             for epoch in range(config.epochs):
                 _, prev_embeddings = train_graphpfn_epoch(
-                    model, train_pairs, optimizer, config, finetune_encoder=True,
-                    prev_embeddings=prev_embeddings
+                    model,
+                    train_pairs,
+                    optimizer,
+                    config,
+                    finetune_encoder=True,
+                    prev_embeddings=prev_embeddings,
                 )
 
             # Evaluate during each shock event
@@ -3468,7 +3587,7 @@ def run_shock_analysis(
                     snapshots=snapshots,
                     event=event,
                     config=config,
-                    model_name="GraphPFN (Finetuned)",
+                    model_name="DeXposure-FM",
                 )
                 model_performance_results[f"graphpfn_{event.name}"] = results
 
@@ -3707,8 +3826,12 @@ def run_imputation_experiment(
     prev_embeddings = None
     for epoch in range(config.epochs):
         _, prev_embeddings = train_graphpfn_epoch(
-            model, train_pairs, optimizer, config, finetune_encoder=True,
-            prev_embeddings=prev_embeddings
+            model,
+            train_pairs,
+            optimizer,
+            config,
+            finetune_encoder=True,
+            prev_embeddings=prev_embeddings,
         )
 
     test_pairs = build_week_pairs(
@@ -3757,11 +3880,12 @@ def run_imputation_experiment(
         )
 
     return {
-        "model": "GraphPFN (Finetuned)",
+        "model": "DeXposure-FM",
         "results": results_by_ratio,
         "mask_ratios_tested": mask_ratios,
         "num_test_snapshots": len(test_snapshots),
     }
+
 
 # ============== Main ==============
 
@@ -3775,7 +3899,7 @@ def main():
         choices=[
             "all",
             "frozen",
-            "finetuned",
+            "deposure-fm",
             "roland",
             "stats",
             "shock",
@@ -3785,10 +3909,29 @@ def main():
             "contagion",
             "stability",
         ],
-        help="Experiment mode: all, frozen, finetuned, roland, stats, shock, impute, compare, systemic, contagion, stability (runs shock+systemic+contagion)",
+        help="Experiment mode: all, frozen, deposure-fm, roland, stats, shock, impute, compare, systemic, contagion, stability (runs shock+systemic+contagion)",
     )
     parser.add_argument("--output-dir", type=str, default=None)
-    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=3,
+        help="Early stopping patience on validation metric (default: 3)",
+    )
+    parser.add_argument(
+        "--early-stop-metric",
+        type=str,
+        default="auprc",
+        choices=["auprc", "auroc"],
+        help="Metric for early stopping (default: auprc)",
+    )
+    parser.add_argument(
+        "--val-eval-every",
+        type=int,
+        default=1,
+        help="Evaluate on validation every N epochs (default: 1)",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--shock-model",
@@ -3839,8 +3982,8 @@ def main():
     parser.add_argument(
         "--horizons",
         type=str,
-        default="1,3,7,14",
-        help="Comma-separated forecast horizons (default: 1,3,7,14)",
+        default="1",
+        help="Comma-separated forecast horizons (default: 1)",
     )
     parser.add_argument(
         "--verbose",
@@ -3857,56 +4000,64 @@ def main():
 
     config = ExperimentConfig()
     config.epochs = args.epochs
+    config.early_stop_patience = args.patience
+    config.early_stop_metric = args.early_stop_metric
+    config.val_eval_every = max(1, args.val_eval_every)
     config.seed = args.seed
     config.forecast_horizons = [int(h) for h in args.horizons.split(",")]
 
-    # Create date-stamped output directory
-    today = datetime.now().strftime("%Y-%m-%d")
+    # Create timestamped output directory
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     if args.output_dir:
-        # User specified output dir
-        output_dir = Path(args.output_dir)
+        base_output_dir = Path(args.output_dir)
     else:
-        # Default: output/YYYY-MM-DD_<mode>
-        output_dir = Path("output") / f"{today}_{args.mode}"
-    
+        base_output_dir = Path("output") / timestamp
+
+    mode_dir_map = {"deposure-fm": "finetuned"}
+    if args.mode == "all":
+        output_dir = base_output_dir
+    else:
+        output_dir = base_output_dir / mode_dir_map.get(args.mode, args.mode)
+
     config.output_dir = str(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Clean stale results in this output directory if it exists
-    results_file = output_dir / "experiment_results.json"
-    if results_file.exists():
-        backup_name = f"experiment_results_{datetime.now().strftime('%H%M%S')}.json.bak"
-        results_file.rename(output_dir / backup_name)
-        print(f"Backed up existing results to: {backup_name}")
 
     # Initialize logging and result management
-    global _logger, _result_manager
-    _logger = ExperimentLogger(output_dir, name="dexposure_experiment")
-    _result_manager = ResultManager(output_dir, logger=_logger)
-    
+    init_run_context(output_dir)
+
     log_info(f"{'=' * 60}")
     log_info("DeXposure-FM Experiment Suite")
     log_info(f"{'=' * 60}")
     log_info(f"Mode: {args.mode}")
-    log_info(f"Output directory: {output_dir}")
+    if args.mode == "all":
+        log_info(f"Output base directory: {output_dir}")
+    else:
+        log_info(f"Output directory: {output_dir}")
     log_info(f"Device: {config.device}")
     log_info(f"Epochs: {config.epochs}")
+    log_info(
+        f"Early stopping: metric={config.early_stop_metric}, "
+        f"patience={config.early_stop_patience}, "
+        f"val_eval_every={config.val_eval_every}"
+    )
     log_info(f"Forecast horizons: {config.forecast_horizons}")
     log_info(f"Seed: {config.seed}")
-    
+
     # Save configuration
-    save_result("config", {
-        "mode": args.mode,
-        "epochs": config.epochs,
-        "seed": config.seed,
-        "forecast_horizons": config.forecast_horizons,
-        "device": config.device,
-        "output_dir": str(output_dir),
-        "holdout_start": args.holdout_start,
-        "min_train_weeks": args.min_train_weeks,
-        "val_weeks": args.val_weeks,
-        "test_weeks": args.test_weeks,
-    })
+    save_result(
+        "config",
+        {
+            "mode": args.mode,
+            "epochs": config.epochs,
+            "seed": config.seed,
+            "forecast_horizons": config.forecast_horizons,
+            "device": config.device,
+            "output_dir": str(output_dir),
+            "holdout_start": args.holdout_start,
+            "min_train_weeks": args.min_train_weeks,
+            "val_weeks": args.val_weeks,
+            "test_weeks": args.test_weeks,
+        },
+    )
 
     set_seed(config.seed)
 
@@ -3921,10 +4072,10 @@ def main():
         _result_manager.results["status"] = "failed"
         _result_manager._save()
         raise
-    
+
     # Mark complete
     _result_manager.mark_complete()
-    
+
     log_info(f"\n{'=' * 60}")
     log_info("EXPERIMENT COMPLETE")
     log_info(f"{'=' * 60}")
@@ -3934,7 +4085,7 @@ def main():
 
 def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
     """Run all experiments - separated for error handling."""
-    
+
     # Load data once for all experiments
     log_info("\nLoading data...")
     meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
@@ -4015,9 +4166,36 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
     log_info(f"  Data quality saved to: {output_dir / 'data_quality.json'}")
     log_info(f"  Mean nodes/week: {data_quality['summary']['mean_nodes_per_week']:.1f}")
     log_info(f"  Mean edges/week: {data_quality['summary']['mean_edges_per_week']:.1f}")
-    
+
     # Save data quality to result manager
     save_result("data_quality", data_quality)
+
+    config_payload = {
+        "mode": args.mode,
+        "epochs": config.epochs,
+        "seed": config.seed,
+        "forecast_horizons": config.forecast_horizons,
+        "device": config.device,
+        "output_dir": str(output_dir),
+        "holdout_start": args.holdout_start,
+        "min_train_weeks": args.min_train_weeks,
+        "val_weeks": args.val_weeks,
+        "test_weeks": args.test_weeks,
+    }
+
+    def prepare_mode_output(mode_name: str) -> Path:
+        """Switch output directory for per-mode outputs when running --mode all."""
+        if args.mode != "all":
+            return output_dir
+
+        mode_output_dir = output_dir / mode_name
+        init_run_context(mode_output_dir)
+        config.output_dir = str(mode_output_dir)
+        save_result("config", {**config_payload, "mode": mode_name, "output_dir": str(mode_output_dir)})
+        with open(mode_output_dir / "data_quality.json", "w") as f:
+            json.dump(data_quality, f, indent=2)
+        save_result("data_quality", data_quality)
+        return mode_output_dir
 
     # Get snapshots by split
     date_to_snap = {s["date"]: s for s in all_snapshots}
@@ -4026,9 +4204,9 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
     test_snaps = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
     run_frozen = args.mode in ["all", "frozen"]
-    run_finetuned = args.mode in ["all", "finetuned"]
+    run_deposure_fm = args.mode in ["all", "deposure-fm"]
     run_roland = args.mode in ["all", "roland"]
-    run_models = run_frozen or run_finetuned or run_roland
+    run_models = run_frozen or run_deposure_fm or run_roland
 
     rolling_results = None
     if args.rolling and run_models:
@@ -4039,7 +4217,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 split_result=split_result,
                 date_to_snap=date_to_snap,
                 run_frozen=run_frozen,
-                run_finetuned=run_finetuned,
+                run_deposure_fm=run_deposure_fm,
                 run_roland=run_roland,
                 save_predictions=args.save_predictions,
                 output_dir=output_dir,
@@ -4077,8 +4255,9 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
 
     # Run experiments based on mode with proper error handling
     if args.mode in ["all", "frozen"]:
+        mode_output_dir = prepare_mode_output("frozen")
         log_info("\n" + "=" * 60)
-        log_info("[Task I] GraphPFN Frozen - Starting...")
+        log_info("[Task I] GraphPFN-Frozen - Starting...")
         log_info("=" * 60)
         try:
             result = run_graphpfn_experiment(
@@ -4088,20 +4267,21 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 val_snaps=val_snaps,
                 test_snaps=test_snaps,
                 save_predictions=args.save_predictions,
-                output_dir=output_dir,
+                output_dir=mode_output_dir,
             )
             if result:
                 all_results["graphpfn_frozen"] = result
                 save_task_result("graphpfn_frozen", result)
-                log_info("[Task I] GraphPFN Frozen - Completed and saved.")
+                log_info("[Task I] GraphPFN-Frozen - Completed and saved.")
         except Exception as e:
-            log_error(f"[Task I] GraphPFN Frozen failed: {e}")
+            log_error(f"[Task I] GraphPFN-Frozen failed: {e}")
             log_error(traceback.format_exc())
             save_result("graphpfn_frozen_error", str(e))
 
-    if args.mode in ["all", "finetuned"]:
+    if args.mode in ["all", "deposure-fm"]:
+        mode_output_dir = prepare_mode_output("finetuned")
         log_info("\n" + "=" * 60)
-        log_info("[Task I] GraphPFN Finetuned - Starting...")
+        log_info("[Task I] DeXposure-FM - Starting...")
         log_info("=" * 60)
         try:
             result = run_graphpfn_experiment(
@@ -4111,18 +4291,19 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 val_snaps=val_snaps,
                 test_snaps=test_snaps,
                 save_predictions=args.save_predictions,
-                output_dir=output_dir,
+                output_dir=mode_output_dir,
             )
             if result:
-                all_results["graphpfn_finetuned"] = result
-                save_task_result("graphpfn_finetuned", result)
-                log_info("[Task I] GraphPFN Finetuned - Completed and saved.")
+                all_results["dexposure_fm"] = result
+                save_task_result("dexposure_fm", result)
+                log_info("[Task I] DeXposure-FM - Completed and saved.")
         except Exception as e:
-            log_error(f"[Task I] GraphPFN Finetuned failed: {e}")
+            log_error(f"[Task I] DeXposure-FM failed: {e}")
             log_error(traceback.format_exc())
-            save_result("graphpfn_finetuned_error", str(e))
+            save_result("dexposure_fm_error", str(e))
 
     if args.mode in ["all", "roland"]:
+        mode_output_dir = prepare_mode_output("roland")
         log_info("\n" + "=" * 60)
         log_info("[Task I] ROLAND Baseline - Starting...")
         log_info("=" * 60)
@@ -4133,7 +4314,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 val_snaps=val_snaps,
                 test_snaps=test_snaps,
                 save_predictions=args.save_predictions,
-                output_dir=output_dir,
+                output_dir=mode_output_dir,
             )
             all_results["roland"] = result
             save_task_result("roland", result)
@@ -4254,14 +4435,16 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 )
 
     log_info(f"\nExperiment completed. Available modes:")
-    log_info(f"  --mode frozen      : GraphPFN with frozen encoder (Task I)")
-    log_info(f"  --mode finetuned   : GraphPFN with fine-tuned encoder (Task I)")
+    log_info(f"  --mode frozen      : GraphPFN-Frozen (Task I)")
+    log_info(f"  --mode deposure-fm  : DeXposure-FM (Task I)")
     log_info(f"  --mode roland      : ROLAND baseline (Task I)")
     log_info(f"  --mode stats       : Network statistics computation")
     log_info(f"  --mode shock       : Shock event analysis (Task II.2)")
     log_info(f"  --mode systemic    : Systemic risk measurement (Task II.1)")
     log_info(f"  --mode contagion   : Contagion simulation (Task II.3)")
-    log_info(f"  --mode stability   : Full financial stability analysis (Task II: shock+systemic+contagion)")
+    log_info(
+        f"  --mode stability   : Full financial stability analysis (Task II: shock+systemic+contagion)"
+    )
     log_info(f"  --mode impute      : Imputation experiment (Task III)")
     log_info(f"  --mode all         : Run all experiments")
     log_info(f"  --mode compare     : Print comparison table")
