@@ -21,8 +21,8 @@
 
 | 对照组 | Encoder | Scorer | 说明 |
 |--------|---------|--------|------|
-| **GraphPFN (Frozen Probing)** | 冻结 | 训练 | 衡量预训练表示的可迁移性 |
-| **GraphPFN (Finetuned)** | 微调 | 训练 | 衡量 DeXposure 微调增益 |
+| **GraphPFN-Frozen** | 冻结 | 训练 | 衡量预训练表示的可迁移性 |
+| **DeXposure-FM** | 微调 | 训练 | 衡量 DeXposure 微调增益 |
 | **ROLAND (done in Dexposure)** | 从头训练 | 训练 | 传统时序GNN基线 |
 
 ### 0.3 最终交付物
@@ -633,7 +633,7 @@ class ExperimentConfig:
 
 ### 7.1.1 分层学习率 (Layer-wise Learning Rate) - ✅ 已实现
 
-用于 Finetuned 模式，保护预训练 encoder 权重：
+用于 DeXposure-FM 模式，保护预训练 encoder 权重：
 
 ```python
 if finetune:
@@ -719,8 +719,8 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 | Method | Type | Description |
 |--------|------|-------------|
-| **GraphPFN (Frozen)** | Foundation Model | Pretrained encoder + linear probe |
-| **GraphPFN (Finetuned)** | Foundation Model | End-to-end fine-tuning |
+| **GraphPFN-Frozen** | Foundation Model | Pretrained encoder + linear probe |
+| **DeXposure-FM** | Foundation Model | End-to-end fine-tuning |
 | **ROLAND** | Temporal GNN | GCN + GRU (You et al., 2022) |
 | **EvolveGCN** | Temporal GNN | Evolving GCN weights |
 | **DySAT** | Temporal GNN | Dynamic self-attention |
@@ -731,15 +731,15 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 | Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | h=14 AUPRC | Weight MAE | Node MAE |
 |-------|-----------|-----------|-----------|------------|------------|----------|
-| **GraphPFN (FT)** | **0.932** | **0.934** | **0.936** | ⏳ | **2.62-2.66** | 0.06-0.21 |
-| GraphPFN (FR) | 0.931 | 0.934 | 0.934 | ⏳ | 3.25-3.30 | 0.06-0.12* |
+| **DeXposure-FM** | **0.932** | **0.934** | **0.936** | ⏳ | **2.62-2.66** | 0.06-0.21 |
+| GraphPFN-Frozen | 0.931 | 0.934 | 0.934 | ⏳ | 3.25-3.30 | 0.06-0.12* |
 | ROLAND | 0.870 | 0.866 | 0.861 | ⏳ | 3.94-3.99 | N/A† |
 
 *h=7 数据不完整 †ROLAND 未实现 node 预测
 
 #### 📋 详细结果
 
-**GraphPFN (Frozen) - 线性探针:**
+**GraphPFN-Frozen - 线性探针:**
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
 |---------|-------|-------|------------|-------------|----------|-----------|-------------|
@@ -749,7 +749,7 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 *h=7 预测文件因磁盘空间不足未完整保存
 
-**GraphPFN (Finetuned) - 分层学习率微调 (Encoder: 1e-4, Head: 1e-3):**
+**DeXposure-FM - 分层学习率微调 (Encoder: 1e-4, Head: 1e-3):**
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
 |---------|-------|-------|------------|-------------|----------|-----------|-------------|
@@ -769,16 +769,16 @@ scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
 #### 🎯 关键结论
 
-1. **GraphPFN Finetuned 在所有 AUPRC 指标上最优**: 比 ROLAND 高 6-7%
-2. **分层学习率有效提升 Weight MAE**: Finetuned (2.62) vs Frozen (3.25) = 21% 改进
+1. **DeXposure-FM 在所有 AUPRC 指标上最优**: 比 ROLAND 高 6-7%
+2. **分层学习率有效提升 Weight MAE**: DeXposure-FM (2.62) vs Frozen (3.25) = 21% 改进
 3. **h=7 性能稳定**: GraphPFN 在长期预测上保持鲁棒，AUPRC 0.936
 4. **Node 预测**: GraphPFN 实现了 node-level 预测 (MAE 0.06-0.21)，ROLAND 未实现
 5. **Foundation Model 优势明显**: GraphPFN 在所有指标上超越传统 Temporal GNN
 
 #### ✅ 已完成实验
 
-- [x] GraphPFN Frozen (线性探针)
-- [x] GraphPFN Finetuned (分层学习率)
+- [x] GraphPFN-Frozen (线性探针)
+- [x] DeXposure-FM (分层学习率)
 - [x] ROLAND Baseline
 
 #### ⏳ 待运行实验
@@ -830,27 +830,27 @@ print(f"p-value: {p_value:.4f}")
 python run_full_experiment.py --mode all --epochs 10 --save-predictions
 
 # 输出:
-#   - output/full_experiment/experiment_results.json
-#   - output/full_experiment/data_quality.json
-#   - output/full_experiment/predictions_edges_*.csv
-#   - output/full_experiment/predictions_nodes_*.csv
+#   - output/<timestamp>/experiment_results.json
+#   - output/<timestamp>/data_quality.json
+#   - output/<timestamp>/predictions_edges_*.csv
+#   - output/<timestamp>/predictions_nodes_*.csv
 ```
 
 ### Phase 1: 基础验证
 
 ```bash
 # 1. 单次运行验证代码正确性 (使用严格时间划分)
-python run_full_experiment.py --mode finetuned --epochs 5
+python run_full_experiment.py --mode deposure-fm --epochs 5
 
 # 2. 检查输出格式和指标
-cat output/full_experiment/experiment_results.json
-cat output/full_experiment/data_quality.json
+cat output/<timestamp>/experiment_results.json
+cat output/<timestamp>/data_quality.json
 ```
 
 ### Phase 2: 完整对比实验
 
 ```bash
-# 1. 运行所有模型对比 (Frozen/Finetuned/ROLAND)
+# 1. 运行所有模型对比 (GraphPFN-Frozen/DeXposure-FM/ROLAND)
 python run_full_experiment.py --mode all --epochs 10 --save-predictions
 
 # 2. 多种子运行 (统计显著性测试)
@@ -872,10 +872,10 @@ python run_optuna_search.py --n-trials 50 --timeout 21600
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--mode` | all | frozen/finetuned/roland/stats/shock/impute/all |
+| `--mode` | all | frozen/deposure-fm/roland/stats/shock/impute/all |
 | `--epochs` | 5 | 训练轮数 |
 | `--seed` | 42 | 随机种子 |
-| `--output-dir` | output/full_experiment | 输出目录 |
+| `--output-dir` | (默认: output/<timestamp>) | 输出目录 |
 | `--save-predictions` | False | 是否保存预测到 CSV |
 
 **时序划分 (Expanding Window):**
@@ -899,8 +899,8 @@ python run_optuna_search.py --n-trials 50 --timeout 21600
 
 | Model | h=1 AUPRC | h=1 AUROC | h=3 AUPRC | h=7 AUPRC | Weight MAE |
 |-------|-----------|-----------|-----------|-----------|------------|
-| GraphPFN (FT) | 0.82±0.02 | 0.96±0.01 | 0.78±0.02 | 0.75±0.03 | 1.5±0.1 |
-| GraphPFN (Frozen) | 0.78±0.02 | 0.94±0.01 | 0.74±0.02 | 0.71±0.03 | 1.8±0.1 |
+| DeXposure-FM | 0.82±0.02 | 0.96±0.01 | 0.78±0.02 | 0.75±0.03 | 1.5±0.1 |
+| GraphPFN-Frozen | 0.78±0.02 | 0.94±0.01 | 0.74±0.02 | 0.71±0.03 | 1.8±0.1 |
 | ROLAND | 0.72±0.03 | 0.91±0.02 | 0.68±0.03 | 0.65±0.03 | 2.1±0.2 |
 
 **Table 2: Shock Analysis Results**
@@ -937,7 +937,7 @@ time_t,time_t1,node_id,y_node_true,y_node_pred,size_t,category
 
 ```json
 {
-  "model": "GraphPFN (Finetuned)",
+  "model": "DeXposure-FM",
   "h1": {
     "exist": {"auprc": 0.814, "auroc": 0.958},
     "weight": {"mae": 3.23, "rmse": 4.05},
@@ -970,8 +970,8 @@ time_t,time_t1,node_id,y_node_true,y_node_pred,size_t,category
 
 | Model | Encoder | Scorer | h=1 AUPRC ↑ | h=1 AUROC ↑ | Weight MAE ↓ | Node MAE ↓ |
 |-------|---------|--------|-------------|-------------|--------------|------------|
-| **GraphPFN (FT)** | finetuned | trained | **0.932** | 0.986 | **2.62** | 0.060 |
-| GraphPFN (FR) | frozen | trained | 0.931 | **0.986** | 3.30 | 0.060 |
+| **DeXposure-FM** | fine-tuned | trained | **0.932** | 0.986 | **2.62** | 0.060 |
+| GraphPFN-Frozen | frozen | trained | 0.931 | **0.986** | 3.30 | 0.060 |
 | ROLAND | trained | trained | 0.870 | 0.962 | 3.99 | N/A* |
 
 *ROLAND 未实现 node-level 预测
@@ -980,8 +980,8 @@ time_t,time_t1,node_id,y_node_true,y_node_pred,size_t,category
 
 | Model | h=1 AUPRC | h=3 AUPRC | h=7 AUPRC | Weight MAE | Node MAE |
 |-------|-----------|-----------|-----------|------------|----------|
-| **GraphPFN (FT)** | **0.932** | **0.934** | **0.936** | **2.62-2.66** | 0.06-0.21 |
-| GraphPFN (FR) | 0.931 | 0.934 | 0.934 | 3.25-3.30 | 0.06-0.12* |
+| **DeXposure-FM** | **0.932** | **0.934** | **0.936** | **2.62-2.66** | 0.06-0.21 |
+| GraphPFN-Frozen | 0.931 | 0.934 | 0.934 | 3.25-3.30 | 0.06-0.12* |
 | ROLAND | 0.870 | 0.866 | 0.861 | 3.94-3.99 | N/A |
 
 *h=7 node 数据不完整
@@ -1034,7 +1034,7 @@ graphpfn/
 │   ├── save_predictions_csv()      # 预测结果输出
 │   ├── compute_recall_at_k()       # Recall@K 指标
 │   ├── compute_weighted_mae()      # Weighted MAE 指标
-│   ├── run_graphpfn_experiment()   # Task I: GraphPFN (Frozen/Finetuned)
+│   ├── run_graphpfn_experiment()   # Task I: GraphPFN (Frozen/DeXposure-FM)
 │   ├── run_roland_experiment()     # Task I: ROLAND baseline
 │   ├── run_shock_analysis()        # Task II: Shock Analysis
 │   ├── run_imputation_experiment() # Task III: Imputation
@@ -1078,13 +1078,13 @@ graphpfn/
 
 | Model | h=1 AUPRC | h=1 AUROC | h=3 AUPRC | h=3 AUROC | h=7 AUPRC | h=7 AUROC | Weight MAE |
 |-------|-----------|-----------|-----------|-----------|-----------|-----------|------------|
-| **GraphPFN (FT)** | 0.9322 | 0.9855 | 0.9344 | 0.9860 | 0.9361 | 0.9861 | 2.62-2.66 |
-| **GraphPFN (Frozen)** | 0.9308 | 0.9863 | 0.9343 | 0.9867 | 0.9337 | 0.9861 | 3.25-3.30 |
+| **DeXposure-FM** | 0.9322 | 0.9855 | 0.9344 | 0.9860 | 0.9361 | 0.9861 | 2.62-2.66 |
+| GraphPFN-Frozen | 0.9308 | 0.9863 | 0.9343 | 0.9867 | 0.9337 | 0.9861 | 3.25-3.30 |
 | **ROLAND** | 0.8697 | 0.9616 | 0.8655 | 0.9593 | 0.8614 | 0.9550 | 3.94-4.00 |
 
 ### 15.2 详细指标
 
-#### GraphPFN (Finetuned) - 分层学习率
+#### DeXposure-FM - 分层学习率
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
 |---------|-------|-------|------------|--------------|------------|
@@ -1092,7 +1092,7 @@ graphpfn/
 | h=3 | 0.9344 | 0.9860 | 2.6645 | 5.97 | 4.63e-05 |
 | h=7 | 0.9361 | 0.9861 | 2.6441 | 6.24 | 5.37e-05 |
 
-#### GraphPFN (Frozen) - 线性探针
+#### GraphPFN-Frozen - 线性探针
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weighted MAE | Recall@100 |
 |---------|-------|-------|------------|--------------|------------|
@@ -1110,9 +1110,9 @@ graphpfn/
 
 ### 15.3 关键发现
 
-1. **GraphPFN Finetuned 最优**: 在所有 horizons 上 AUPRC > 0.93
-2. **Finetuned vs Frozen**: 分层学习率微调有效，Weight MAE 降低 21%
-3. **Foundation Model 优势**: 比 ROLAND baseline 高 7-9% AUPRC
+1. **DeXposure-FM 最优**: 在所有 horizons 上 AUPRC > 0.93
+2. **DeXposure-FM vs GraphPFN-Frozen**: 分层学习率微调有效，Weight MAE 降低 21%
+3. **Foundation Model 优势明显**: 比 ROLAND baseline 高 7-9% AUPRC
 4. **长期预测鲁棒**: h=7 性能最优 (AUPRC 0.9361)
 5. **分层学习率有效**: Encoder LR * 0.1, Head LR * 1.0
 

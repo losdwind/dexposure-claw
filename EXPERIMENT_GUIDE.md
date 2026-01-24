@@ -106,22 +106,22 @@ python run_full_experiment.py --mode all --epochs 5
 ```
 
 这会依次执行:
-1. GraphPFN (Frozen encoder)
-2. GraphPFN (Finetuned)
+1. GraphPFN-Frozen (encoder)
+2. DeXposure-FM
 3. ROLAND baseline
 4. Network statistics
 5. Shock analysis
 
-结果保存到 `output/full_experiment/experiment_results.json`
+结果保存到 `output/<timestamp>/experiment_results.json`（可用 `--output-dir` 指定固定目录）
 
 ### 分模块运行
 
 ```bash
-# 1. GraphPFN Frozen (线性探针)
+# 1. GraphPFN-Frozen (线性探针)
 python run_full_experiment.py --mode frozen --epochs 5
 
-# 2. GraphPFN Finetuned (端到端微调)
-python run_full_experiment.py --mode finetuned --epochs 5
+# 2. DeXposure-FM (端到端微调)
+python run_full_experiment.py --mode deposure-fm --epochs 5
 
 # 3. ROLAND Baseline
 python run_full_experiment.py --mode roland --epochs 5
@@ -145,10 +145,10 @@ python run_full_experiment.py --mode impute
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--mode` | all | 实验模式 (frozen/finetuned/roland/stats/shock/impute/all) |
+| `--mode` | all | 实验模式 (frozen/deposure-fm/roland/stats/shock/impute/all) |
 | `--epochs` | 5 | 训练轮数 |
 | `--seed` | 42 | 随机种子 |
-| `--output-dir` | output/full_experiment | 输出目录 |
+| `--output-dir` | (默认: output/<timestamp>) | 输出目录 |
 | `--shock-model` | graphpfn | Shock分析使用的模型 |
 | `--save-predictions` | False | 是否保存预测到 CSV |
 
@@ -198,8 +198,8 @@ COMPARISON TABLE - Multi-step Forecasting Results
 ============================================================
 Model                     h=1 AUPRC   h=3 AUPRC   h=7 AUPRC   Weight MAE   Recall@100
 -----------------------------------------------------------------------------------------
-GraphPFN (Frozen)         0.9308      0.9343      0.9337      3.27         4.33e-05
-GraphPFN (Finetuned)      待运行       待运行       待运行       待运行        待运行
+GraphPFN-Frozen         0.9308      0.9343      0.9337      3.27         4.33e-05
+DeXposure-FM      待运行       待运行       待运行       待运行        待运行
 ROLAND                    待运行       待运行       待运行       N/A          待运行
 
 ============================================================
@@ -223,7 +223,7 @@ Mask %       Edge Recall     Edge MAE        Node MAE
 ### 2. 输出文件
 
 ```
-output/full_experiment/
+output/<timestamp>/
 ├── experiment_results.json       # 完整实验结果
 ├── data_quality.json             # 数据质量统计
 ├── network_statistics.csv        # 网络统计时序数据
@@ -231,7 +231,7 @@ output/full_experiment/
 └── predictions_nodes_test.csv    # 节点级预测 (需 --save-predictions)
 
 output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
-├── experiment_results.json       # GraphPFN Frozen 完整结果
+├── experiment_results.json       # GraphPFN-Frozen 完整结果
 ├── data_quality.json             # 283周数据质量
 ├── network_statistics.csv        # 网络演变统计
 ├── README.md                     # 结果摘要
@@ -272,7 +272,7 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 | **测试周数** | 33周 (2025-01-06 ~ 2025-08-18) |
 | **硬件** | NVIDIA H100 (80GB) |
 | **训练轮数** | 5 epochs |
-| **分层学习率** | Encoder: 1e-4, Head: 1e-3 (Finetuned模式) |
+| **分层学习率** | Encoder: 1e-4, Head: 1e-3 (DeXposure-FM 模式) |
 
 ---
 
@@ -280,23 +280,23 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 
 | Model | h=1 AUPRC | h=1 AUROC | h=3 AUPRC | h=3 AUROC | h=7 AUPRC | h=7 AUROC | Weight MAE | Node MAE |
 |-------|-----------|-----------|-----------|-----------|-----------|-----------|------------|----------|
-| **GraphPFN (FT)** | **0.932** | 0.986 | **0.934** | 0.986 | **0.936** | 0.986 | **2.62-2.66** | 0.06-0.21 |
-| **GraphPFN (FR)** | 0.931 | **0.986** | 0.934 | **0.987** | 0.934 | 0.986 | 3.25-3.30 | 0.06-0.12* |
+| **DeXposure-FM** | **0.932** | 0.986 | **0.934** | 0.986 | **0.936** | 0.986 | **2.62-2.66** | 0.06-0.21 |
+| GraphPFN-Frozen | 0.931 | **0.986** | 0.934 | **0.987** | 0.934 | 0.986 | 3.25-3.30 | 0.06-0.12* |
 | **ROLAND** | 0.870 | 0.962 | 0.866 | 0.959 | 0.861 | 0.955 | 3.94-3.99 | N/A† |
 
 *Frozen h=7 node 数据因磁盘满不完整  
 †ROLAND 未实现 node 预测
 
 **关键发现:**
-- ✅ **GraphPFN Finetuned 在所有 horizons 上最优**: AUPRC 0.932-0.936
-- ✅ **Finetuned 比 Frozen 提升 0.1-0.3% AUPRC**: 分层学习率微调有效
-- ✅ **GraphPFN 比 ROLAND 提升 7-9% AUPRC**: Foundation model 优势明显
+- ✅ **DeXposure-FM 在所有 horizons 上最优**: AUPRC 0.932-0.936
+- ✅ **DeXposure-FM 比 GraphPFN-Frozen 提升 0.1-0.3% AUPRC**: 分层学习率微调有效
+- ✅ **DeXposure-FM 比 ROLAND 提升 7-9% AUPRC**: Foundation model 优势明显
 - ✅ **h=7 性能最佳**: 长期预测鲁棒，AUPRC 0.9361 (最高)
-- ✅ **Weight MAE**: Finetuned (2.62) < Frozen (3.25) < ROLAND (3.99)
+- ✅ **Weight MAE**: DeXposure-FM (2.62) < GraphPFN-Frozen (3.25) < ROLAND (3.99)
 
 **详细结果:**
 
-#### GraphPFN (Frozen) - 线性探针
+#### GraphPFN-Frozen - 线性探针
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
 |---------|-------|-------|------------|-------------|----------|-----------|-------------|
@@ -306,7 +306,7 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 
 *h=7 预测文件因磁盘空间不足未保存完整
 
-#### GraphPFN (Finetuned) - 分层学习率微调
+#### DeXposure-FM - 分层学习率微调
 
 | Horizon | AUPRC | AUROC | Weight MAE | Weight RMSE | Node MAE | Node RMSE | Weighted MAE |
 |---------|-------|-------|------------|-------------|----------|-----------|-------------|
@@ -356,8 +356,8 @@ output/graph-dexposure-results/2025-01-16_graphpfn_frozen/
 
 ### 🚀 已完成的实验
 
-- ✅ **GraphPFN Frozen**: 线性探针 baseline
-- ✅ **GraphPFN Finetuned**: 分层学习率微调
+- ✅ **GraphPFN-Frozen**: 线性探针 baseline
+- ✅ **DeXposure-FM**: 分层学习率微调
 - ✅ **ROLAND**: Temporal GNN baseline
 - ✅ **Network Statistics**: 网络统计量计算
 
@@ -474,7 +474,7 @@ python run_final_evaluation.py --config output/optuna/best_params.json
 | 论文Section | 实验内容 | 脚本/函数 | 主要指标 |
 |-------------|----------|-----------|----------|
 | 5.2 Multi-step | h=1,3,7预测 | `run_graphpfn_experiment()` | AUPRC, AUROC, Recall@K |
-| 5.2 Baselines | Frozen vs Finetuned vs ROLAND | `--mode frozen/finetuned/roland` | 对比表格 |
+| 5.2 Baselines | GraphPFN-Frozen vs DeXposure-FM vs ROLAND | `--mode frozen/deposure-fm/roland` | 对比表格 |
 | 5.3 Shock Analysis | Terra/FTX事件 | `run_shock_analysis()` | TVL变化, Gini Δ, 性能退化 |
 | 5.4 Network Stats | Gini/HHI/Density | `run_network_statistics()` | 时序统计 |
 | 5.5 Imputation | 缺失值重建 | `run_imputation_experiment()` | Edge Recall, MAE |
