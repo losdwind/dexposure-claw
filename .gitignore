@@ -144,6 +144,10 @@ cython_debug/
 output/
 output/**
 
+# Large local data/checkpoints
+DeXposure/
+checkpoints/LimiX-16M.ckpt
+
 # macOS
 .DS_Store
 
