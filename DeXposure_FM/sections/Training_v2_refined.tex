@@ -1,0 +1,160 @@
+\subsection{Training Pipeline}
+\label{sec:training}
+
+This section describes the training pipeline for DeXposure-FM. All graph and flow notation follows Section~\ref{sec:formalisation}.
+
+\subsubsection{Training Data Preparation}
+
+For each discrete interval $\tau$ we construct a weighted directed snapshot $G_{\tau}=(\mathcal P_{\tau},\mathcal E_{\tau})$ with node weights $w_{\tau}(p)$ and edge weights $w_{\tau}(e_{pq})$. We form training examples indexed by an anchor time $\tau$:
+\begin{equation}
+G_{\tau} \;\longrightarrow\; G_{\tau+h}, \quad h \in \{1, 3, 7, 14\},
+\end{equation}
+where the model predicts the graph state at horizon $h$ given the current snapshot.
+
+For each protocol $p\in\mathcal P_{\tau}$ we provide tabular node features $\mathbf x^{\mathrm{tab}}_{p}$ (log-scaled TVL, token count, concentration measures, category) along with the graph structure $G_{\tau}$.
+
+\paragraph{Time-based expanding window splits.}
+We use expanding window walk-forward validation to ensure that all test targets occur strictly after the training window, thereby avoiding look-ahead bias. The training window expands over time while validation and test windows remain fixed.
+
+\paragraph{Negative sampling.}
+For edge existence prediction, we sample negative edges uniformly from the complement of the positive edge set, with a negative-to-positive ratio of 5:1.
+
+\subsubsection{Training Modes}
+
+We support two training modes for the GraphPFN encoder (the ROLAND baseline is trained from scratch as described in Section~\ref{sec:evaluation}):
+
+\paragraph{Frozen probing.}
+We freeze the pre-trained GraphPFN encoder and train only the task-specific heads (link scorer and node predictor). This setting measures the transferability of pre-trained representations to the DeFi exposure domain without modifying the backbone.
+
+\paragraph{Fine-tuning.}
+We perform end-to-end training with differential learning rates:
+\begin{itemize}
+  \item Pre-trained backbone: $\eta_{\text{backbone}} = \eta / 10$ (lower rate to preserve pre-trained knowledge)
+  \item Task-specific heads: $\eta_{\text{heads}} = \eta$ (higher rate for new parameters)
+\end{itemize}
+
+\subsubsection{Loss Functions}
+\label{sec:training:loss}
+
+We train DeXposure-FM with a multi-task objective that combines edge existence, edge weight, and node prediction losses, augmented with auxiliary constraints for structural consistency and economic relevance.
+
+\paragraph{Economic importance weighting.}
+To prioritize economically material nodes and edges, we weight prediction errors by their exposure size. For edge $(p,q)$ at horizon $h$:
+\begin{equation}
+\alpha_{pq,\tau+h} = \frac{\log\bigl(1+w_{\tau+h}(p)\bigr) \cdot \log\bigl(1+w_{\tau+h}(e_{pq})\bigr)}{\sum_{(p',q')\in\mathcal S_{\tau+h}} \log\bigl(1+w_{\tau+h}(p')\bigr) \cdot \log\bigl(1+w_{\tau+h}(e_{p'q'})\bigr)},
+\end{equation}
+where $\alpha_{pq,\tau+h}$ serves as importance weights. This ensures that errors on large-exposure relationships contribute disproportionately to the loss, aligning optimization with economic relevance.
+
+\paragraph{Edge existence loss (link prediction).}
+We predict edge existence $\widehat{y}^{\mathrm{exist}}_{pq} \in (0,1)$ using binary cross-entropy:
+\begin{equation}
+\mathcal L_{\mathrm{link}} = \sum_{(p,q) \in \mathcal S_{\tau+h}} \alpha_{pq,\tau+h} \cdot \mathrm{BCE}\bigl(\widehat{y}^{\mathrm{exist}}_{pq}, y^{\mathrm{exist}}_{pq}\bigr),
+\label{eq:loss-link}
+\end{equation}
+where $\mathcal S_{\tau+h}$ includes both positive edges from $\mathcal E_{\tau+h}$ and sampled negative edges, and $y^{\mathrm{exist}}_{pq}$ is the ground-truth binary indicator.
+
+\paragraph{Edge weight loss.}
+For positive edges, we predict log-scaled edge weights using Smooth L1 loss with economic importance weighting:
+\begin{equation}
+\mathcal L_{\mathrm{edge}} = \sum_{(p,q) \in \mathcal E_{\tau+h}} \alpha_{pq,\tau+h} \cdot \mathrm{SmoothL1}\bigl(\log(1+\widehat{w}_{\tau+h}(e_{pq})) - \log(1+w_{\tau+h}(e_{pq}))\bigr).
+\label{eq:loss-edge}
+\end{equation}
+The log transformation $\log(1+\cdot)$ compresses the heavy-tailed distribution of exposures.
+
+\paragraph{Node prediction loss.}
+We predict the log-change in protocol TVL:
+\begin{equation}
+\mathcal L_{\mathrm{node}} = \sum_{p \in \mathcal P_{\tau} \cap \mathcal P_{\tau+h}} \log\bigl(1+w_{\tau+h}(p)\bigr) \cdot \mathrm{SmoothL1}\bigl(\widehat{\Delta}_{p,\tau+h} - \Delta_{p,\tau+h}\bigr),
+\label{eq:loss-node}
+\end{equation}
+where $\Delta_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))$ is the ground-truth log-change. This weights larger protocols more heavily, consistent with the economic importance principle.
+
+\paragraph{Graph statistics constraint.}
+\textit{Motivation:} Predicted graphs should preserve structural properties (density, concentration) that are critical for systemic risk analysis, even when individual edge predictions are noisy.
+We regularize predictions to preserve structural properties:
+\begin{equation}
+\mathcal L_{\mathrm{stats}} = \mathrm{MSE}\bigl(\widehat{d}_{\tau+h}, d_{\tau+h}\bigr) + \mathrm{MSE}\bigl(\widehat{\rho}_{\tau+h}, \rho_{\tau+h}\bigr),
+\label{eq:loss-stats}
+\end{equation}
+where $d$ and $\rho$ denote mean degree and density, respectively.
+
+\paragraph{Imputation loss.}
+For randomly masked edges during training, we measure reconstruction quality:
+\begin{equation}
+\mathcal L_{\mathrm{impute}} = \sum_{(p,q) \in \mathcal M} \mathrm{SmoothL1}\bigl(\widehat{w}_{pq}, w_{pq}\bigr),
+\label{eq:loss-impute}
+\end{equation}
+where $\mathcal M$ denotes the set of masked edges.
+
+\paragraph{Scenario classification loss.}
+We classify snapshots into regime types (normal, pre-shock, shock, recovery) to enable scenario-aware predictions:
+\begin{equation}
+\mathcal L_{\mathrm{scen}} = \mathrm{CE}\bigl(\widehat{c}_{\tau}, c_{\tau}\bigr),
+\label{eq:loss-scen}
+\end{equation}
+where $c_{\tau}$ is the scenario label for snapshot $\tau$.
+
+\paragraph{Temporal smoothness.}
+We encourage embeddings to change gradually over consecutive timesteps to prevent erratic predictions:
+\begin{equation}
+\mathcal L_{\mathrm{smooth}} = \frac{1}{d} \|\mathbf{h}_{\tau} - \mathbf{h}_{\tau-1}\|_2^2,
+\label{eq:loss-smooth}
+\end{equation}
+where $d$ is the embedding dimension.
+
+\paragraph{Overall objective.}
+The training objective combines all seven loss components with domain-motivated weights:
+\begin{equation}
+\mathcal L = \lambda_{\mathrm{link}} \mathcal L_{\mathrm{link}} + \lambda_{\mathrm{edge}} \mathcal L_{\mathrm{edge}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}} + \lambda_{\mathrm{stats}} \mathcal L_{\mathrm{stats}} + \lambda_{\mathrm{impute}} \mathcal L_{\mathrm{impute}} + \lambda_{\mathrm{scen}} \mathcal L_{\mathrm{scen}} + \lambda_{\mathrm{smooth}} \mathcal L_{\mathrm{smooth}},
+\label{eq:loss-total}
+\end{equation}
+with default weights $\lambda_{\mathrm{link}} = 1.0$, $\lambda_{\mathrm{edge}} = 1.8$, $\lambda_{\mathrm{node}} = 0.4$, $\lambda_{\mathrm{stats}} = 0.05$, $\lambda_{\mathrm{impute}} = 0.2$, $\lambda_{\mathrm{scen}} = 0.1$, $\lambda_{\mathrm{smooth}} = 0.05$. Core prediction losses (link, edge, node) receive higher weights, while auxiliary constraints (stats, impute, scen, smooth) provide regularization and multi-task benefits.
+We choose these coefficients to reflect (i) task priority for systemic-risk objectives and (ii) approximate scale matching across losses early in training. Specifically, link existence and edge weight are the primary inputs to Task II (systemic risk, shock analysis, contagion), so they receive the largest weights; node prediction is secondary; structural/statistical, imputation, scenario, and smoothness terms act as regularizers and are therefore down-weighted. This design aligns optimization with economically material exposures while maintaining stability and consistency of the predicted network.
+
+\subsubsection{Optimizer and Schedule}
+
+\paragraph{Optimizer.}
+We use Adam with $\beta_1=0.9$, $\beta_2=0.999$, and learning rate $\eta = 10^{-3}$.
+
+\paragraph{Differential learning rates.}
+For fine-tuning, we apply differential learning rates across parameter groups:
+\begin{itemize}
+  \item GraphPFN encoder: $\eta \times 0.1 = 10^{-4}$ (to preserve pre-trained knowledge)
+  \item Link scorer head: $\eta = 10^{-3}$
+  \item Node prediction head: $\eta = 10^{-3}$
+\end{itemize}
+
+\paragraph{Training details.}
+We train for 5 epochs with early stopping based on validation AUPRC. Gradient clipping ($\|\nabla\|_2 \le 1.0$) is applied for stability.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{ll}
+\hline
+\textbf{Hyperparameter} & \textbf{Value} \\
+\hline
+Data granularity & Weekly snapshots \\
+Forecast horizons $h$ & $\{1, 3, 7, 14\}$ weeks \\
+Negative sampling ratio & 5:1 (neg:pos) \\
+Optimizer & Adam ($\beta_1=0.9$, $\beta_2=0.999$) \\
+Learning rate (heads) & $10^{-3}$ \\
+Learning rate (backbone) & $10^{-4}$ (fine-tune only) \\
+Training epochs & 5 \\
+Gradient clipping & $\|\nabla\|_2 \le 1.0$ \\
+\hline
+\multicolumn{2}{l}{\textit{Loss weights (7 components):}} \\
+$\lambda_{\mathrm{link}}$ (edge existence) & $1.0$ \\
+$\lambda_{\mathrm{edge}}$ (edge weight) & $1.0$ \\
+$\lambda_{\mathrm{node}}$ (node prediction) & $0.5$ \\
+$\lambda_{\mathrm{stats}}$ (graph statistics) & $0.1$ \\
+$\lambda_{\mathrm{impute}}$ (imputation) & $0.3$ \\
+$\lambda_{\mathrm{scen}}$ (scenario) & $0.2$ \\
+$\lambda_{\mathrm{smooth}}$ (temporal smoothness) & $0.1$ \\
+\hline
+\end{tabular}
+\caption{Training hyperparameters for DeXposure-FM experiments.}
+\label{tab:training-hparams}
+\end{table}

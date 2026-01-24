@@ -216,17 +216,25 @@ def compute_all_network_statistics(
 
     # Weight-based statistics (if available)
     if edge_weights is not None and len(edge_weights) > 0:
-        stats["edge_weight_gini"] = gini_coefficient(edge_weights)
-        stats["edge_weight_hhi"] = herfindahl_hirschman_index(edge_weights)
-        stats["total_exposure"] = float(np.sum(edge_weights))
-        stats["mean_edge_weight"] = float(np.mean(edge_weights))
+        ew = np.array(edge_weights, dtype=np.float64)
+        ew = ew[np.isfinite(ew)]
+        ew = np.maximum(ew, 0.0)
+        if ew.size > 0:
+            stats["edge_weight_gini"] = gini_coefficient(ew)
+            stats["edge_weight_hhi"] = herfindahl_hirschman_index(ew)
+            stats["total_exposure"] = float(np.sum(ew))
+            stats["mean_edge_weight"] = float(np.mean(ew))
 
     # Node size statistics (if available)
     if node_sizes is not None and len(node_sizes) > 0:
-        stats["tvl_gini"] = gini_coefficient(node_sizes)
-        stats["tvl_hhi"] = herfindahl_hirschman_index(node_sizes)
-        stats["total_tvl"] = float(np.sum(node_sizes))
-        stats["tvl_top_10_concentration"] = top_k_concentration(node_sizes, 0.1)
+        ns = np.array(node_sizes, dtype=np.float64)
+        ns = ns[np.isfinite(ns)]
+        ns = np.maximum(ns, 0.0)
+        if ns.size > 0:
+            stats["tvl_gini"] = gini_coefficient(ns)
+            stats["tvl_hhi"] = herfindahl_hirschman_index(ns)
+            stats["total_tvl"] = float(np.sum(ns))
+            stats["tvl_top_10_concentration"] = top_k_concentration(ns, 0.1)
 
     # Sector connectivity (if available)
     if node_sectors is not None and sector_list is not None and edge_weights is not None:

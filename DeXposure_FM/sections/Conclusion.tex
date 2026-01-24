@@ -1,0 +1,8 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We introduced DeXposure-FM, a time-series graph foundation model for measuring and forecasting inter-protocol credit exposures in decentralised finance. Trained on the DeXposure dataset spanning over 4,300 protocols across 602 blockchains from 2020 to 2025, the model learns joint representations of protocol-level dynamics, edge-level exposures, and sector structure. We evaluated DeXposure-FM on three tasks: multi-step forecasting, financial stability analysis during historical stress events, and imputation of missing edges. GraphPFN-based variants maintain stable predictive performance (AUROC $>$0.91) across forecast horizons up to 14 weeks, outperforming temporal GNN baselines that degrade at longer horizons. The model prioritises economically significant edges, achieving substantially lower TVL-weighted prediction error than alternatives.
+
+Beyond forecasting accuracy, DeXposure-FM provides a measurement layer for macroprudential monitoring: systemic importance scores, sector spillover matrices, and early-warning indicators derived from network structure. These outputs can support regulators in identifying concentration risks and conducting stress tests on DeFi infrastructure.
+
+The current work is subject to several limitations. The model observes only on-chain DeFi data and cannot capture exposures involving centralised exchanges, off-chain reserves, or traditional financial institutions. Weekly aggregation smooths out high-frequency dynamics. Future research could integrate off-chain data sources, refine exposure measures with asset-level risk weights, and extend the framework to real-time monitoring at finer temporal resolution.

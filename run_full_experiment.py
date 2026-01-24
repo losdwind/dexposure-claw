@@ -45,13 +45,34 @@ Usage:
     python run_full_experiment.py --mode systemic         # Task II.1: Systemic Risk Measurement
     python run_full_experiment.py --mode contagion        # Task II.3: Contagion Simulation
     python run_full_experiment.py --mode impute           # Task III: Imputation
+
+Output Directory Structure:
+    output/
+    └── YYYY-MM-DD_<experiment_name>/     # Date-stamped experiment folder
+        ├── experiment_results.json        # All results consolidated
+        ├── experiment_results_backup.json # Backup for crash recovery
+        ├── data_quality.json              # Data quality statistics
+        ├── dexposure_experiment_*.log     # Timestamped log file
+        ├── network_statistics.csv         # Network stats (if --mode stats)
+        ├── graphpfn_frozen/               # Frozen model outputs
+        │   ├── metrics.json
+        │   └── predictions_*.csv
+        ├── graphpfn_finetuned/            # Finetuned model outputs
+        │   ├── metrics.json
+        │   └── predictions_*.csv
+        └── roland/                        # ROLAND baseline outputs
+            ├── metrics.json
+            └── predictions_*.csv
 """
 
 import argparse
+import os as _os
 import atexit
 import json
 import logging
 import math
+_os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
+_os.environ.setdefault("DGL_DISABLE_GRAPHBOLT", "1")
 import os
 import random
 import signal
@@ -62,7 +83,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import dgl
+try:
+    import dgl
+except ModuleNotFoundError:
+    dgl = None
 import numpy as np
 import pandas as pd
 import torch
@@ -79,6 +103,18 @@ from sklearn.metrics import (
 GRAPHPFN_ROOT = Path(__file__).parent
 sys.path.insert(0, str(GRAPHPFN_ROOT))
 sys.path.insert(0, str(GRAPHPFN_ROOT / "src"))
+
+# Early logger handle + log_info so import-time warnings don't crash before logger init.
+_logger = None
+
+
+def log_info(msg: str):
+    """Log info message (falls back to print if logger not initialized)."""
+    if _logger:
+        _logger.info(msg)
+    else:
+        print(msg)
+    sys.stdout.flush()
 
 # Import GraphPFN components
 try:
@@ -103,6 +139,8 @@ from src.network_statistics import (
 
 def check_dgl_cuda_available() -> bool:
     """Check if DGL CUDA support is available."""
+    if dgl is None:
+        return False
     if not torch.cuda.is_available():
         return False
     try:
@@ -134,16 +172,16 @@ class ExperimentConfig:
 
     # Experiment settings
     seed: int = 42
-    neg_ratio: int = 5
+    neg_ratio: int = 10
     train_ratio: float = 0.60
     val_ratio: float = 0.20
     test_ratio: float = 0.20
 
     # Model settings
     hidden_dim: int = 256
-    lr: float = 1e-3
+    lr: float = 5e-4
     weight_decay: float = 1e-4
-    epochs: int = 5
+    epochs: int = 10
     edge_batch_size: int = 20000
 
     # Multi-step forecasting
@@ -152,13 +190,13 @@ class ExperimentConfig:
     # Loss weights (7 components as per advisor requirements)
     # Core prediction losses
     exist_loss_weight: float = 1.0      # L_edge: BCE for edge existence
-    weight_loss_weight: float = 1.0     # L_link: SmoothL1 for edge weight
-    node_loss_weight: float = 0.5       # L_node: SmoothL1 for node TVL change
+    weight_loss_weight: float = 1.8     # L_link: SmoothL1 for edge weight
+    node_loss_weight: float = 0.4       # L_node: SmoothL1 for node TVL change
     # Auxiliary losses
-    stats_loss_weight: float = 0.1      # L_stats: MSE for graph statistics constraint
-    impute_loss_weight: float = 0.3     # L_impute: SmoothL1 for missing value imputation
-    scen_loss_weight: float = 0.2       # L_scen: CE/Contrastive for scenario classification
-    smooth_loss_weight: float = 0.1     # L_smooth: Temporal smoothness regularization
+    stats_loss_weight: float = 0.0      # L_stats: MSE for graph statistics constraint
+    impute_loss_weight: float = 0.2     # L_impute: SmoothL1 for missing value imputation
+    scen_loss_weight: float = 0.1       # L_scen: CE/Contrastive for scenario classification
+    smooth_loss_weight: float = 0.05    # L_smooth: Temporal smoothness regularization
 
     # Imputation masking ratio (used for L_impute)
     impute_mask_ratio: float = 0.15
@@ -343,8 +381,8 @@ class ResultManager:
 
 
 # Global instances (initialized in main)
-_logger: Optional[ExperimentLogger] = None
 _result_manager: Optional[ResultManager] = None
+_run_lock_path: Optional[Path] = None
 
 
 def get_logger() -> Optional[ExperimentLogger]:
@@ -355,15 +393,6 @@ def get_logger() -> Optional[ExperimentLogger]:
 def get_result_manager() -> Optional[ResultManager]:
     """Get global result manager instance."""
     return _result_manager
-
-
-def log_info(msg: str):
-    """Log info message (falls back to print if logger not initialized)."""
-    if _logger:
-        _logger.info(msg)
-    else:
-        print(msg)
-    sys.stdout.flush()
 
 
 def log_debug(msg: str):
@@ -379,6 +408,46 @@ def log_error(msg: str):
     else:
         print(f"ERROR: {msg}", file=sys.stderr)
     sys.stderr.flush()
+
+
+def acquire_run_lock(lock_path: Path):
+    """
+    Prevent multiple concurrent runs of this script.
+    If a live PID is found in the lock file, exit early.
+    """
+    if lock_path.exists():
+        try:
+            payload = json.loads(lock_path.read_text())
+            pid = int(payload.get("pid", -1))
+        except Exception:
+            pid = -1
+
+        if pid > 0:
+            try:
+                os.kill(pid, 0)
+                log_error(
+                    f"Another run_full_experiment.py is already running (pid={pid}). "
+                    "Exiting to avoid OOM."
+                )
+                sys.exit(2)
+            except OSError:
+                # Stale lock; proceed to overwrite
+                pass
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_payload = {
+        "pid": os.getpid(),
+        "started_at": datetime.now().isoformat(),
+    }
+    lock_path.write_text(json.dumps(lock_payload))
+
+
+def release_run_lock():
+    if _run_lock_path and _run_lock_path.exists():
+        try:
+            _run_lock_path.unlink()
+        except Exception:
+            pass
 
 
 def save_result(key: str, value: Any):
@@ -1194,7 +1263,7 @@ if GRAPHPFN_AVAILABLE:
 class ROLANDBaseline(nn.Module):
     """
     ROLAND baseline model (adapted from DeXposure).
-    Temporal GNN with GCN + GRU for link prediction + node prediction.
+    Temporal GNN with GCN + GRU for link prediction + edge weight + node prediction.
     """
 
     def __init__(
@@ -1223,6 +1292,11 @@ class ROLANDBaseline(nn.Module):
         self.gru2 = nn.GRUCell(out_dim, out_dim)
 
         self.link_decoder = nn.Linear(out_dim, 1)
+        self.weight_head = nn.Sequential(
+            nn.Linear(out_dim, out_dim),
+            nn.ReLU(),
+            nn.Linear(out_dim, 1),
+        )
         
         # Node prediction head (for TVL change prediction)
         self.node_head = nn.Sequential(
@@ -1282,7 +1356,9 @@ class ROLANDBaseline(nn.Module):
         h_hadamard = h_src * h_dst
         pred = self.link_decoder(h_hadamard).squeeze(-1)
 
-        return pred, h1_new, h2_new, h  # Return node embeddings too
+        weight_pred = self.weight_head(h_hadamard).squeeze(-1)
+
+        return pred, weight_pred, h1_new, h2_new, h  # Return node embeddings too
 
 
 # ============== Auxiliary Loss Functions (7-component loss design) ==============
@@ -1534,7 +1610,10 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         tvl_weights = compute_tvl_edge_weights(sizes_t, src, y_exist, y_weight, device)
         
         # === Loss 1: L_edge (edge existence) ===
-        bce = F.binary_cross_entropy_with_logits(logits, y_exist, reduction="none")
+        pos_weight = torch.tensor([config.neg_ratio], device=device)
+        bce = F.binary_cross_entropy_with_logits(
+            logits, y_exist, pos_weight=pos_weight, reduction="none"
+        )
         exist_loss = (tvl_weights * bce).sum() / tvl_weights.sum().clamp(min=EPS)
 
         # === Loss 2: L_link (edge weight) ===
@@ -1552,8 +1631,9 @@ def train_graphpfn_epoch(model, pairs, optimizer, config, finetune_encoder: bool
         stats_pred = compute_graph_stats_from_pairs(
             src, dst, edge_prob, len(sample.node_ids), device
         )
-        stats_true = compute_graph_stats(
-            edge_src_t, edge_dst_t, len(sample.node_ids), device
+        # Use the same pair set for true stats to keep scales consistent
+        stats_true = compute_graph_stats_from_pairs(
+            src, dst, y_exist, len(sample.node_ids), device
         )
         stats_loss = compute_stats_loss(stats_pred, stats_true, device)
         
@@ -1636,9 +1716,11 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
     model.train()
     device = torch.device(config.device)
     total_loss, total_samples = 0.0, 0
+    total_link, total_weight, total_node = 0.0, 0.0, 0.0
     
     # Loss weights
-    node_loss_weight = getattr(config, 'node_loss_weight', 0.5)
+    node_loss_weight = getattr(config, 'node_loss_weight', 0.4)
+    weight_loss_weight = getattr(config, 'weight_loss_weight', 1.8)
 
     for sample in pairs:
         # Build PyG edge index
@@ -1663,12 +1745,24 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
 
         optimizer.zero_grad()
 
-        pred, h1, h2, node_embed = model(x, edge_index, edge_label_index, h1, h2)
+        pred, weight_pred, h1, h2, node_embed = model(
+            x, edge_index, edge_label_index, h1, h2
+        )
         h1, h2 = h1.detach(), h2.detach()
 
         # Link prediction loss
         link_loss = F.binary_cross_entropy_with_logits(pred, y_exist)
         
+        # Edge weight prediction loss (only for positive edges)
+        y_weight = torch.tensor(sample.y_weight, dtype=torch.float32, device=device)
+        weight_mask = torch.tensor(sample.weight_mask, dtype=torch.bool, device=device)
+        if weight_mask.any():
+            weight_loss = F.smooth_l1_loss(
+                weight_pred[weight_mask], y_weight[weight_mask]
+            )
+        else:
+            weight_loss = torch.tensor(0.0, device=device)
+
         # Node prediction loss
         node_pred = model.node_head(node_embed).squeeze(-1)
         y_node = torch.tensor(sample.y_node, dtype=torch.float32, device=device)
@@ -1680,14 +1774,27 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
             node_loss = torch.tensor(0.0, device=device)
         
         # Combined loss
-        loss = link_loss + node_loss_weight * node_loss
+        loss = (
+            link_loss
+            + weight_loss_weight * weight_loss
+            + node_loss_weight * node_loss
+        )
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
+        total_link += link_loss.item()
+        total_weight += weight_loss.item()
+        total_node += node_loss.item()
         total_samples += 1
 
-    return {"loss": total_loss / max(total_samples, 1)}, h1, h2
+    n = max(total_samples, 1)
+    return {
+        "loss": total_loss / n,
+        "link_loss": total_link / n,
+        "weight_loss": total_weight / n,
+        "node_loss": total_node / n,
+    }, h1, h2
 
 
 # ============== Evaluation Functions ==============
@@ -1780,8 +1887,8 @@ def evaluate_predictions(preds: List[Dict]) -> Dict[str, Any]:
         weight_metrics["rmse"] = float(np.sqrt(mean_squared_error(wt, wp)))
         # Weighted MAE (weighted by true edge weights)
         weight_metrics["weighted_mae"] = compute_weighted_mae(
-            wt, wp, np.exp(wt)
-        )  # exp to get original scale
+            wt, wp, np.expm1(wt)
+        )  # expm1 to get original scale from log1p
 
     # Node metrics
     node_metrics = {"mae": float("nan"), "rmse": float("nan")}
@@ -1862,7 +1969,9 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                 device=device,
             )
 
-            pred, h1, h2, node_embed = model(x, edge_index, edge_label_index, h1, h2)
+            pred, weight_pred, h1, h2, node_embed = model(
+                x, edge_index, edge_label_index, h1, h2
+            )
             
             # Node prediction
             node_pred = model.node_head(node_embed).squeeze(-1).cpu().numpy()
@@ -1882,9 +1991,7 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                     "y_node": sample.y_node,
                     "node_mask": sample.node_mask,
                     "exist_logits": pred.cpu().numpy(),
-                    "weight_pred": np.zeros_like(
-                        sample.y_weight
-                    ),  # ROLAND doesn't predict weight
+                    "weight_pred": weight_pred.cpu().numpy(),
                     "node_pred": node_pred,  # Now ROLAND predicts node TVL change
                 }
             )
@@ -2096,6 +2203,7 @@ def run_graphpfn_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
+        model_output_dir.mkdir(parents=True, exist_ok=True)
     log_info(f"\n{'=' * 60}")
     log_info(f"GraphPFN Experiment ({mode})")
     log_info(f"{'=' * 60}")
@@ -2188,6 +2296,11 @@ def run_graphpfn_experiment(
 
         # Train with 7-component loss
         prev_embeddings = None
+        best_auroc = -float('inf')
+        patience_counter = 0
+        patience = 3
+        best_model_state = None
+
         for epoch in range(config.epochs):
             losses, prev_embeddings = train_graphpfn_epoch(
                 model, train_pairs, optimizer, config, finetune, prev_embeddings
@@ -2201,14 +2314,61 @@ def run_graphpfn_experiment(
                 f"stats={losses['stats_loss']:.4f}, impute={losses['impute_loss']:.4f}, "
                 f"scen={losses['scen_loss']:.4f}, smooth={losses['smooth_loss']:.4f}"
             )
+            weighted_parts = {
+                "exist": config.exist_loss_weight * losses["exist_loss"],
+                "weight": config.weight_loss_weight * losses["weight_loss"],
+                "node": config.node_loss_weight * losses["node_loss"],
+                "stats": config.stats_loss_weight * losses["stats_loss"],
+                "impute": config.impute_loss_weight * losses["impute_loss"],
+                "scen": config.scen_loss_weight * losses["scen_loss"],
+                "smooth": config.smooth_loss_weight * losses["smooth_loss"],
+            }
+            weighted_total = sum(weighted_parts.values())
+            if weighted_total > 0:
+                contrib_str = (
+                    "contrib%="
+                    f"exist={weighted_parts['exist'] / weighted_total:.2%}, "
+                    f"weight={weighted_parts['weight'] / weighted_total:.2%}, "
+                    f"node={weighted_parts['node'] / weighted_total:.2%}, "
+                    f"stats={weighted_parts['stats'] / weighted_total:.2%}, "
+                    f"impute={weighted_parts['impute'] / weighted_total:.2%}, "
+                    f"scen={weighted_parts['scen'] / weighted_total:.2%}, "
+                    f"smooth={weighted_parts['smooth'] / weighted_total:.2%}"
+                )
+            else:
+                contrib_str = "contrib%=nan"
             if val_pairs and (epoch + 1) % 2 == 0:
                 val_preds = predict_graphpfn(model, val_pairs, config)
                 val_metrics = evaluate_predictions(val_preds)
-                log_info(
-                    f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, val_auprc={val_metrics['exist']['auprc']:.4f}"
-                )
+                val_auroc = val_metrics['exist']['auroc']
+
+                # Early stopping check
+                if val_auroc > best_auroc:
+                    best_auroc = val_auroc
+                    patience_counter = 0
+                    best_model_state = model.state_dict().copy()
+                    log_info(
+                        f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
+                        f"{contrib_str}, val_auroc={val_auroc:.4f} ⭐ (best)"
+                    )
+                else:
+                    patience_counter += 1
+                    log_info(
+                        f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
+                        f"{contrib_str}, val_auroc={val_auroc:.4f} (patience: {patience_counter}/{patience})"
+                    )
+                    if patience_counter >= patience:
+                        log_info(f"  Early stopping triggered after {epoch + 1} epochs")
+                        break
             else:
-                log_info(f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}")
+                log_info(
+                    f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, {contrib_str}"
+                )
+
+        # Restore best model
+        if best_model_state is not None:
+            model.load_state_dict(best_model_state)
+            log_info(f"  Restored best model with val_auroc={best_auroc:.4f}")
 
         # Test
         test_preds = predict_graphpfn(model, test_pairs, config)
@@ -2284,6 +2444,7 @@ def run_roland_experiment(
         model_output_dir = output_dir / model_name
         if fold_id is not None:
             model_output_dir = output_dir / f"{model_name}_fold{fold_id}"
+        model_output_dir.mkdir(parents=True, exist_ok=True)
     log_info(f"{'=' * 60}")
 
     set_seed(config.seed)
@@ -2353,11 +2514,35 @@ def run_roland_experiment(
             losses, h1, h2 = train_roland_epoch(
                 model, train_pairs, optimizer, config, h1, h2
             )
+            weighted_parts = {
+                "link": losses["link_loss"],
+                "weight": config.weight_loss_weight * losses["weight_loss"],
+                "node": config.node_loss_weight * losses["node_loss"],
+            }
+            weighted_total = sum(weighted_parts.values())
+            if weighted_total > 0:
+                contrib_str = (
+                    "contrib%="
+                    f"link={weighted_parts['link'] / weighted_total:.2%}, "
+                    f"weight={weighted_parts['weight'] / weighted_total:.2%}, "
+                    f"node={weighted_parts['node'] / weighted_total:.2%}"
+                )
+            else:
+                contrib_str = "contrib%=nan"
             if (epoch + 1) % 2 == 0:
                 val_preds, _, _ = predict_roland(model, val_pairs, config, h1, h2)
                 val_metrics = evaluate_predictions(val_preds)
                 log_info(
-                    f"  Epoch {epoch + 1}: loss={losses['loss']:.4f}, val_auprc={val_metrics['exist']['auprc']:.4f}"
+                    f"  Epoch {epoch + 1}: loss={losses['loss']:.4f} "
+                    f"(link={losses['link_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
+                    f"node={losses['node_loss']:.4f}), {contrib_str}, "
+                    f"val_auprc={val_metrics['exist']['auprc']:.4f}"
+                )
+            else:
+                log_info(
+                    f"  Epoch {epoch + 1}: loss={losses['loss']:.4f} "
+                    f"(link={losses['link_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
+                    f"node={losses['node_loss']:.4f}), {contrib_str}"
                 )
 
         # Test
@@ -2461,6 +2646,22 @@ def run_network_statistics(config: ExperimentConfig):
 # Includes: Systemic Risk Measurement, Shock Analysis, Contagion Simulation
 
 
+def _sanitize_positive_values(values: np.ndarray, clip_quantile: float = 0.99) -> np.ndarray:
+    """Filter non-finite values and clip extreme positives for stability metrics."""
+    if values is None:
+        return np.array([], dtype=np.float64)
+    arr = np.array(values, dtype=np.float64)
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0:
+        return arr
+    arr = np.maximum(arr, 0.0)
+    if arr.size > 10:
+        upper = np.quantile(arr, clip_quantile)
+        if np.isfinite(upper) and upper > 0:
+            arr = np.clip(arr, 0.0, upper)
+    return arr
+
+
 def compute_systemic_importance_score(
     snap: Dict,
     alpha: float = 0.4,
@@ -2484,14 +2685,20 @@ def compute_systemic_importance_score(
     # Build directed graph
     G = nx.DiGraph()
     node_ids = snap["node_ids"]
-    sizes = snap["sizes"]
+    sizes = _sanitize_positive_values(snap["sizes"])
+    # If sanitization reduced length, fall back to original sizes for indexing,
+    # but use sanitized values for aggregate computations.
+    sizes_raw = np.array(snap["sizes"], dtype=np.float64)
 
     for i, node_id in enumerate(node_ids):
-        G.add_node(node_id, size=sizes[i] if i < len(sizes) else 0)
+        size_val = sizes_raw[i] if i < len(sizes_raw) and np.isfinite(sizes_raw[i]) else 0.0
+        G.add_node(node_id, size=max(size_val, 0.0))
 
     for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
         if src < len(node_ids) and dst < len(node_ids):
-            G.add_edge(node_ids[src], node_ids[dst], weight=weight)
+            if not np.isfinite(weight):
+                continue
+            G.add_edge(node_ids[src], node_ids[dst], weight=max(float(weight), 0.0))
 
     if len(G.nodes()) == 0:
         return {}
@@ -2568,7 +2775,9 @@ def compute_sector_spillover_index(
             dst_cat = meta_category.get(node_ids[dst], "Unknown")
             src_idx = cat_to_idx[src_cat]
             dst_idx = cat_to_idx[dst_cat]
-            sector_matrix[src_idx, dst_idx] += weight
+            if not np.isfinite(weight):
+                continue
+            sector_matrix[src_idx, dst_idx] += max(float(weight), 0.0)
 
     # Spillover index = HHI of off-diagonal elements
     off_diag = []
@@ -2619,7 +2828,7 @@ def compute_early_warning_indicators(
         density = n_edges / max_edges if max_edges > 0 else 0
 
         # HHI of node sizes
-        sizes = snap["sizes"]
+        sizes = _sanitize_positive_values(snap["sizes"])
         hhi = herfindahl_hirschman_index(sizes)
 
         # Gini
@@ -2675,7 +2884,9 @@ def simulate_contagion(
         Dictionary with contagion results
     """
     node_ids = snap["node_ids"]
-    sizes = snap["sizes"]
+    sizes = np.array(snap["sizes"], dtype=np.float64)
+    sizes = np.where(np.isfinite(sizes), sizes, 0.0)
+    sizes = np.maximum(sizes, 0.0)
     node_to_idx = {nid: i for i, nid in enumerate(node_ids)}
 
     # Build adjacency for reverse lookup (who is exposed to whom)
@@ -2683,11 +2894,13 @@ def simulate_contagion(
     exposures = {}  # exposures[creditor] = [(debtor, amount), ...]
     for src, dst, weight in zip(snap["edge_src"], snap["edge_dst"], snap["edge_weight"]):
         if src < len(node_ids) and dst < len(node_ids):
+            if not np.isfinite(weight):
+                continue
             src_id = node_ids[src]
             dst_id = node_ids[dst]
             if src_id not in exposures:
                 exposures[src_id] = []
-            exposures[src_id].append((dst_id, weight))
+            exposures[src_id].append((dst_id, max(float(weight), 0.0)))
 
     # Initialize losses
     losses = {nid: 0.0 for nid in node_ids}
@@ -2697,7 +2910,10 @@ def simulate_contagion(
     distressed = set()
     for node in shocked_nodes:
         if node in losses:
-            losses[node] = shock_ratio * tvl.get(node, 0)
+            base_tvl = tvl.get(node, 0.0)
+            if base_tvl <= 0:
+                continue
+            losses[node] = shock_ratio * base_tvl
             distressed.add(node)
 
     # Propagation
@@ -2713,7 +2929,10 @@ def simulate_contagion(
                 for debtor, amount in exp_list:
                     if debtor == node and creditor not in distressed:
                         # Creditor loses value proportional to their exposure
-                        loss_ratio = losses[node] / (tvl[node] + EPS)
+                        denom = tvl.get(node, 0.0)
+                        if denom <= 0:
+                            continue
+                        loss_ratio = losses[node] / (denom + EPS)
                         creditor_loss = amount * loss_ratio
                         losses[creditor] = losses.get(creditor, 0) + creditor_loss
 
@@ -3544,7 +3763,6 @@ def run_imputation_experiment(
         "num_test_snapshots": len(test_snapshots),
     }
 
-
 # ============== Main ==============
 
 
@@ -3631,15 +3849,35 @@ def main():
     )
     args = parser.parse_args()
 
+    # Prevent concurrent runs to avoid GPU OOM
+    global _run_lock_path
+    _run_lock_path = GRAPHPFN_ROOT / ".run_full_experiment.lock"
+    acquire_run_lock(_run_lock_path)
+    atexit.register(release_run_lock)
+
     config = ExperimentConfig()
-    if args.output_dir:
-        config.output_dir = args.output_dir
     config.epochs = args.epochs
     config.seed = args.seed
     config.forecast_horizons = [int(h) for h in args.horizons.split(",")]
 
-    output_dir = Path(config.output_dir)
+    # Create date-stamped output directory
+    today = datetime.now().strftime("%Y-%m-%d")
+    if args.output_dir:
+        # User specified output dir
+        output_dir = Path(args.output_dir)
+    else:
+        # Default: output/YYYY-MM-DD_<mode>
+        output_dir = Path("output") / f"{today}_{args.mode}"
+    
+    config.output_dir = str(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Clean stale results in this output directory if it exists
+    results_file = output_dir / "experiment_results.json"
+    if results_file.exists():
+        backup_name = f"experiment_results_{datetime.now().strftime('%H%M%S')}.json.bak"
+        results_file.rename(output_dir / backup_name)
+        print(f"Backed up existing results to: {backup_name}")
 
     # Initialize logging and result management
     global _logger, _result_manager
