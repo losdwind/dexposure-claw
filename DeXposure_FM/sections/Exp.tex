@@ -47,7 +47,7 @@ Final performance is reported on a strict 2025 hold-out set, which is never seen
 All results in this paper are from Stage 2 hold-out evaluation.
 
 \paragraph{Forecast horizons vs. CV windows.}
-The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 3, 7\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
+The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 3, 7, 14\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
 
 \paragraph{Models compared.}
 We compare three approaches:
@@ -61,7 +61,7 @@ We compare three approaches:
 \label{subsec:forecast}
 
 \paragraph{Targets.}
-We evaluate forecasts at horizons $h \in \{1, 3, 7\}$ weeks for:
+We evaluate forecasts at horizons $h \in \{1, 3, 7, 14\}$ weeks for:
 \begin{enumerate}
   \item \textbf{Edge existence:} Binary prediction of whether edge $(p,q)$ exists at $t+h$.
   \item \textbf{Edge weight:} Regression on log-scaled edge weight for existing edges.
@@ -72,7 +72,7 @@ We evaluate forecasts at horizons $h \in \{1, 3, 7\}$ weeks for:
 For edge existence, we report AUPRC (area under precision-recall curve) and AUROC. For edge weight and node predictions, we report MAE and RMSE on log-scaled values.
 
 \paragraph{Results.}
-Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set.
+Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set (partial; remaining entries \textit{TBD}).
 
 \begin{table}[t]
 \centering
@@ -83,36 +83,35 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 & & \multicolumn{2}{c}{\textbf{Edge Exist}} & \multicolumn{2}{c}{\textbf{Edge Weight}} & \multicolumn{2}{c}{\textbf{Node $\Delta$TVL}} \\
 \textbf{Model} & $h$ & AUROC & AUPRC & MAE & RMSE & MAE & RMSE \\
 \hline
-\multirow{4}{*}{DeXposure-FM} 
-& 1 & 0.929 & 0.724 & 12.96 & 13.63 & \textbf{0.062} & 0.402 \\
-& 3 & \textbf{0.937} & 0.746 & 13.39 & 14.05 & 0.138 & 0.609 \\
-& 7 & 0.926 & 0.723 & 13.50 & 14.16 & 0.237 & 0.844 \\
-& 14 & \textbf{0.926} & \textbf{0.726} & 13.39 & 14.04 & \textbf{0.304} & 1.137 \\
+\multirow{4}{*}{DeXposure-FM}
+& 1 & \textbf{0.994} & \textbf{0.967} & \textbf{2.54} & \textbf{3.42} & \textbf{0.058} & \textbf{0.400} \\
+& 3 & \textbf{0.994} & \textbf{0.966} & \textbf{2.54} & \textbf{3.48} & \textbf{0.115} & \textbf{0.605} \\
+& 7 & \textbf{0.994} & \textbf{0.967} & \textbf{2.55} & \textbf{3.49} & \textbf{0.197} & \textbf{0.840} \\
+& 14 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \multirow{4}{*}{GraphPFN-Frozen}
-& 1 & \textbf{0.940} & 0.744 & 14.03 & 14.66 & 0.064 & \textbf{0.401} \\
-& 3 & 0.936 & \textbf{0.749} & 14.91 & 15.50 & \textbf{0.124} & \textbf{0.606} \\
-& 7 & \textbf{0.921} & \textbf{0.745} & 15.05 & 15.63 & \textbf{0.227} & \textbf{0.843} \\
-& 14 & 0.914 & 0.746 & 14.16 & 14.77 & 0.342 & \textbf{1.127} \\
+& 1 & 0.988 & 0.937 & 3.25 & 4.26 & \textbf{0.058} & 0.401 \\
+& 3 & 0.987 & 0.934 & 3.25 & 4.29 & 0.118 & 0.606 \\
+& 7 & 0.987 & 0.936 & 3.21 & 4.25 & 0.196 & 0.845 \\
+& 14 & 0.985 & 0.931 & 3.19 & 4.32 & 0.298 & 1.132 \\
 \hline
 \multirow{4}{*}{ROLAND}
-& 1 & 0.907 & \textbf{0.792} & \textbf{3.99} & \textbf{5.84} & 0.060 & 0.403 \\
-& 3 & 0.889 & 0.770 & \textbf{3.97} & \textbf{5.82} & 0.122 & 0.607 \\
-& 7 & 0.882 & 0.769 & \textbf{3.94} & \textbf{5.79} & 0.230 & 0.843 \\
-& 14 & 0.718 & 0.616 & \textbf{3.86} & \textbf{5.72} & 0.362 & 1.131 \\
+& 1 & 0.957 & 0.856 & 3.33 & 4.30 & 0.061 & 0.403 \\
+& 3 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 7 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 14 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \end{tabular}
-\caption{Multi-step forecasting results on 2025 hold-out test set. Bold indicates best performance within each horizon. DeXposure-FM = Fine-tuned, GraphPFN-Frozen = Frozen (linear probe). Results from 1-epoch validation run.}
+\caption{Multi-step forecasting results on 2025 hold-out test set. DeXposure-FM = Fine-tuned, GraphPFN-Frozen = Frozen (linear probe). \textit{TBD} indicates runs not completed yet.}
 \label{tab:main-results}
 \end{table}
 
 \paragraph{Key findings.}
 \begin{enumerate}
-  \item \textbf{Edge existence (AUROC):} Both GraphPFN variants achieve AUROC $>$0.91 across all horizons, with the frozen variant achieving the highest AUROC (0.940 at h=1). ROLAND starts strong at short horizons (0.907 at h=1) but degrades significantly at h=14 (0.718), demonstrating GraphPFN's superior temporal stability.
-  \item \textbf{Edge existence (AUPRC):} ROLAND achieves higher AUPRC at short horizons (0.792 at h=1), likely due to its conservative prediction strategy. However, ROLAND's AUPRC collapses at h=14 (0.616), while GraphPFN maintains stable AUPRC ($\sim$0.72--0.75) across all horizons.
-  \item \textbf{Edge weight:} ROLAND achieves lower weight MAE (3.9--4.0) compared to GraphPFN (12.9--15.1), as its simpler architecture better captures mean weight patterns. However, ROLAND's weighted MAE (TVL-adjusted) is significantly higher (19.0 vs 1.7--2.0), indicating GraphPFN better predicts economically important edges.
-  \item \textbf{Node prediction:} Both variants show comparable node prediction (MAE 0.06 at h=1), with performance naturally degrading at longer horizons (MAE 0.30--0.34 at h=14).
-  \item \textbf{Horizon stability:} GraphPFN maintains stable performance from h=1 to h=14, while ROLAND shows substantial degradation at h=14, highlighting the benefit of foundation model pre-training for long-horizon forecasting.
+  \item \textbf{Edge existence:} DeXposure-FM achieves consistently high performance across horizons with AUROC 0.994 and AUPRC 0.966--0.967, outperforming GraphPFN-Frozen (0.985--0.988/0.931--0.937) and ROLAND (0.957/0.856 at h=1).
+  \item \textbf{Edge weight:} DeXposure-FM shows substantial and stable improvement in weight prediction with MAE 2.54--2.55 across h=1/3/7, vs.\ 3.19--3.25 (Frozen) and 3.33 (ROLAND), a 22\% reduction.
+  \item \textbf{Node prediction:} Node TVL change prediction degrades with horizon as expected: DeXposure-FM MAE increases from 0.058 (h=1) to 0.197 (h=7), comparable to Frozen (0.058--0.196).
+  \item \textbf{Horizon stability:} DeXposure-FM maintains stable edge prediction across horizons while Frozen shows slight degradation. h=14 results are \textit{TBD}.
 \end{enumerate}
 
 \subsection{Task II: Financial Stability Analysis}
@@ -167,7 +166,7 @@ For each event, we examine a pre/event/post window and report both structural sh
 \end{enumerate}
 
 \paragraph{Results.}
-Table~\ref{tab:shock-results} shows network structure changes during the two stress events.
+Table~\ref{tab:shock-results} shows network structure changes during the two stress events (\textit{TBD}).
 
 \begin{table}[t]
 \centering
@@ -176,11 +175,11 @@ Table~\ref{tab:shock-results} shows network structure changes during the two str
 \hline
 \textbf{Event} & \textbf{Pre-TVL (\$B)} & \textbf{Post-TVL (\$B)} & \textbf{$\Delta$TVL} & \textbf{$\Delta$Edges} \\
 \hline
-Terra/Luna & 30.52 & 19.20 & $-$33.5\% & +9.4\% \\
-FTX & 10.54 & 14.00 & +32.8\% & +4.2\% \\
+Terra/Luna & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+FTX & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \end{tabular}
-\caption{Network structure changes during stress events. Terra/Luna collapse caused a 33.5\% TVL drop, while FTX collapse led to network restructuring with TVL migration. Edge count increased in both cases as protocols reorganized their exposures.}
+\caption{Network structure changes during stress events. Values are \textit{TBD} pending shock analysis runs.}
 \label{tab:shock-results}
 \end{table}
 
@@ -216,7 +215,7 @@ We simulate counterfactual shocks using actual network structure:
   \item \textbf{Affected protocols:} Count of protocols with $\text{Loss} > 0$
 \end{itemize}
 
-Table~\ref{tab:contagion-results} presents contagion simulation results. The simulation reveals that the DeFi network exhibits low contagion risk for isolated shocks, as most protocols have diversified counterparty exposures.
+Table~\ref{tab:contagion-results} presents contagion simulation results (\textit{TBD}).
 
 \begin{table}[t]
 \centering
@@ -225,13 +224,13 @@ Table~\ref{tab:contagion-results} presents contagion simulation results. The sim
 \hline
 \textbf{Scenario} & \textbf{System Loss (\%)} & \textbf{Depth} & \textbf{Affected} \\
 \hline
-Single protocol (50\% shock) & 0.0 & 0 & 0 \\
-Multi-protocol (random 5) & 0.0 & 0 & 0 \\
-Stablecoin cluster & $<$0.1 & 1 & 3 \\
-Bridge exploit (simulated) & 0.2 & 2 & 12 \\
+Single protocol (50\% shock) & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+Multi-protocol (random 5) & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+Stablecoin cluster & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+Bridge exploit (simulated) & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \end{tabular}
-\caption{Contagion simulation results on 2025 network snapshot. System Loss is percentage of total network TVL lost. Depth is number of propagation rounds. The low contagion suggests the current DeFi network structure provides natural diversification against isolated shocks.}
+\caption{Contagion simulation results on 2025 network snapshot. Values are \textit{TBD}.}
 \label{tab:contagion-results}
 \end{table}
 
@@ -263,7 +262,7 @@ For masked edges, we report:
 \end{itemize}
 
 \paragraph{Results.}
-Table~\ref{tab:imputation-results} summarizes imputation performance using DeXposure-FM.
+Table~\ref{tab:imputation-results} summarizes imputation performance using DeXposure-FM (\textit{TBD}).
 
 \begin{table}[t]
 \centering
@@ -272,12 +271,12 @@ Table~\ref{tab:imputation-results} summarizes imputation performance using DeXpo
 \hline
 \textbf{Mask Rate} & \textbf{Edge Recall} & \textbf{Weight MAE} & \textbf{Node MAE} \\
 \hline
-10\% & 0.658 & 14.48 & 0.063 \\
-20\% & 0.659 & 14.47 & 0.063 \\
-30\% & 0.659 & 14.47 & 0.066 \\
+10\% & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+20\% & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+30\% & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \end{tabular}
-\caption{Imputation performance at different masking rates using DeXposure-FM. Edge Recall measures the fraction of masked edges correctly reconstructed. Remarkably stable performance across masking rates suggests the model learns robust structural patterns.}
+\caption{Imputation performance at different masking rates using DeXposure-FM. Values are \textit{TBD}.}
 \label{tab:imputation-results}
 \end{table}
 
@@ -285,13 +284,13 @@ Table~\ref{tab:imputation-results} summarizes imputation performance using DeXpo
 \label{subsec:discussion}
 
 \paragraph{High edge overlap and baseline accuracy.}
-The 98.5\% mean edge overlap ratio explains the high AUROC values across all models---most edges persist week-to-week. However, the key differentiator is \textit{horizon stability}: while ROLAND achieves strong short-term performance (AUROC 0.907 at h=1), its performance collapses at h=14 (0.718). GraphPFN maintains stable AUROC ($>$0.91) across all horizons, demonstrating the benefit of foundation model pre-training for temporal generalization.
+Mean edge overlap and horizon-stability comparisons are \textit{TBD} until all horizons complete.
 
 \paragraph{Trade-offs in weight prediction.}
-ROLAND achieves lower raw weight MAE (3.9 vs. 13.0) but higher TVL-weighted MAE (19.0 vs. 1.7). This indicates GraphPFN prioritizes economically significant edges, which is more valuable for macro-prudential applications where large exposures drive systemic risk.
+Raw vs. TVL-weighted MAE comparisons are \textit{TBD} pending full metric aggregation.
 
 \paragraph{Practical implications.}
-The stability of GraphPFN across horizons (h=1 to h=14) is particularly valuable for forward-looking risk assessment, where regulators need reliable multi-week forecasts for stress testing. The 66\% recall on imputation tasks suggests the model can effectively reconstruct incomplete network observations.
+Practical implications (horizon stability and imputation recall) are \textit{TBD} until remaining experiments complete.
 
 \paragraph{Limitations.}
-Current results are from a 1-epoch validation run. Full training with additional epochs may improve absolute performance, particularly for edge weight prediction where the model has not fully converged.
+Current results are partial. Full training with additional epochs and completed horizons is \textit{TBD}.

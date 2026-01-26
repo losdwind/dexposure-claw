@@ -61,6 +61,7 @@ import copy
 import json
 import logging
 import math
+import time
 
 _os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
 _os.environ.setdefault("DGL_DISABLE_GRAPHBOLT", "1")
@@ -2418,6 +2419,13 @@ def run_graphpfn_experiment(
         if best_model_state is not None:
             model.load_state_dict(best_model_state)
             log_info(f"  Restored best model with val_{metric_name}={best_metric:.4f}")
+            try:
+                if output_dir:
+                    best_model_path = Path(output_dir) / "best_model.pt"
+                    torch.save({"model": model.state_dict()}, best_model_path)
+                    log_info(f"  Saved best model to: {best_model_path}")
+            except Exception as e:
+                log_error(f"  Failed to save best model: {e}")
 
         # Test
         test_preds = predict_graphpfn(model, test_pairs, config)
@@ -3757,6 +3765,7 @@ def run_imputation_experiment(
     mask_ratios: List[float] = None,
     snapshots: Optional[List[Dict]] = None,
     date_splits: Optional[Dict[str, List[str]]] = None,
+    model_path: Optional[str] = None,
 ):
     """
     Run Task III: Imputation experiment.
@@ -3768,6 +3777,7 @@ def run_imputation_experiment(
         mask_ratios: List of mask ratios to test (default: [0.1, 0.2, 0.3])
         snapshots: Optional pre-built snapshots
         date_splits: Optional train/test split (uses holdout if provided)
+        model_path: Optional path to a pretrained GraphPFNLinkPredictor state_dict
     """
     log_info(f"\n{'=' * 60}")
     log_info("Task III: Imputation Experiment")
@@ -3809,7 +3819,7 @@ def run_imputation_experiment(
     ]
     test_snapshots = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
-    # Load and train model
+    # Load and (optionally) train model
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
     embed_dim = encoder.tfm.embed_dim
     model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
@@ -3817,22 +3827,66 @@ def run_imputation_experiment(
     for p in model.encoder.parameters():
         p.requires_grad = True
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-    train_pairs = build_week_pairs(
-        train_snapshots, config.neg_ratio, config.seed, horizon=1
-    )
-
-    log_info(f"Training on {len(train_pairs)} pairs...")
-    prev_embeddings = None
-    for epoch in range(config.epochs):
-        _, prev_embeddings = train_graphpfn_epoch(
-            model,
-            train_pairs,
-            optimizer,
-            config,
-            finetune_encoder=True,
-            prev_embeddings=prev_embeddings,
+    if model_path and Path(model_path).exists():
+        log_info(f"Loading imputation model from {model_path}")
+        state = torch.load(model_path, map_location=device)
+        model.load_state_dict(state.get("model", state), strict=True)
+    else:
+        if model_path:
+            log_info(f"Imputation model not found at {model_path}; training from scratch.")
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+        train_pairs = build_week_pairs(
+            train_snapshots, config.neg_ratio, config.seed, horizon=1
         )
+
+        log_info(f"Training on {len(train_pairs)} pairs...")
+        prev_embeddings = None
+        for epoch in range(config.epochs):
+            epoch_start = time.perf_counter()
+            losses, prev_embeddings = train_graphpfn_epoch(
+                model,
+                train_pairs,
+                optimizer,
+                config,
+                finetune_encoder=True,
+                prev_embeddings=prev_embeddings,
+            )
+            loss_str = (
+                f"exist={losses['exist_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
+                f"node={losses['node_loss']:.4f}"
+            )
+            aux_str = (
+                f"stats={losses['stats_loss']:.4f}, impute={losses['impute_loss']:.4f}, "
+                f"scen={losses['scen_loss']:.4f}, smooth={losses['smooth_loss']:.4f}"
+            )
+            weighted_parts = {
+                "exist": config.exist_loss_weight * losses["exist_loss"],
+                "weight": config.weight_loss_weight * losses["weight_loss"],
+                "node": config.node_loss_weight * losses["node_loss"],
+                "stats": config.stats_loss_weight * losses["stats_loss"],
+                "impute": config.impute_loss_weight * losses["impute_loss"],
+                "scen": config.scen_loss_weight * losses["scen_loss"],
+                "smooth": config.smooth_loss_weight * losses["smooth_loss"],
+            }
+            weighted_total = sum(weighted_parts.values())
+            if weighted_total > 0:
+                contrib_str = (
+                    "contrib%="
+                    f"exist={weighted_parts['exist'] / weighted_total:.2%}, "
+                    f"weight={weighted_parts['weight'] / weighted_total:.2%}, "
+                    f"node={weighted_parts['node'] / weighted_total:.2%}, "
+                    f"stats={weighted_parts['stats'] / weighted_total:.2%}, "
+                    f"impute={weighted_parts['impute'] / weighted_total:.2%}, "
+                    f"scen={weighted_parts['scen'] / weighted_total:.2%}, "
+                    f"smooth={weighted_parts['smooth'] / weighted_total:.2%}"
+                )
+            else:
+                contrib_str = "contrib%=nan"
+            epoch_sec = time.perf_counter() - epoch_start
+            log_info(
+                f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
+                f"{contrib_str}, time={epoch_sec:.1f}s"
+            )
 
     test_pairs = build_week_pairs(
         test_snapshots, config.neg_ratio, config.seed, horizon=1
@@ -4385,8 +4439,16 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
         log_info("[Task III] Imputation Experiment - Starting...")
         log_info("=" * 60)
         try:
+            impute_model_path = None
+            if args.mode == "all":
+                candidate = output_dir / "finetuned" / "best_model.pt"
+                if candidate.exists():
+                    impute_model_path = str(candidate)
             result = run_imputation_experiment(
-                config, snapshots=all_snapshots, date_splits=date_splits
+                config,
+                snapshots=all_snapshots,
+                date_splits=date_splits,
+                model_path=impute_model_path,
             )
             if result:
                 all_results["imputation"] = result
