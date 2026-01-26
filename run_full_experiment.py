@@ -4440,10 +4440,16 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
         log_info("=" * 60)
         try:
             impute_model_path = None
-            if args.mode == "all":
-                candidate = output_dir / "finetuned" / "best_model.pt"
+            # Search for existing finetuned model in current or recent output dirs
+            search_paths = [
+                output_dir / "finetuned" / "best_model.pt",
+                Path("output/2026-01-25_115845/finetuned/best_model.pt"),  # Recent finetuned
+            ]
+            for candidate in search_paths:
                 if candidate.exists():
                     impute_model_path = str(candidate)
+                    log_info(f"Found pretrained model: {impute_model_path}")
+                    break
             result = run_imputation_experiment(
                 config,
                 snapshots=all_snapshots,
