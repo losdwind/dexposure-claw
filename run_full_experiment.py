@@ -5,7 +5,7 @@ DeXposure-FM Full Experiment Suite
 This script implements the complete evaluation framework as specified in the paper:
 
 Task I: Multi-step Forecasting
-- Horizon h ∈ {1, 3, 7, 14} weeks ahead prediction
+- Horizon h ∈ {1, 4, 8, 12} weeks ahead prediction
 - Metrics: AUPRC, AUROC for link existence; MAE, RMSE for edge weight
 
 Task II: Policy-relevant Scenario Analysis (Shock Analysis)
@@ -178,7 +178,10 @@ class ExperimentConfig:
     edge_batch_size: int = 20000
 
     # Multi-step forecasting
-    forecast_horizons: List[int] = field(default_factory=lambda: [1])
+    forecast_horizons: List[int] = field(default_factory=lambda: [1, 4, 8, 12])
+
+    # Gradient clipping
+    gradient_clip_norm: float = 1.0
 
     # Loss weights (7 components as per advisor requirements)
     # Core prediction losses
@@ -1722,6 +1725,11 @@ def train_graphpfn_epoch(
         )
 
         loss.backward()
+
+        # Gradient clipping
+        if hasattr(config, 'gradient_clip_norm') and config.gradient_clip_norm > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.gradient_clip_norm)
+
         optimizer.step()
 
         # Accumulate all losses
@@ -1815,6 +1823,11 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
             link_loss + weight_loss_weight * weight_loss + node_loss_weight * node_loss
         )
         loss.backward()
+
+        # Gradient clipping
+        if hasattr(config, 'gradient_clip_norm') and config.gradient_clip_norm > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.gradient_clip_norm)
+
         optimizer.step()
 
         total_loss += loss.item()
@@ -4036,8 +4049,14 @@ def main():
     parser.add_argument(
         "--horizons",
         type=str,
-        default="1",
-        help="Comma-separated forecast horizons (default: 1)",
+        default="1,4,8,12",
+        help="Comma-separated forecast horizons (default: 1,4,8,12)",
+    )
+    parser.add_argument(
+        "--gradient-clip-norm",
+        type=float,
+        default=1.0,
+        help="Gradient clipping norm (default: 1.0, set to 0 to disable)",
     )
     parser.add_argument(
         "--verbose",
@@ -4059,6 +4078,7 @@ def main():
     config.val_eval_every = max(1, args.val_eval_every)
     config.seed = args.seed
     config.forecast_horizons = [int(h) for h in args.horizons.split(",")]
+    config.gradient_clip_norm = args.gradient_clip_norm
 
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
