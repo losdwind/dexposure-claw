@@ -289,8 +289,8 @@ The 98.5\% mean edge overlap in DeFi networks means that predicting ``all edges 
 \paragraph{Weight prediction benefits most from fine-tuning.}
 The 22\% MAE reduction in edge weight prediction (2.54 vs.\ 3.25) demonstrates that fine-tuning captures domain-specific exposure dynamics that frozen encoders miss. This is critical for policy applications where exposure magnitudes determine systemic risk.
 
-\paragraph{Robust imputation enables data augmentation.}
-The model's 98\%+ edge recall at 30\% masking suggests practical applications: (i) reconstructing incomplete network observations from partial API data, (ii) validating data collection pipelines by cross-checking imputed vs.\ observed edges, and (iii) generating synthetic stress scenarios by selectively masking high-importance edges.
+\paragraph{Imputation recall reflects network stability.}
+The 98\%+ edge recall in imputation experiments directly reflects the underlying 98.5\% edge overlap in DeFi networks---the model learns that edges typically persist, which is the correct inductive bias for this domain. Crucially, this is not a trivial baseline: the model must also predict accurate edge \textit{weights} (MAE $\sim$2.54, matching forecasting performance), and the recall remains stable even at 30\% masking where a naive ``all edges exist'' heuristic would fail on masked edges. This robustness enables practical applications: (i) reconstructing incomplete network observations from partial API data, (ii) validating data collection pipelines by cross-checking imputed vs.\ observed edges, and (iii) generating synthetic stress scenarios by selectively masking high-importance edges.
 
 \paragraph{Bridge protocols as systemic risk vectors.}
 Contagion simulations identify cross-chain bridges as disproportionate risk concentrators---shocking 22 bridge nodes causes 5.27\% system-wide loss, exceeding stablecoin scenarios (79 nodes, 1.10\% loss). This aligns with historical bridge exploits (Ronin, Wormhole) and suggests regulatory attention to bridge capitalization.
