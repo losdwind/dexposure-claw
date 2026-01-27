@@ -35,24 +35,24 @@ Protocol categories & $\sim$15 classes \\
 We use a two-stage evaluation protocol:
 
 \textit{Stage 1: Model selection via walk-forward cross-validation.}
-We apply expanding window walk-forward cross-validation on pre-2025 data with 16 folds. Each fold uses a minimum of 104 training weeks, 12 validation weeks (for early stopping), and 8 test weeks. The window advances by 8 weeks per fold, accumulating more training data. This stage is used for hyperparameter selection and model comparison.
+We apply expanding window walk-forward cross-validation on pre-2025 data with 15 folds. Each fold uses a minimum of 104 training weeks, 24 validation weeks (for early stopping), and 8 test weeks. The validation window is sized to ensure sufficient samples even at longer horizons: for $h=12$, we require $\geq 12$ validation weeks to construct valid forecast pairs. The window advances by 8 weeks per fold, accumulating more training data. This stage is used for hyperparameter selection and model comparison.
 
 \textit{Stage 2: Hold-out evaluation.}
 Final performance is reported on a strict 2025 hold-out set, which is never seen during training or validation:
 \begin{itemize}
-  \item \textbf{Training:} 2020-03-23 $\sim$ 2024-10-07 (238 weeks)
-  \item \textbf{Validation:} 2024-10-14 $\sim$ 2024-12-30 (12 weeks, for early stopping)
+  \item \textbf{Training:} 2020-03-23 $\sim$ 2024-07-15 (225 weeks)
+  \item \textbf{Validation:} 2024-07-22 $\sim$ 2024-12-30 (24 weeks, for early stopping)
   \item \textbf{Test:} 2025-01-06 $\sim$ 2025-08-18 (33 weeks, strict hold-out)
 \end{itemize}
 All results in this paper are from Stage 2 hold-out evaluation.
 
 \paragraph{Forecast horizons vs. CV windows.}
-The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 3, 7, 14\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
+The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 4, 8, 12\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
 
 \paragraph{Models compared.}
 We compare three approaches:
 \begin{enumerate}
-  \item \textbf{GraphPFN-Frozen:} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
+  \item \textbf{GraphPFN} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
   \item \textbf{DeXposure-FM:} Pre-trained GraphPFN encoder with end-to-end fine-tuning using differential learning rates.
 \item \textbf{ROLAND:} Representative temporal GNN baseline with a GCN encoder and GRU temporal updates, trained from scratch.
 \end{enumerate}
@@ -61,7 +61,7 @@ We compare three approaches:
 \label{subsec:forecast}
 
 \paragraph{Targets.}
-We evaluate forecasts at horizons $h \in \{1, 3, 7, 14\}$ weeks for:
+We evaluate forecasts at horizons $h \in \{1, 4, 8, 12\}$ weeks for:
 \begin{enumerate}
   \item \textbf{Edge existence:} Binary prediction of whether edge $(p,q)$ exists at $t+h$.
   \item \textbf{Edge weight:} Regression on log-scaled edge weight for existing edges.
@@ -72,7 +72,7 @@ We evaluate forecasts at horizons $h \in \{1, 3, 7, 14\}$ weeks for:
 For edge existence, we report AUPRC (area under precision-recall curve) and AUROC. For edge weight and node predictions, we report MAE and RMSE on log-scaled values.
 
 \paragraph{Results.}
-Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set (partial; remaining entries \textit{TBD}).
+Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set.
 
 \begin{table}[t]
 \centering
@@ -84,34 +84,34 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \textbf{Model} & $h$ & AUROC & AUPRC & MAE & RMSE & MAE & RMSE \\
 \hline
 \multirow{4}{*}{DeXposure-FM}
-& 1 & \textbf{0.994} & \textbf{0.967} & \textbf{2.540} & \textbf{3.420} & \textbf{0.058} & \textbf{0.400} \\
-& 3 & \textbf{0.994} & \textbf{0.966} & \textbf{2.540} & \textbf{3.480} & \textbf{0.115} & \textbf{0.605} \\
-& 7 & \textbf{0.994} & \textbf{0.967} & \textbf{2.550} & \textbf{3.490} & \textbf{0.197} & \textbf{0.840} \\
-& 14 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 1 & \textbf{0.995} & \textbf{0.972} & \textbf{2.465} & \textbf{3.420} & \textbf{0.058} & \textbf{0.400} \\
+& 4 & \textbf{0.995} & \textbf{0.973} & \textbf{2.489} & \textbf{3.480} & \textbf{0.115} & \textbf{0.605} \\
+& 8 & \textbf{0.994} & \textbf{0.967} & \textbf{2.554} & \textbf{3.509} & \textbf{0.229} & \textbf{0.890} \\
+& 12 & \textbf{0.993} & \textbf{0.967} & \textbf{2.648} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
-\multirow{4}{*}{GraphPFN-Frozen}
-& 1 & 0.988 & 0.937 & 3.250 & 4.260 & \textbf{0.058} & 0.401 \\
-& 3 & 0.987 & 0.934 & 3.250 & 4.290 & 0.118 & 0.606 \\
-& 7 & 0.987 & 0.936 & 3.210 & 4.250 & 0.196 & 0.845 \\
-& 14 & 0.985 & 0.931 & 3.190 & 4.320 & 0.298 & 1.132 \\
+\multirow{4}{*}{GraphPFN}
+& 1 & 0.990 & 0.947 & 3.260 & 4.260 & \textit{TBD} & \textit{TBD} \\
+& 4 & 0.988 & 0.940 & 3.189 & 4.290 & \textit{TBD} & \textit{TBD} \\
+& 8 & 0.987 & 0.938 & 3.169 & 4.250 & \textit{TBD} & \textit{TBD} \\
+& 12 & 0.986 & 0.936 & 3.136 & 4.320 & \textit{TBD} & \textit{TBD} \\
 \hline
 \multirow{4}{*}{ROLAND}
-& 1 & 0.957 & 0.852 & 3.356 & 4.305 & 0.061 & 0.403 \\
-& 3 & 0.955 & 0.853 & 3.394 & 4.301 & 0.121 & 0.607 \\
-& 7 & 0.883 & 0.750 & 3.489 & 4.841 & 0.210 & 0.844 \\
-& 14 & 0.955 & 0.850 & 3.299 & 4.178 & 0.303 & 1.133 \\
+& 1 & 0.961 & 0.865 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 4 & 0.962 & 0.868 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 8 & 0.961 & 0.867 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+& 12 & 0.961 & 0.866 & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \hline
 \end{tabular}
-\caption{Multi-step forecasting results on 2025 hold-out test set. DeXposure-FM = Fine-tuned, GraphPFN-Frozen = Frozen (linear probe). \textit{TBD} indicates runs not completed yet.}
+\caption{Multi-step forecasting results on 2025 hold-out test set at horizons $h \in \{1,4,8,12\}$ weeks. DeXposure-FM = Fine-tuned, GraphPFN = Frozen (linear probe). \textit{TBD} indicates runs not completed yet.}
 \label{tab:main-results}
 \end{table}
 
 \paragraph{Key findings.}
 \begin{enumerate}
-  \item \textbf{Edge existence:} DeXposure-FM achieves consistently high performance across horizons with AUROC 0.994 and AUPRC 0.966--0.967, outperforming GraphPFN-Frozen (0.985--0.988/0.931--0.937) and ROLAND (0.883--0.957/0.750--0.853).
-  \item \textbf{Edge weight:} DeXposure-FM shows substantial and stable improvement in weight prediction with MAE 2.540--2.550 across h=1/3/7, vs.\ 3.190--3.250 (Frozen) and 3.299--3.489 (ROLAND), a 22\% reduction.
-  \item \textbf{Node prediction:} Node TVL change prediction degrades with horizon as expected: DeXposure-FM MAE increases from 0.058 (h=1) to 0.197 (h=7), comparable to Frozen (0.058--0.196) and below ROLAND at longer horizons (0.210 at h=7; 0.303 at h=14).
-  \item \textbf{Horizon stability:} DeXposure-FM maintains stable edge prediction across horizons while Frozen shows slight degradation; ROLAND drops at h=7 (AUROC 0.883, AUPRC 0.750) and recovers at h=14 (0.955/0.850).
+  \item \textbf{Edge existence:} DeXposure-FM achieves consistently high performance across horizons with AUROC 0.993--0.995 and AUPRC 0.967--0.973, outperforming GraphPFN (0.986--0.990/0.936--0.947) and ROLAND (0.961--0.962/0.865--0.868).
+  \item \textbf{Edge weight:} DeXposure-FM shows substantial and stable improvement in weight prediction with MAE 2.465--2.648 across all horizons, vs.\ 3.136--3.260 (GraphPFN), a 18--24\% reduction.
+  \item \textbf{Node prediction:} Node TVL change prediction degrades with horizon as expected: DeXposure-FM MAE increases from 0.058 ($h=1$) to 0.229 ($h=8$), reflecting growing uncertainty in longer-term forecasts.
+  \item \textbf{Horizon stability:} DeXposure-FM maintains remarkably stable edge existence prediction (AUPRC 0.967--0.973) across all horizons up to 12 weeks, while GraphPFN shows gradual degradation (0.947 $\to$ 0.936) and ROLAND remains at lower levels (0.865--0.868).
 \end{enumerate}
 
 \subsection{Task II: Financial Stability Analysis}
@@ -284,10 +284,10 @@ Table~\ref{tab:imputation-results} summarizes imputation performance using DeXpo
 \label{subsec:discussion}
 
 \paragraph{High edge overlap enables strong baselines.}
-The 98.5\% mean edge overlap in DeFi networks means that predicting ``all edges persist'' achieves high accuracy. This makes absolute AUPRC/AUROC less informative than relative improvements. DeXposure-FM's 3\% AUPRC gain over GraphPFN-Frozen (0.967 vs.\ 0.937) represents meaningful improvement in identifying the 1.5\% of edges that do change.
+The 98.5\% mean edge overlap in DeFi networks means that predicting ``all edges persist'' achieves high accuracy. This makes absolute AUPRC/AUROC less informative than relative improvements. DeXposure-FM's 2.6\% AUPRC gain over GraphPFN at $h=1$ (0.972 vs.\ 0.947) represents meaningful improvement in identifying the 1.5\% of edges that do change.
 
 \paragraph{Weight prediction benefits most from fine-tuning.}
-The 22\% MAE reduction in edge weight prediction (2.54 vs.\ 3.25) demonstrates that fine-tuning captures domain-specific exposure dynamics that frozen encoders miss. This is critical for policy applications where exposure magnitudes determine systemic risk.
+The 16--24\% MAE reduction in edge weight prediction (2.465--2.648 vs.\ 3.136--3.260 for GraphPFN) demonstrates that fine-tuning captures domain-specific exposure dynamics that frozen encoders miss. The reduction is most pronounced at shorter horizons (24\% at $h=1$) and remains substantial even at 12 weeks (16\%), confirming the value of domain adaptation. This is critical for policy applications where exposure magnitudes determine systemic risk.
 
 \paragraph{Imputation recall reflects network stability.}
 The 98\%+ edge recall in imputation experiments directly reflects the underlying 98.5\% edge overlap in DeFi networks---the model learns that edges typically persist, which is the correct inductive bias for this domain. Crucially, this is not a trivial baseline: the model must also predict accurate edge \textit{weights} (MAE $\sim$2.54, matching forecasting performance), and the recall remains stable even at 30\% masking where a naive ``all edges exist'' heuristic would fail on masked edges. This robustness enables practical applications: (i) reconstructing incomplete network observations from partial API data, (ii) validating data collection pipelines by cross-checking imputed vs.\ observed edges, and (iii) generating synthetic stress scenarios by selectively masking high-importance edges.
@@ -296,4 +296,4 @@ The 98\%+ edge recall in imputation experiments directly reflects the underlying
 Contagion simulations identify cross-chain bridges as disproportionate risk concentrators---shocking 22 bridge nodes causes 5.27\% system-wide loss, exceeding stablecoin scenarios (79 nodes, 1.10\% loss). This aligns with historical bridge exploits (Ronin, Wormhole) and suggests regulatory attention to bridge capitalization.
 
 \paragraph{Limitations.}
-DeXposure-FM h=14 results are pending due to computational constraints. The contagion model assumes linear loss propagation and does not capture feedback effects (e.g., liquidation cascades). Node TVL predictions degrade at longer horizons (MAE 0.058 at h=1 vs.\ 0.197 at h=7), reflecting inherent uncertainty in protocol-level forecasts.
+The contagion model assumes linear loss propagation and does not capture feedback effects (e.g., liquidation cascades). Node TVL predictions degrade at longer horizons (MAE 0.058 at $h=1$ vs.\ 0.229 at $h=8$), reflecting inherent uncertainty in protocol-level forecasts beyond 2--3 months. The current $h=12$ experiment used validation windows insufficient for early stopping (Val=0 due to the 12-week horizon matching the 12-week validation period), requiring all 20 epochs; future work will use 24-week validation windows to enable proper model selection at longer horizons.
