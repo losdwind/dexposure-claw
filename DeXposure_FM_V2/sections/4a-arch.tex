@@ -33,6 +33,9 @@ For each protocol $p$ we form the following inputs:
     \item Maximum token share (concentration measure)
     \item Token composition entropy
     \item Protocol category (one-hot encoded, $\sim$15 classes)
+    \item Previous week TVL change: $\log(1 + w_{\tau}(p)) - \log(1 + w_{\tau-1}(p))$ (temporal momentum)
+    \item Normalized in-degree: incoming edge count / max in-degree
+    \item Normalized out-degree: outgoing edge count / max out-degree
   \end{itemize}
 \end{itemize}
 
