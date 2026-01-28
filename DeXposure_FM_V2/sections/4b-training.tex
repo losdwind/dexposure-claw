@@ -68,7 +68,7 @@ The training objective combines the three core losses:
 \mathcal L = \lambda_{\mathrm{exist}} \mathcal L_{\mathrm{exist}} + \lambda_{\mathrm{weight}} \mathcal L_{\mathrm{weight}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}},
 \label{eq:loss-total}
 \end{equation}
-with weights $\lambda_{\mathrm{exist}} = 2.0$, $\lambda_{\mathrm{weight}} = 0.5$, $\lambda_{\mathrm{node}} = 0.4$. Edge existence receives the highest weight as it is the primary task for link prediction; edge weight and node prediction provide complementary supervision for learning meaningful exposure representations.
+with weights $\lambda_{\mathrm{exist}} = 2.0$, $\lambda_{\mathrm{weight}} = 0.5$, $\lambda_{\mathrm{node}} = 10.0$. These weights are calibrated to balance the gradient contributions across tasks despite their different loss magnitudes: edge existence loss $\mathcal{L}_{\mathrm{exist}} \approx 0.22$, edge weight loss $\mathcal{L}_{\mathrm{weight}} \approx 2.4$, and node loss $\mathcal{L}_{\mathrm{node}} \approx 0.05$ on average. The resulting effective contribution ratio is approximately 56\%:21\%:23\% for weight:exist:node, ensuring that node TVL prediction---critical for systemic risk assessment---receives sufficient training signal.
 
 \subsubsection{Optimizer and Schedule}
 

@@ -184,10 +184,10 @@ class ExperimentConfig:
     gradient_clip_norm: float = 1.0
 
     # Loss weights (7 components as per advisor requirements)
-    # Core prediction losses
-    exist_loss_weight: float = 2.0  # L_edge: BCE for edge existence
-    weight_loss_weight: float = 0.5  # L_link: SmoothL1 for edge weight
-    node_loss_weight: float = 0.4  # L_node: SmoothL1 for node TVL change
+    # Core prediction losses - balanced for ~56%:21%:23% contribution ratio
+    exist_loss_weight: float = 2.0   # L_edge: BCE for edge existence
+    weight_loss_weight: float = 0.5  # L_link: SmoothL1 for edge weight (residual learning)
+    node_loss_weight: float = 10.0   # L_node: SmoothL1 for node TVL change
     # Auxiliary losses
     stats_loss_weight: float = 0.0  # L_stats: MSE for graph statistics constraint
     impute_loss_weight: float = 0.0  # L_impute: SmoothL1 for missing value imputation
@@ -937,6 +937,7 @@ class WeekPair:
     features_t: np.ndarray
     edge_src_t: np.ndarray
     edge_dst_t: np.ndarray
+    edge_weight_t: np.ndarray  # Edge weights at time t (for persistence baseline)
     pair_src: np.ndarray
     pair_dst: np.ndarray
     y_exist: np.ndarray
@@ -947,6 +948,8 @@ class WeekPair:
     pos_edge_count: int
     neg_edge_count: int
     scenario_label: Optional[int]
+    # For residual learning: baseline weight at time t for each pair
+    baseline_weight: np.ndarray = None  # Shape: (num_pairs,), log-scaled weight at t
 
 
 def sample_negatives(
@@ -1100,6 +1103,24 @@ def build_week_pairs(
                 )
                 node_mask[i] = True
 
+        # Get edge weights at time t (log-scaled for persistence baseline)
+        edge_weight_t = np.array(
+            [math.log1p(max(w, 0.0)) for w in snap_t["edge_weight"]],
+            dtype=np.float32
+        )
+
+        # Build lookup dict for edge weights at time t: (src_idx, dst_idx) -> log_weight
+        edge_t_lookup = {}
+        for src_idx, dst_idx, w in zip(
+            snap_t["edge_src"], snap_t["edge_dst"], snap_t["edge_weight"]
+        ):
+            edge_t_lookup[(int(src_idx), int(dst_idx))] = math.log1p(max(w, 0.0))
+
+        # Compute baseline_weight for each pair (weight at time t, 0 if edge didn't exist)
+        baseline_weight = np.zeros(len(pair_src), dtype=np.float32)
+        for i, (s, d) in enumerate(zip(pair_src, pair_dst)):
+            baseline_weight[i] = edge_t_lookup.get((int(s), int(d)), 0.0)
+
         pairs.append(
             WeekPair(
                 time_t=snap_t["date"],
@@ -1111,6 +1132,7 @@ def build_week_pairs(
                 features_t=snap_t["features"],
                 edge_src_t=snap_t["edge_src"],
                 edge_dst_t=snap_t["edge_dst"],
+                edge_weight_t=edge_weight_t,
                 pair_src=pair_src,
                 pair_dst=pair_dst,
                 y_exist=y_exist,
@@ -1121,6 +1143,7 @@ def build_week_pairs(
                 pos_edge_count=num_pos,
                 neg_edge_count=len(neg_src),
                 scenario_label=scenario_labels.get(snap_t["date"], 0),
+                baseline_weight=baseline_weight,
             )
         )
 
@@ -1641,6 +1664,11 @@ def train_graphpfn_epoch(
         weight_mask = torch.tensor(
             sample.weight_mask, dtype=torch.float32, device=device
         )
+        # Baseline weight for residual learning (weight at time t)
+        baseline_weight = torch.tensor(
+            sample.baseline_weight if sample.baseline_weight is not None else np.zeros(len(sample.pair_src)),
+            dtype=torch.float32, device=device
+        )
 
         optimizer.zero_grad()
 
@@ -1653,10 +1681,12 @@ def train_graphpfn_epoch(
             logits, y_exist, pos_weight=pos_weight, reduction="mean"
         )
 
-        # === Loss 2: L_link (edge weight) ===
+        # === Loss 2: L_link (edge weight) with RESIDUAL LEARNING ===
+        # Model predicts residual (delta), target is y_weight - baseline_weight
         mask = weight_mask > 0.5
         if mask.any():
-            weight_loss = F.smooth_l1_loss(w_pred[mask], y_weight[mask], reduction="mean")
+            residual_target = y_weight[mask] - baseline_weight[mask]
+            weight_loss = F.smooth_l1_loss(w_pred[mask], residual_target, reduction="mean")
         else:
             weight_loss = torch.tensor(0.0, device=device)
 
@@ -1801,12 +1831,17 @@ def train_roland_epoch(model, pairs, optimizer, config, h1=None, h2=None):
         # Link prediction loss
         link_loss = F.binary_cross_entropy_with_logits(pred, y_exist)
 
-        # Edge weight prediction loss (only for positive edges)
+        # Edge weight prediction loss with RESIDUAL LEARNING
         y_weight = torch.tensor(sample.y_weight, dtype=torch.float32, device=device)
         weight_mask = torch.tensor(sample.weight_mask, dtype=torch.bool, device=device)
+        baseline_weight = torch.tensor(
+            sample.baseline_weight if sample.baseline_weight is not None else np.zeros(len(sample.pair_src)),
+            dtype=torch.float32, device=device
+        )
         if weight_mask.any():
+            residual_target = y_weight[weight_mask] - baseline_weight[weight_mask]
             weight_loss = F.smooth_l1_loss(
-                weight_pred[weight_mask], y_weight[weight_mask]
+                weight_pred[weight_mask], residual_target
             )
         else:
             weight_loss = torch.tensor(0.0, device=device)
@@ -1956,8 +1991,99 @@ def evaluate_predictions(preds: List[Dict]) -> Dict[str, Any]:
     return {"exist": exist_metrics, "weight": weight_metrics, "node": node_metrics}
 
 
+def evaluate_persistence_baseline(pairs: List[WeekPair]) -> Dict[str, Any]:
+    """
+    Evaluate naive persistence baseline: predict A_{t+h} = A_t, W_{t+h} = W_t.
+
+    This baseline predicts that the network at t+h is identical to time t.
+    It's a critical baseline for networks with high edge overlap (like DeFi's 98.5%).
+    """
+    exist_true, exist_score = [], []
+    weight_true, weight_pred_list = [], []
+    node_true, node_pred_list = [], []
+
+    for pair in pairs:
+        # Build edge set at time t for fast lookup
+        edge_set_t = set(zip(pair.edge_src_t.tolist(), pair.edge_dst_t.tolist()))
+
+        # Build edge weight lookup at time t
+        edge_weight_map_t = {}
+        for src, dst, w in zip(pair.edge_src_t, pair.edge_dst_t, pair.edge_weight_t):
+            edge_weight_map_t[(int(src), int(dst))] = w
+
+        # For each pair to predict, check if it existed at time t
+        persist_exist_score = []
+        persist_weight_pred = []
+
+        for src, dst in zip(pair.pair_src, pair.pair_dst):
+            edge_key = (int(src), int(dst))
+            if edge_key in edge_set_t:
+                persist_exist_score.append(1.0)  # Edge existed at t, predict it exists at t+h
+                persist_weight_pred.append(edge_weight_map_t.get(edge_key, 0.0))
+            else:
+                persist_exist_score.append(0.0)  # Edge didn't exist at t, predict it doesn't exist
+                persist_weight_pred.append(0.0)
+
+        persist_exist_score = np.array(persist_exist_score, dtype=np.float32)
+        persist_weight_pred = np.array(persist_weight_pred, dtype=np.float32)
+
+        exist_true.append(pair.y_exist)
+        exist_score.append(persist_exist_score)
+
+        # Weight: only for edges that exist at both t and t+h
+        if pair.weight_mask.sum() > 0:
+            mask = pair.weight_mask > 0.5
+            weight_true.append(pair.y_weight[mask])
+            weight_pred_list.append(persist_weight_pred[mask])
+
+        # Node: persistence predicts TVL change = 0
+        if pair.node_mask.any():
+            node_true.append(pair.y_node[pair.node_mask])
+            node_pred_list.append(np.zeros(pair.node_mask.sum(), dtype=np.float32))
+
+    exist_true = np.concatenate(exist_true)
+    exist_score = np.concatenate(exist_score)
+
+    # Exist metrics
+    exist_metrics = {}
+    if len(np.unique(exist_true)) > 1:
+        exist_metrics["auprc"] = float(average_precision_score(exist_true, exist_score))
+        exist_metrics["auroc"] = float(roc_auc_score(exist_true, exist_score))
+        recall_at_k = compute_recall_at_k(exist_true, exist_score)
+        exist_metrics.update(recall_at_k)
+    else:
+        exist_metrics["auprc"] = float("nan")
+        exist_metrics["auroc"] = float("nan")
+        exist_metrics["recall@100"] = float("nan")
+        exist_metrics["recall@500"] = float("nan")
+        exist_metrics["recall@1000"] = float("nan")
+
+    # Weight metrics
+    weight_metrics = {"mae": float("nan"), "rmse": float("nan"), "weighted_mae": float("nan")}
+    if weight_true:
+        wt = np.concatenate(weight_true)
+        wp = np.concatenate(weight_pred_list)
+        weight_metrics["mae"] = float(mean_absolute_error(wt, wp))
+        weight_metrics["rmse"] = float(np.sqrt(mean_squared_error(wt, wp)))
+        weight_metrics["weighted_mae"] = compute_weighted_mae(wt, wp, np.expm1(wt))
+
+    # Node metrics: persistence predicts 0 change
+    node_metrics = {"mae": float("nan"), "rmse": float("nan")}
+    if node_true:
+        nt = np.concatenate(node_true)
+        np_ = np.concatenate(node_pred_list)  # All zeros
+        node_metrics["mae"] = float(mean_absolute_error(nt, np_))
+        node_metrics["rmse"] = float(np.sqrt(mean_squared_error(nt, np_)))
+
+    return {"exist": exist_metrics, "weight": weight_metrics, "node": node_metrics}
+
+
 def predict_graphpfn(model, pairs, config):
-    """Generate predictions with GraphPFN model."""
+    """Generate predictions with GraphPFN model.
+
+    Note: Model predicts weight RESIDUAL (delta from baseline).
+    Final weight prediction = baseline_weight + model_output.
+    """
     model.eval()
     device = torch.device(config.device)
     outputs = []
@@ -1973,7 +2099,11 @@ def predict_graphpfn(model, pairs, config):
 
             src = torch.tensor(sample.pair_src, dtype=torch.long, device=device)
             dst = torch.tensor(sample.pair_dst, dtype=torch.long, device=device)
-            logits, w_pred = model.link_scorer(h, src, dst)
+            logits, w_residual = model.link_scorer(h, src, dst)
+
+            # Residual learning: final prediction = baseline + residual
+            baseline = sample.baseline_weight if sample.baseline_weight is not None else np.zeros(len(sample.pair_src))
+            w_pred = w_residual.cpu().numpy() + baseline
 
             outputs.append(
                 {
@@ -1990,8 +2120,9 @@ def predict_graphpfn(model, pairs, config):
                     "y_node": sample.y_node,
                     "node_mask": sample.node_mask,
                     "exist_logits": logits.cpu().numpy(),
-                    "weight_pred": w_pred.cpu().numpy(),
+                    "weight_pred": w_pred,
                     "node_pred": node_pred,
+                    "baseline_weight": baseline,
                 }
             )
 
@@ -1999,7 +2130,11 @@ def predict_graphpfn(model, pairs, config):
 
 
 def predict_roland(model, pairs, config, h1=None, h2=None):
-    """Generate predictions with ROLAND model."""
+    """Generate predictions with ROLAND model.
+
+    Note: Model predicts weight RESIDUAL (delta from baseline).
+    Final weight prediction = baseline_weight + model_output.
+    """
     model.eval()
     device = torch.device(config.device)
     outputs = []
@@ -2024,9 +2159,13 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                 device=device,
             )
 
-            pred, weight_pred, h1, h2, node_embed = model(
+            pred, w_residual, h1, h2, node_embed = model(
                 x, edge_index, edge_label_index, h1, h2
             )
+
+            # Residual learning: final prediction = baseline + residual
+            baseline = sample.baseline_weight if sample.baseline_weight is not None else np.zeros(len(sample.pair_src))
+            w_pred = w_residual.cpu().numpy() + baseline
 
             # Node prediction
             node_pred = model.node_head(node_embed).squeeze(-1).cpu().numpy()
@@ -2046,8 +2185,9 @@ def predict_roland(model, pairs, config, h1=None, h2=None):
                     "y_node": sample.y_node,
                     "node_mask": sample.node_mask,
                     "exist_logits": pred.cpu().numpy(),
-                    "weight_pred": weight_pred.cpu().numpy(),
-                    "node_pred": node_pred,  # Now ROLAND predicts node TVL change
+                    "weight_pred": w_pred,
+                    "node_pred": node_pred,
+                    "baseline_weight": baseline,
                 }
             )
 
@@ -3971,6 +4111,7 @@ def main():
             "frozen",
             "deposure-fm",
             "roland",
+            "persistence",
             "stats",
             "shock",
             "impute",
@@ -3979,7 +4120,7 @@ def main():
             "contagion",
             "stability",
         ],
-        help="Experiment mode: all, frozen, deposure-fm, roland, stats, shock, impute, compare, systemic, contagion, stability (runs shock+systemic+contagion)",
+        help="Experiment mode: all, frozen, deposure-fm, roland, persistence (naive baseline), stats, shock, impute, compare, systemic, contagion, stability",
     )
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=20)
@@ -4400,6 +4541,31 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
             log_error(f"[Task I] ROLAND failed: {e}")
             log_error(traceback.format_exc())
             save_result("roland_error", str(e))
+
+    if args.mode in ["all", "persistence"]:
+        mode_output_dir = prepare_mode_output("persistence")
+        log_info("\n" + "=" * 60)
+        log_info("[Task I] Persistence Baseline (Naive) - Starting...")
+        log_info("=" * 60)
+        try:
+            # Evaluate persistence baseline on test pairs for each horizon
+            persistence_results = {"model": "Persistence", "results": {}}
+            for horizon in config.forecast_horizons:
+                test_pairs_h = build_week_pairs(test_snaps, config.neg_ratio, config.seed, horizon)
+                if test_pairs_h:
+                    metrics = evaluate_persistence_baseline(test_pairs_h)
+                    persistence_results["results"][f"h{horizon}"] = metrics
+                    log_info(f"  h={horizon}: AUPRC={metrics['exist']['auprc']:.4f}, "
+                             f"AUROC={metrics['exist']['auroc']:.4f}, "
+                             f"Weight MAE={metrics['weight']['mae']:.4f}, "
+                             f"Node MAE={metrics['node']['mae']:.4f}")
+            all_results["persistence"] = persistence_results
+            save_task_result("persistence", persistence_results)
+            log_info("[Task I] Persistence Baseline - Completed and saved.")
+        except Exception as e:
+            log_error(f"[Task I] Persistence Baseline failed: {e}")
+            log_error(traceback.format_exc())
+            save_result("persistence_error", str(e))
 
     if args.mode in ["all", "stats"]:
         log_info("\n" + "=" * 60)
