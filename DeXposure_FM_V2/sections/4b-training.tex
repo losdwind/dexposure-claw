@@ -1,0 +1,114 @@
+\subsection{Training Pipeline}
+\label{sec:training}
+
+This section describes the training pipeline for DeXposure-FM. All graph and flow notation follows Section~\ref{sec:formalisation}.
+
+\subsubsection{Training Data Preparation}
+
+For each discrete interval $\tau$ we construct a weighted directed snapshot $G_{\tau}=(\mathcal P_{\tau},\mathcal E_{\tau})$ with node weights $w_{\tau}(p)$ and edge weights $w_{\tau}(e_{pq})$. We form training examples indexed by an anchor time $\tau$:
+\begin{equation}
+G_{\tau} \;\longrightarrow\; G_{\tau+h}, \quad h \in \{1, 3, 7, 14\},
+\end{equation}
+where the model predicts the graph state at horizon $h$ given the current snapshot.
+
+For each protocol $p\in\mathcal P_{\tau}$ we provide tabular node features $\mathbf x^{\mathrm{tab}}_{p}$ (log-scaled TVL, token count, concentration measures, category) along with the graph structure $G_{\tau}$.
+
+\paragraph{Time-based expanding window splits.}
+We use expanding window walk-forward validation to ensure that all test targets occur strictly after the training window, thereby avoiding look-ahead bias. The training window expands over time while validation and test windows remain fixed.
+
+\paragraph{Negative sampling.}
+For edge existence prediction, we sample negative edges uniformly from the complement of the positive edge set, with a negative-to-positive ratio of 5:1.
+
+\subsubsection{Training Modes}
+
+We support two training modes for the GraphPFN encoder (the ROLAND baseline is trained from scratch as described in Section~\ref{sec:evaluation}):
+
+\paragraph{Frozen probing.}
+We freeze the pre-trained GraphPFN encoder and train only the task-specific heads (link scorer and node predictor). This setting measures the transferability of pre-trained representations to the DeFi exposure domain without modifying the backbone.
+
+\paragraph{Fine-tuning.}
+We perform end-to-end training with differential learning rates:
+\begin{itemize}
+  \item Pre-trained backbone: $\eta_{\text{backbone}} = \eta / 10$ (lower rate to preserve pre-trained knowledge)
+  \item Task-specific heads: $\eta_{\text{heads}} = \eta$ (higher rate for new parameters)
+\end{itemize}
+
+\subsubsection{Loss Functions}
+\label{sec:training:loss}
+
+We train DeXposure-FM with a multi-task objective that combines three core prediction losses: edge existence, edge weight, and node TVL change prediction.
+
+\paragraph{Edge existence loss (link prediction).}
+We predict edge existence $\widehat{y}^{\mathrm{exist}}_{pq} \in (0,1)$ using binary cross-entropy with positive class weighting to handle class imbalance:
+\begin{equation}
+\mathcal L_{\mathrm{exist}} = \sum_{(p,q) \in \mathcal S_{\tau+h}} \mathrm{BCE}\bigl(\widehat{y}^{\mathrm{exist}}_{pq}, y^{\mathrm{exist}}_{pq}; w_{\mathrm{pos}}\bigr),
+\label{eq:loss-exist}
+\end{equation}
+where $\mathcal S_{\tau+h}$ includes both positive edges from $\mathcal E_{\tau+h}$ and sampled negative edges (5:1 ratio), and $w_{\mathrm{pos}}$ is the positive class weight matching the negative sampling ratio.
+
+\paragraph{Edge weight loss.}
+For positive edges, we predict log-scaled edge weights using Smooth L1 loss:
+\begin{equation}
+\mathcal L_{\mathrm{weight}} = \sum_{(p,q) \in \mathcal E_{\tau+h}} \mathrm{SmoothL1}\bigl(\log(1+\widehat{w}_{\tau+h}(e_{pq})) - \log(1+w_{\tau+h}(e_{pq}))\bigr).
+\label{eq:loss-weight}
+\end{equation}
+The log transformation $\log(1+\cdot)$ compresses the heavy-tailed distribution of exposures.
+
+\paragraph{Node prediction loss.}
+We predict the log-change in protocol TVL:
+\begin{equation}
+\mathcal L_{\mathrm{node}} = \sum_{p \in \mathcal P_{\tau} \cap \mathcal P_{\tau+h}} \mathrm{SmoothL1}\bigl(\widehat{\Delta}_{p,\tau+h} - \Delta_{p,\tau+h}\bigr),
+\label{eq:loss-node}
+\end{equation}
+where $\Delta_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))$ is the ground-truth log-change in TVL.
+
+\paragraph{Overall objective.}
+The training objective combines the three core losses:
+\begin{equation}
+\mathcal L = \lambda_{\mathrm{exist}} \mathcal L_{\mathrm{exist}} + \lambda_{\mathrm{weight}} \mathcal L_{\mathrm{weight}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}},
+\label{eq:loss-total}
+\end{equation}
+with weights $\lambda_{\mathrm{exist}} = 2.0$, $\lambda_{\mathrm{weight}} = 0.5$, $\lambda_{\mathrm{node}} = 0.4$. Edge existence receives the highest weight as it is the primary task for link prediction; edge weight and node prediction provide complementary supervision for learning meaningful exposure representations.
+
+\subsubsection{Optimizer and Schedule}
+
+\paragraph{Optimizer.}
+We use Adam with $\beta_1=0.9$, $\beta_2=0.999$, and learning rate $\eta = 5 \times 10^{-4}$.
+
+\paragraph{Differential learning rates.}
+For fine-tuning, we apply differential learning rates across parameter groups:
+\begin{itemize}
+  \item GraphPFN encoder: $\eta \times 0.1 = 5 \times 10^{-5}$ (to preserve pre-trained knowledge)
+  \item Task-specific heads: $\eta = 5 \times 10^{-4}$
+\end{itemize}
+
+\paragraph{Training details.}
+We train for up to 20 epochs with early stopping (patience=3) based on validation AUPRC. Gradient clipping ($\|\nabla\|_2 \le 1.0$) is applied for stability.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{ll}
+\hline
+\textbf{Hyperparameter} & \textbf{Value} \\
+\hline
+Data granularity & Weekly snapshots \\
+Forecast horizons $h$ & $\{1, 3, 7, 14\}$ weeks \\
+Negative sampling ratio & 5:1 (neg:pos) \\
+Optimizer & Adam ($\beta_1=0.9$, $\beta_2=0.999$) \\
+Learning rate (heads) & $5 \times 10^{-4}$ \\
+Learning rate (backbone) & $5 \times 10^{-5}$ (fine-tune only) \\
+Training epochs & 20 (early stopping patience=3) \\
+Gradient clipping & $\|\nabla\|_2 \le 1.0$ \\
+\hline
+\multicolumn{2}{l}{\textit{Loss weights:}} \\
+$\lambda_{\mathrm{exist}}$ (edge existence) & $2.0$ \\
+$\lambda_{\mathrm{weight}}$ (edge weight) & $0.5$ \\
+$\lambda_{\mathrm{node}}$ (node prediction) & $0.4$ \\
+\hline
+\end{tabular}
+\caption{Training hyperparameters for DeXposure-FM experiments.}
+\label{tab:training-hparams}
+\end{table}

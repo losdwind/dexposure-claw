@@ -620,7 +620,7 @@ def expanding_window_split(
     all_dates: List[str],
     holdout_start: str = "2025-01-01",
     min_train_weeks: int = 104,  # 最少2年训练数据
-    val_weeks: int = 12,  # 验证集: 12周 (约3个月)
+    val_weeks: int = 24,  # 验证集: 24周 (约6个月) - 确保h=12也有足够验证集
     test_weeks: int = 8,  # 每fold测试: 8周 (约2个月)
     step_weeks: int = 8,  # 每次向前滚动8周
 ) -> Dict[str, Any]:
@@ -648,12 +648,15 @@ def expanding_window_split(
 
     Timeline:
     ────────────────────────────────────────────────────────────────
-    Fold 1: [==== Train (104w) ====][Val 12w][Test 8w]
-    Fold 2: [====== Train (112w) ======][Val 12w][Test 8w]
-    Fold 3: [======== Train (120w) ========][Val 12w][Test 8w]
+    Fold 1: [==== Train (104w) ====][Val 24w][Test 8w]
+    Fold 2: [====== Train (112w) ======][Val 24w][Test 8w]
+    Fold 3: [======== Train (120w) ========][Val 24w][Test 8w]
     ...
     ────────────────────────────────────────────────────────────────
-    Holdout: [============ All pre-2025 Train ============][Val][ 2025 Test ]
+    Holdout: [============ All pre-2025 Train ============][Val 24w][ 2025 Test ]
+
+    Note: val_weeks=24 确保即使预测horizon h=12时也有充足验证样本
+          (build_week_pairs需要 len(val_snaps) > horizon 才能构建样本)
     """
     sorted_dates = sorted(all_dates)
 
@@ -719,7 +722,7 @@ def expanding_window_split(
 def get_single_split(
     all_dates: List[str],
     holdout_start: str = "2025-01-01",
-    val_weeks: int = 12,
+    val_weeks: int = 24,
 ) -> Dict[str, List[str]]:
     """
     简化版: 仅返回最终 holdout 划分 (用于快速实验).
@@ -2433,8 +2436,8 @@ def run_graphpfn_experiment(
             model.load_state_dict(best_model_state)
             log_info(f"  Restored best model with val_{metric_name}={best_metric:.4f}")
             try:
-                if output_dir:
-                    best_model_path = Path(output_dir) / "best_model.pt"
+                if model_output_dir:
+                    best_model_path = model_output_dir / "best_model.pt"
                     torch.save({"model": model.state_dict()}, best_model_path)
                     log_info(f"  Saved best model to: {best_model_path}")
             except Exception as e:
@@ -4023,8 +4026,8 @@ def main():
     parser.add_argument(
         "--val-weeks",
         type=int,
-        default=12,
-        help="Validation window size in weeks (default: 12)",
+        default=24,
+        help="Validation window size in weeks (default: 24, ensures h=12 has sufficient validation samples)",
     )
     parser.add_argument(
         "--test-weeks",
