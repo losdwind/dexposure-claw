@@ -187,7 +187,7 @@ class ExperimentConfig:
     # Core prediction losses - balanced for ~56%:21%:23% contribution ratio
     exist_loss_weight: float = 2.0   # L_edge: BCE for edge existence
     weight_loss_weight: float = 0.5  # L_link: SmoothL1 for edge weight (residual learning)
-    node_loss_weight: float = 10.0   # L_node: SmoothL1 for node TVL change
+    node_loss_weight: float = 20.0   # L_node: SmoothL1 for node TVL change (increased)
     # Auxiliary losses
     stats_loss_weight: float = 0.0  # L_stats: MSE for graph statistics constraint
     impute_loss_weight: float = 0.0  # L_impute: SmoothL1 for missing value imputation
