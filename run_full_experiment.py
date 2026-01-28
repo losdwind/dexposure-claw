@@ -2809,6 +2809,7 @@ def run_graphpfn_experiment(
         log_info(f"  Test Recall@100: {test_metrics['exist'].get('recall@100', 'N/A')}")
         log_info(f"  Test Weight MAE: {test_metrics['weight']['mae']:.4f}")
         log_info(f"  Test Weighted MAE: {test_metrics['weight']['weighted_mae']:.4f}")
+        log_info(f"  Test Node MAE: {test_metrics['node']['mae']:.4f}")
 
         # Save predictions if requested
         if save_predictions and model_output_dir:
@@ -3015,6 +3016,8 @@ def run_roland_experiment(
 
         log_info(f"  Test AUPRC: {test_metrics['exist']['auprc']:.4f}")
         log_info(f"  Test AUROC: {test_metrics['exist']['auroc']:.4f}")
+        log_info(f"  Test Weight MAE: {test_metrics['weight']['mae']:.4f}")
+        log_info(f"  Test Node MAE: {test_metrics['node']['mae']:.4f}")
 
         if save_predictions and model_output_dir:
             edges_path, nodes_path = save_predictions_csv(
