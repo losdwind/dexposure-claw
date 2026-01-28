@@ -110,7 +110,7 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \begin{enumerate}
   \item \textbf{Edge existence:} DeXposure-FM achieves consistently high performance across horizons with AUROC 0.993--0.995 and AUPRC 0.967--0.973, outperforming GraphPFN (0.986--0.990/0.936--0.947) and ROLAND (0.961--0.962/0.865--0.868).
   \item \textbf{Edge weight:} DeXposure-FM shows substantial and stable improvement in weight prediction with MAE 2.465--2.648 across all horizons, vs.\ 3.136--3.260 (GraphPFN), a 18--24\% reduction.
-  \item \textbf{Node prediction:} Node TVL change prediction degrades with horizon as expected: DeXposure-FM MAE increases from 0.058 ($h=1$) to 0.229 ($h=8$), reflecting growing uncertainty in longer-term forecasts.
+  \item \textbf{Node prediction:} Node TVL change prediction degrades with horizon as expected: DeXposure-FM MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$), reflecting growing uncertainty in longer-term forecasts.
   \item \textbf{Horizon stability:} DeXposure-FM maintains remarkably stable edge existence prediction (AUPRC 0.967--0.973) across all horizons up to 12 weeks, while GraphPFN shows gradual degradation (0.947 $\to$ 0.936) and ROLAND remains at lower levels (0.865--0.868).
 \end{enumerate}
 
@@ -296,4 +296,4 @@ The 98\%+ edge recall in imputation experiments directly reflects the underlying
 Contagion simulations identify cross-chain bridges as disproportionate risk concentrators---shocking 22 bridge nodes causes 5.27\% system-wide loss, exceeding stablecoin scenarios (79 nodes, 1.10\% loss). This aligns with historical bridge exploits (Ronin, Wormhole) and suggests regulatory attention to bridge capitalization.
 
 \paragraph{Limitations.}
-The contagion model assumes linear loss propagation and does not capture feedback effects (e.g., liquidation cascades). Node TVL predictions degrade at longer horizons (MAE 0.058 at $h=1$ vs.\ 0.229 at $h=8$), reflecting inherent uncertainty in protocol-level forecasts beyond 2--3 months. The current $h=12$ experiment used validation windows insufficient for early stopping (Val=0 due to the 12-week horizon matching the 12-week validation period), requiring all 20 epochs; future work will use 24-week validation windows to enable proper model selection at longer horizons.
+The contagion model assumes linear loss propagation and does not capture feedback effects (e.g., liquidation cascades). Node TVL predictions degrade at longer horizons (MAE 0.056 at $h=1$ vs.\ 0.286 at $h=12$), reflecting inherent uncertainty in protocol-level forecasts beyond 2--3 months.
