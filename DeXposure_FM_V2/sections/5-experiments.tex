@@ -1,7 +1,7 @@
 \section{Empirical Evaluations}
 \label{sec:evaluation}
 
-We evaluate DeXposure-FM on the DeXposure dataset, focusing on three tasks: (i) \textit{multi-step forecasting} of edge-level exposures and network-level statistics, (ii) \textit{shock analysis} during major stress events (Terra/Luna, FTX), and (iii) \textit{imputation} of missing edges.
+We evaluate DeXposure-FM on the DeXposure dataset, focusing on two tasks: (i) \textit{multi-step forecasting} of edge-level exposures and network-level statistics, and (ii) \textit{financial stability analysis} including model-based forward-looking risk assessment and stress testing during major events (Terra/Luna, FTX).
 
 \subsection{Dataset and Experimental Setup}
 \label{subsec:dataset}
@@ -44,7 +44,7 @@ Final performance is reported on a strict 2025 hold-out set, which is never seen
   \item \textbf{Validation:} 2024-07-22 $\sim$ 2024-12-30 (24 weeks, for early stopping)
   \item \textbf{Test:} 2025-01-06 $\sim$ 2025-08-18 (33 weeks, strict hold-out)
 \end{itemize}
-All results in this paper are from Stage 2 hold-out evaluation.
+Stage 1 is used for hyperparameter tuning; all results reported in this paper are from Stage 2 hold-out evaluation.
 
 \paragraph{Forecast horizons vs. CV windows.}
 The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 4, 8, 12\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
@@ -52,7 +52,7 @@ The 8-week CV window controls how the temporal folds slide; within each window, 
 \paragraph{Models compared.}
 We compare three approaches:
 \begin{enumerate}
-  \item \textbf{GraphPFN-Frozen:} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
+  \item \textbf{GraphPFN:} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
   \item \textbf{DeXposure-FM:} Pre-trained GraphPFN encoder with end-to-end fine-tuning using differential learning rates.
 \item \textbf{ROLAND:} Representative temporal GNN baseline with a GCN encoder and GRU temporal updates, trained from scratch.
 \end{enumerate}
@@ -102,14 +102,14 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 & 8 & 0.961 & 0.867 & 3.213 & 4.180 & 0.221 & 0.895 \\
 & 12 & 0.961 & 0.866 & 3.195 & 4.177 & 0.279 & 1.058 \\
 \hline
-\multirow{4}{*}{\textit{Persistence}}
+\multirow{4}{*}{Persistence}
 & 1 & 0.763 & 0.604 & 2.487 & 4.296 & 0.057 & 0.403 \\
 & 4 & 0.782 & 0.635 & 2.372 & 4.138 & 0.138 & 0.685 \\
 & 8 & 0.749 & 0.580 & 2.618 & 4.400 & 0.213 & 0.899 \\
 & 12 & 0.762 & 0.603 & 2.541 & 4.304 & 0.272 & 1.065 \\
 \hline
 \end{tabular}
-\caption{Multi-step forecasting results on 2025 hold-out test set at horizons $h \in \{1,4,8,12\}$ weeks. DeXposure-FM = Fine-tuned, GraphPFN-Frozen = Frozen (linear probe). \textit{Persistence} = naive baseline predicting $\hat{A}_{t+h} = A_t$, $\hat{W}_{t+h} = W_t$.}
+\caption{Multi-step forecasting results on 2025 hold-out test set at horizons $h \in \{1,4,8,12\}$ weeks. DeXposure-FM = Finetuned Foundation Model, GraphPFN = Graph Prior Fitted Network with Frozen weights. \textit{Persistence} = naive baseline predicting $\hat{A}_{t+h} = A_t$, $\hat{W}_{t+h} = W_t$.}
 \label{tab:main-results}
 \end{table}
 
@@ -241,52 +241,6 @@ Bridge exploit (100\% loss) & \textbf{5.27} & 1 & 90 \\
 \label{tab:contagion-results}
 \end{table}
 
-\subsection{Task III: Imputation}
-\label{subsec:imputation}
-
-We evaluate the model's ability to reconstruct missing edges, simulating incomplete network observations that are common in real-world DeFi data collection.
-
-\paragraph{Masking protocol.}
-We apply Missing Completely at Random (MCAR) masking at three severity levels:
-\begin{itemize}
-  \item \textbf{Light (10\%):} Simulates minor data collection gaps
-  \item \textbf{Moderate (20\%):} Tests reconstruction under typical incompleteness
-  \item \textbf{Heavy (30\%):} Stress-tests model capacity with significant missing data
-\end{itemize}
-
-\paragraph{Masking types.}
-\begin{enumerate}
-  \item \textbf{Edge masking:} Randomly remove edges from the observed graph
-  \item \textbf{Node masking:} Mask node attributes (TVL) and require reconstruction
-  \item \textbf{Combined masking:} Simultaneously mask both edges and node attributes
-\end{enumerate}
-
-\paragraph{Metrics.}
-For masked edges, we report:
-\begin{itemize}
-  \item AUPRC for edge existence reconstruction (can the model recover which edges were masked?)
-  \item MAE for edge weight reconstruction (how accurately can masked weights be imputed?)
-\end{itemize}
-
-\paragraph{Results.}
-Table~\ref{tab:imputation-results} summarizes imputation performance using DeXposure-FM.
-
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{cccc}
-\hline
-\textbf{Mask Rate} & \textbf{Edge Recall} & \textbf{Weight MAE} & \textbf{Node MAE} \\
-\hline
-10\% & 0.985 & 2.54 & 0.067 \\
-20\% & 0.985 & 2.54 & 0.068 \\
-30\% & 0.984 & 2.54 & 0.070 \\
-\hline
-\end{tabular}
-\caption{Imputation performance at different masking rates using DeXposure-FM. The model maintains $>$98\% edge recall even with 30\% edges masked, demonstrating robust reconstruction capability. Edge weight MAE matches forecasting performance ($\sim$2.54), confirming the model learns genuine exposure patterns rather than trivial baselines.}
-\label{tab:imputation-results}
-\end{table}
-
 \subsection{Discussion}
 \label{subsec:discussion}
 
@@ -294,10 +248,7 @@ Table~\ref{tab:imputation-results} summarizes imputation performance using DeXpo
 The 98.5\% mean edge overlap in DeFi networks means that a naive persistence baseline (``predict last week's graph'') achieves only AUPRC 0.58--0.64 for edge existence---substantially below learned models. DeXposure-FM's 52--67\% relative AUPRC improvement over persistence (0.967--0.973 vs.\ 0.58--0.64) demonstrates that the model learns meaningful structural dynamics beyond network inertia. This is the primary source of model value.
 
 \paragraph{Weight prediction remains fundamentally hard.}
-Contrary to expectations, edge weight prediction shows no improvement over the naive persistence baseline. DeXposure-FM achieves MAE 2.465--2.648, comparable to persistence (2.37--2.62). This suggests that exposure magnitudes are inherently difficult to forecast: the best predictor of next week's exposure is often this week's exposure. While DeXposure-FM improves substantially over other \textit{learned} baselines (GraphPFN-Frozen: 3.14--3.26, ROLAND: 3.20--3.24), the persistence baseline reveals that these learned models were inefficiently encoding temporal structure that could be captured by a simple heuristic. The practical implication is that model value lies in predicting \textit{which} edges exist, not \textit{how much} flows through them.
-
-\paragraph{Imputation recall reflects network stability.}
-The 98\%+ edge recall in imputation experiments directly reflects the underlying 98.5\% edge overlap in DeFi networks---the model learns that edges typically persist, which is the correct inductive bias for this domain. Crucially, this is not a trivial baseline: the model must also predict accurate edge \textit{weights} (MAE $\sim$2.54, matching forecasting performance), and the recall remains stable even at 30\% masking where a naive ``all edges exist'' heuristic would fail on masked edges. This robustness enables practical applications: (i) reconstructing incomplete network observations from partial API data, (ii) validating data collection pipelines by cross-checking imputed vs.\ observed edges, and (iii) generating synthetic stress scenarios by selectively masking high-importance edges.
+Contrary to expectations, edge weight prediction shows no improvement over the naive persistence baseline. DeXposure-FM achieves MAE 2.465--2.648, comparable to persistence (2.37--2.62). This suggests that exposure magnitudes are inherently difficult to forecast: the best predictor of next week's exposure is often this week's exposure. While DeXposure-FM improves substantially over other \textit{learned} baselines (GraphPFN: 3.14--3.26, ROLAND: 3.20--3.24), the persistence baseline reveals that these learned models were inefficiently encoding temporal structure that could be captured by a simple heuristic. The practical implication is that model value lies in predicting \textit{which} edges exist, not \textit{how much} flows through them.
 
 \paragraph{Bridge protocols as systemic risk vectors.}
 Contagion simulations identify cross-chain bridges as disproportionate risk concentrators---shocking 22 bridge nodes causes 5.27\% system-wide loss, exceeding stablecoin scenarios (79 nodes, 1.10\% loss). This aligns with historical bridge exploits (Ronin, Wormhole) and suggests regulatory attention to bridge capitalization.

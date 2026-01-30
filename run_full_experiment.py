@@ -2,22 +2,11 @@
 """
 DeXposure-FM Full Experiment Suite
 
-This script implements the complete evaluation framework as specified in the paper:
+This script implements the complete evaluation framework for Task I: Multi-step Forecasting.
 
 Task I: Multi-step Forecasting
 - Horizon h ∈ {1, 4, 8, 12} weeks ahead prediction
 - Metrics: AUPRC, AUROC for link existence; MAE, RMSE for edge weight
-
-Task II: Policy-relevant Scenario Analysis (Shock Analysis)
-- Terra/Luna collapse (2022-05-09): UST depeg and death spiral
-- FTX collapse (2022-11-07): Exchange failure and contagion
-- Network structure changes: TVL, edges, Gini, HHI
-- Model performance degradation during crisis
-
-Task III: Imputation
-- Random edge masking (10%, 20%, 30%)
-- Node size masking
-- Evaluate reconstruction accuracy (MAE, recall, correlation)
 
 Rolling Walk-forward Evaluation (Expanding Window)
 - Expanding train window with fixed val/test windows
@@ -36,15 +25,13 @@ Network Statistics
 
 Usage:
     python run_full_experiment.py --mode all
-    python run_full_experiment.py --mode frozen           # Task I: GraphPFN-Frozen
-    python run_full_experiment.py --mode deposure-fm       # Task I: DeXposure-FM
-    python run_full_experiment.py --mode roland           # Task I: ROLAND Baseline
+    python run_full_experiment.py --mode frozen           # GraphPFN-Frozen
+    python run_full_experiment.py --mode dexposure-fm      # DeXposure-FM (alias: deposure-fm)
+    python run_full_experiment.py --mode roland           # ROLAND Baseline
     python run_full_experiment.py --mode stats            # Network Statistics
-    python run_full_experiment.py --mode stability        # Task II: Full Financial Stability Analysis
-    python run_full_experiment.py --mode shock            # Task II.2: Shock Event Analysis
-    python run_full_experiment.py --mode systemic         # Task II.1: Systemic Risk Measurement
-    python run_full_experiment.py --mode contagion        # Task II.3: Contagion Simulation
-    python run_full_experiment.py --mode impute           # Task III: Imputation
+    python run_full_experiment.py --mode compare          # Compare all models
+
+Note: Task II (Model-based Financial Stability Analysis) is implemented in run_task2_model_based.py
 
 Output Directory Structure:
     output/
@@ -61,7 +48,6 @@ import copy
 import json
 import logging
 import math
-import time
 
 _os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
 _os.environ.setdefault("DGL_DISABLE_GRAPHBOLT", "1")
@@ -121,10 +107,7 @@ except ImportError:
 
 # Import network statistics
 from src.network_statistics import (
-    compute_all_network_statistics,
     compute_rolling_statistics,
-    gini_coefficient,
-    herfindahl_hirschman_index,
 )
 
 # ============== DGL CUDA Availability Check ==============
@@ -1039,6 +1022,31 @@ def sample_negatives(
         attempts += 1
 
     return np.array(neg_src, dtype=np.int64), np.array(neg_dst, dtype=np.int64)
+
+
+# Minimal shock event definitions for scenario loss during training
+@dataclass
+class ShockEvent:
+    """Minimal shock event for scenario labeling."""
+    name: str
+    event_date: str
+
+
+SHOCK_EVENTS = [
+    ShockEvent("Terra/Luna", "2022-05-09"),
+    ShockEvent("FTX", "2022-11-07"),
+]
+
+
+def find_nearest_date(target: str, dates: List[str]) -> Optional[str]:
+    """Find the nearest date in the list to the target date."""
+    if not dates:
+        return None
+    sorted_dates = sorted(dates)
+    for d in sorted_dates:
+        if d >= target:
+            return d
+    return sorted_dates[-1]
 
 
 def build_scenario_label_map(
@@ -2464,7 +2472,7 @@ def run_expanding_window_evaluation(
     split_result: Dict[str, Any],
     date_to_snap: Dict[str, Dict],
     run_frozen: bool,
-    run_finetuned: bool,
+    run_dexposure_fm: bool,
     run_roland: bool,
     save_predictions: bool,
     output_dir: Path,
@@ -2523,7 +2531,7 @@ def run_expanding_window_evaluation(
                 fold_entry["graphpfn_frozen"] = result
                 model_fold_results["graphpfn_frozen"].append(result)
 
-        if run_deposure_fm:
+        if run_dexposure_fm:
             result = run_graphpfn_experiment(
                 config,
                 finetune=True,
@@ -2610,7 +2618,7 @@ def run_graphpfn_experiment(
     model_output_dir = None
     append_predictions = False
     if output_dir:
-        if output_dir.name in {"frozen", "finetuned", "roland", "deposure-fm"}:
+        if output_dir.name in {"frozen", "finetuned", "roland", "dexposure-fm", "deposure-fm"}:
             model_output_dir = output_dir
         else:
             model_output_dir = output_dir / model_name
@@ -3114,1245 +3122,12 @@ def run_network_statistics(config: ExperimentConfig):
     # Summary
     log_info(f"\nComputed statistics for {len(all_stats)} snapshots")
     log_info(f"Date range: {all_stats[0]['date']} to {all_stats[-1]['date']}")
-    log_info(f"\nSummary statistics:")
+    log_info("\nSummary statistics:")
     for col in ["density", "degree_gini", "tvl_hhi", "top_10_concentration"]:
         if col in df.columns:
             log_info(f"  {col}: mean={df[col].mean():.4f}, std={df[col].std():.4f}")
 
     return {"statistics": all_stats, "summary": df.describe().to_dict()}
-
-
-# ============== Financial Stability Analysis (Task II) ==============
-# Includes: Systemic Risk Measurement, Shock Analysis, Contagion Simulation
-
-
-def _sanitize_positive_values(
-    values: np.ndarray, clip_quantile: float = 0.99
-) -> np.ndarray:
-    """Filter non-finite values and clip extreme positives for stability metrics."""
-    if values is None:
-        return np.array([], dtype=np.float64)
-    arr = np.array(values, dtype=np.float64)
-    arr = arr[np.isfinite(arr)]
-    if arr.size == 0:
-        return arr
-    arr = np.maximum(arr, 0.0)
-    if arr.size > 10:
-        upper = np.quantile(arr, clip_quantile)
-        if np.isfinite(upper) and upper > 0:
-            arr = np.clip(arr, 0.0, upper)
-    return arr
-
-
-def compute_systemic_importance_score(
-    snap: Dict,
-    alpha: float = 0.4,
-    beta: float = 0.3,
-    gamma: float = 0.3,
-) -> Dict[str, float]:
-    """
-    Compute Systemic Importance Score (SIS) for each protocol.
-
-    SIS_p = α·PageRank_p + β·TailExposure_p + γ·log(TVL_p)
-
-    Args:
-        snap: Snapshot dictionary with node_ids, edge_src, edge_dst, edge_weight, sizes
-        alpha, beta, gamma: Weights for each component (should sum to 1)
-
-    Returns:
-        Dictionary mapping node_id to SIS score
-    """
-    import networkx as nx
-
-    # Build directed graph
-    G = nx.DiGraph()
-    node_ids = snap["node_ids"]
-    sizes = _sanitize_positive_values(snap["sizes"])
-    # If sanitization reduced length, fall back to original sizes for indexing,
-    # but use sanitized values for aggregate computations.
-    sizes_raw = np.array(snap["sizes"], dtype=np.float64)
-
-    for i, node_id in enumerate(node_ids):
-        size_val = (
-            sizes_raw[i] if i < len(sizes_raw) and np.isfinite(sizes_raw[i]) else 0.0
-        )
-        G.add_node(node_id, size=max(size_val, 0.0))
-
-    for src, dst, weight in zip(
-        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
-    ):
-        if src < len(node_ids) and dst < len(node_ids):
-            if not np.isfinite(weight):
-                continue
-            G.add_edge(node_ids[src], node_ids[dst], weight=max(float(weight), 0.0))
-
-    if len(G.nodes()) == 0:
-        return {}
-
-    # 1. PageRank (normalized)
-    try:
-        pagerank = nx.pagerank(G, weight="weight", max_iter=100)
-    except:
-        pagerank = {n: 1.0 / len(G.nodes()) for n in G.nodes()}
-
-    pr_max = max(pagerank.values()) if pagerank else 1.0
-    pagerank_norm = {n: v / pr_max for n, v in pagerank.items()}
-
-    # 2. Tail Exposure (concentration of top-5 outgoing exposures)
-    tail_exposure = {}
-    for node in G.nodes():
-        out_weights = [G[node][succ]["weight"] for succ in G.successors(node)]
-        if len(out_weights) >= 5:
-            out_weights_sorted = sorted(out_weights, reverse=True)
-            top5 = sum(out_weights_sorted[:5])
-            total = sum(out_weights)
-            tail_exposure[node] = top5 / (total + EPS)
-        else:
-            tail_exposure[node] = 1.0 if out_weights else 0.0
-
-    # 3. Log TVL (normalized)
-    log_tvl = {}
-    for node in G.nodes():
-        size = G.nodes[node].get("size", 0)
-        log_tvl[node] = np.log1p(size)
-
-    log_tvl_max = max(log_tvl.values()) if log_tvl else 1.0
-    log_tvl_norm = {n: v / log_tvl_max for n, v in log_tvl.items()}
-
-    # Combine into SIS
-    sis = {}
-    for node in G.nodes():
-        sis[node] = (
-            alpha * pagerank_norm.get(node, 0)
-            + beta * tail_exposure.get(node, 0)
-            + gamma * log_tvl_norm.get(node, 0)
-        )
-
-    return sis
-
-
-def compute_sector_spillover_index(
-    snap: Dict,
-    meta_category: Dict[str, str],
-) -> Tuple[np.ndarray, float]:
-    """
-    Compute sector-to-sector exposure matrix and spillover index.
-
-    Args:
-        snap: Snapshot dictionary
-        meta_category: Mapping from node_id to category
-
-    Returns:
-        Tuple of (sector_matrix, spillover_index)
-    """
-    node_ids = snap["node_ids"]
-
-    # Get unique categories
-    categories = list(set(meta_category.get(nid, "Unknown") for nid in node_ids))
-    cat_to_idx = {cat: i for i, cat in enumerate(categories)}
-    n_cats = len(categories)
-
-    # Build sector-to-sector matrix
-    sector_matrix = np.zeros((n_cats, n_cats))
-
-    for src, dst, weight in zip(
-        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
-    ):
-        if src < len(node_ids) and dst < len(node_ids):
-            src_cat = meta_category.get(node_ids[src], "Unknown")
-            dst_cat = meta_category.get(node_ids[dst], "Unknown")
-            src_idx = cat_to_idx[src_cat]
-            dst_idx = cat_to_idx[dst_cat]
-            if not np.isfinite(weight):
-                continue
-            sector_matrix[src_idx, dst_idx] += max(float(weight), 0.0)
-
-    # Spillover index = HHI of off-diagonal elements
-    off_diag = []
-    for i in range(n_cats):
-        for j in range(n_cats):
-            if i != j:
-                off_diag.append(sector_matrix[i, j])
-
-    total = sum(off_diag)
-    if total > 0:
-        shares = [x / total for x in off_diag]
-        spillover_index = sum(s**2 for s in shares)
-    else:
-        spillover_index = 0.0
-
-    return sector_matrix, spillover_index
-
-
-def compute_early_warning_indicators(
-    snapshots: List[Dict],
-    window_size: int = 4,
-) -> List[Dict[str, float]]:
-    """
-    Compute early-warning indicators for each snapshot.
-
-    Tracks:
-    - Density change rate
-    - HHI change (concentration spike)
-    - Assortativity shift
-
-    Args:
-        snapshots: List of snapshot dictionaries
-        window_size: Rolling window for computing changes
-
-    Returns:
-        List of indicator dictionaries, one per snapshot
-    """
-    indicators = []
-
-    for i, snap in enumerate(snapshots):
-        ind = {"date": snap["date"]}
-
-        n_nodes = len(snap["node_ids"])
-        n_edges = len(snap["edge_src"])
-
-        # Density
-        max_edges = n_nodes * (n_nodes - 1)  # directed
-        density = n_edges / max_edges if max_edges > 0 else 0
-
-        # HHI of node sizes
-        sizes = _sanitize_positive_values(snap["sizes"])
-        hhi = herfindahl_hirschman_index(sizes)
-
-        # Gini
-        gini = gini_coefficient(sizes)
-
-        ind["density"] = density
-        ind["hhi"] = hhi
-        ind["gini"] = gini
-
-        # Compute change rates if we have history
-        if i >= window_size:
-            prev_ind = indicators[i - 1]
-            ind["density_change"] = (density - prev_ind["density"]) / (
-                prev_ind["density"] + EPS
-            )
-            ind["hhi_change"] = hhi - prev_ind["hhi"]
-            ind["gini_change"] = gini - prev_ind["gini"]
-        else:
-            ind["density_change"] = 0.0
-            ind["hhi_change"] = 0.0
-            ind["gini_change"] = 0.0
-
-        indicators.append(ind)
-
-    # Compute z-scores for spike detection
-    hhi_changes = [ind["hhi_change"] for ind in indicators[window_size:]]
-    if len(hhi_changes) > 1:
-        mean_hhi_change = np.mean(hhi_changes)
-        std_hhi_change = np.std(hhi_changes) + EPS
-        for ind in indicators[window_size:]:
-            ind["hhi_change_zscore"] = (
-                ind["hhi_change"] - mean_hhi_change
-            ) / std_hhi_change
-            ind["hhi_spike"] = abs(ind["hhi_change_zscore"]) > 2.0
-
-    return indicators
-
-
-def simulate_contagion(
-    snap: Dict,
-    shocked_nodes: List[str],
-    shock_ratio: float = 0.5,
-    distress_threshold: float = 0.1,
-    max_rounds: int = 10,
-) -> Dict[str, Any]:
-    """
-    Simulate DebtRank-style contagion from shocked nodes.
-
-    Args:
-        snap: Snapshot dictionary
-        shocked_nodes: List of node IDs to shock
-        shock_ratio: Initial loss ratio for shocked nodes (0-1)
-        distress_threshold: Loss/TVL ratio that triggers distress
-        max_rounds: Maximum propagation rounds
-
-    Returns:
-        Dictionary with contagion results
-    """
-    node_ids = snap["node_ids"]
-    sizes = np.array(snap["sizes"], dtype=np.float64)
-    sizes = np.where(np.isfinite(sizes), sizes, 0.0)
-    sizes = np.maximum(sizes, 0.0)
-    node_to_idx = {nid: i for i, nid in enumerate(node_ids)}
-
-    # Build adjacency for reverse lookup (who is exposed to whom)
-    # edge from A->B means A is exposed to B (A has claims on B)
-    exposures = {}  # exposures[creditor] = [(debtor, amount), ...]
-    for src, dst, weight in zip(
-        snap["edge_src"], snap["edge_dst"], snap["edge_weight"]
-    ):
-        if src < len(node_ids) and dst < len(node_ids):
-            if not np.isfinite(weight):
-                continue
-            src_id = node_ids[src]
-            dst_id = node_ids[dst]
-            if src_id not in exposures:
-                exposures[src_id] = []
-            exposures[src_id].append((dst_id, max(float(weight), 0.0)))
-
-    # Initialize losses
-    losses = {nid: 0.0 for nid in node_ids}
-    tvl = {
-        nid: sizes[node_to_idx[nid]] if node_to_idx[nid] < len(sizes) else 0.0
-        for nid in node_ids
-    }
-
-    # Initial shock
-    distressed = set()
-    for node in shocked_nodes:
-        if node in losses:
-            base_tvl = tvl.get(node, 0.0)
-            if base_tvl <= 0:
-                continue
-            losses[node] = shock_ratio * base_tvl
-            distressed.add(node)
-
-    # Propagation
-    rounds = 0
-    affected_history = [len(distressed)]
-
-    for round_num in range(max_rounds):
-        new_distressed = set()
-
-        for node in distressed:
-            # Find creditors (nodes that have exposure TO this node)
-            for creditor, exp_list in exposures.items():
-                for debtor, amount in exp_list:
-                    if debtor == node and creditor not in distressed:
-                        # Creditor loses value proportional to their exposure
-                        denom = tvl.get(node, 0.0)
-                        if denom <= 0:
-                            continue
-                        loss_ratio = losses[node] / (denom + EPS)
-                        creditor_loss = amount * loss_ratio
-                        losses[creditor] = losses.get(creditor, 0) + creditor_loss
-
-                        # Check if creditor becomes distressed
-                        if losses[creditor] > distress_threshold * tvl.get(creditor, 0):
-                            new_distressed.add(creditor)
-
-        if not new_distressed:
-            break
-
-        distressed = distressed.union(new_distressed)
-        affected_history.append(len(distressed))
-        rounds = round_num + 1
-
-    # Compute results
-    total_tvl = sum(tvl.values())
-    total_loss = sum(losses.values())
-
-    return {
-        "shocked_nodes": shocked_nodes,
-        "shock_ratio": shock_ratio,
-        "total_loss": total_loss,
-        "total_loss_pct": (total_loss / total_tvl * 100) if total_tvl > 0 else 0,
-        "affected_count": len([n for n in losses if losses[n] > 0]),
-        "distressed_count": len(distressed),
-        "propagation_rounds": rounds,
-        "affected_history": affected_history,
-        "losses": losses,
-    }
-
-
-def run_systemic_risk_analysis(
-    config: ExperimentConfig,
-) -> Dict[str, Any]:
-    """
-    Run complete systemic risk measurement for all snapshots.
-
-    Computes:
-    - Protocol-level SIS scores
-    - Sector spillover indices
-    - Early warning indicators
-    """
-    log_info(f"\n{'=' * 60}")
-    log_info("Systemic Risk Measurement (Task II.1)")
-    log_info(f"{'=' * 60}")
-
-    # Load data
-    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
-    network_data = load_network_data(config.data_path)
-    all_dates = sorted(network_data.keys())
-
-    # Build snapshots
-    snapshots = [
-        build_snapshot(
-            date, network_data[date], meta_category, category_to_idx, category_list
-        )
-        for date in all_dates
-    ]
-
-    log_info(f"Loaded {len(snapshots)} snapshots")
-
-    results = {
-        "sis_scores": [],
-        "spillover_indices": [],
-        "early_warning": [],
-    }
-
-    # Compute SIS for each snapshot
-    log_info("Computing SIS scores...")
-    for snap in snapshots:
-        sis = compute_systemic_importance_score(snap)
-        # Get top 10 most systemically important
-        top_sis = sorted(sis.items(), key=lambda x: x[1], reverse=True)[:10]
-        results["sis_scores"].append(
-            {
-                "date": snap["date"],
-                "top_10_sis": top_sis,
-                "mean_sis": np.mean(list(sis.values())) if sis else 0,
-            }
-        )
-
-    # Compute spillover indices
-    log_info("Computing sector spillover indices...")
-    for snap in snapshots:
-        _, spillover = compute_sector_spillover_index(snap, meta_category)
-        results["spillover_indices"].append(
-            {
-                "date": snap["date"],
-                "spillover_index": spillover,
-            }
-        )
-
-    # Compute early warning indicators
-    log_info("Computing early warning indicators...")
-    results["early_warning"] = compute_early_warning_indicators(snapshots)
-
-    log_info(f"Systemic risk analysis complete")
-
-    return results
-
-
-def run_contagion_simulation(
-    config: ExperimentConfig,
-    scenarios: Optional[List[Dict]] = None,
-) -> Dict[str, Any]:
-    """
-    Run contagion simulations for predefined scenarios.
-
-    Default scenarios:
-    - Terra/Luna shock (50% loss to terra-related protocols)
-    - Stablecoin de-peg (50% loss to stablecoin protocols)
-    - Bridge exploit (100% loss to bridge protocols)
-    """
-    log_info(f"\n{'=' * 60}")
-    log_info("Contagion Simulation (Task II.3)")
-    log_info(f"{'=' * 60}")
-
-    # Load data
-    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
-    network_data = load_network_data(config.data_path)
-    all_dates = sorted(network_data.keys())
-
-    # Use a snapshot around Terra/Luna time for simulation
-    target_date = "2022-05-02"  # Week before Terra collapse
-    closest_date = find_nearest_date(target_date, all_dates)
-
-    if closest_date is None:
-        log_info("No suitable snapshot found for contagion simulation")
-        return {}
-
-    snap = build_snapshot(
-        closest_date,
-        network_data[closest_date],
-        meta_category,
-        category_to_idx,
-        category_list,
-    )
-
-    log_info(
-        f"Using snapshot from {closest_date} ({len(snap['node_ids'])} nodes, {len(snap['edge_src'])} edges)"
-    )
-
-    # Default scenarios
-    if scenarios is None:
-        scenarios = [
-            {
-                "name": "Single Large Protocol",
-                "shocked_nodes": [snap["node_ids"][0]] if snap["node_ids"] else [],
-                "shock_ratio": 0.5,
-            },
-            {
-                "name": "Top 5 Protocols",
-                "shocked_nodes": snap["node_ids"][:5]
-                if len(snap["node_ids"]) >= 5
-                else snap["node_ids"],
-                "shock_ratio": 0.3,
-            },
-            {
-                "name": "Stablecoin Category",
-                "shocked_nodes": [
-                    nid
-                    for nid in snap["node_ids"]
-                    if "stable" in meta_category.get(nid, "").lower()
-                ],
-                "shock_ratio": 0.5,
-            },
-            {
-                "name": "Bridge Category",
-                "shocked_nodes": [
-                    nid
-                    for nid in snap["node_ids"]
-                    if "bridge" in meta_category.get(nid, "").lower()
-                ],
-                "shock_ratio": 1.0,
-            },
-        ]
-
-    results = {"scenarios": [], "snapshot_date": closest_date}
-
-    for scenario in scenarios:
-        log_info(f"\n  Simulating: {scenario['name']}")
-        log_info(f"    Shocked nodes: {len(scenario['shocked_nodes'])}")
-
-        if not scenario["shocked_nodes"]:
-            log_info("    Skipping - no nodes to shock")
-            continue
-
-        sim_result = simulate_contagion(
-            snap,
-            scenario["shocked_nodes"],
-            scenario["shock_ratio"],
-        )
-        sim_result["scenario_name"] = scenario["name"]
-        results["scenarios"].append(sim_result)
-
-        log_info(f"    Total loss: {sim_result['total_loss_pct']:.2f}% of TVL")
-        log_info(f"    Affected: {sim_result['affected_count']} protocols")
-        log_info(f"    Propagation rounds: {sim_result['propagation_rounds']}")
-
-    return results
-
-
-# ============== Shock Event Analysis (Task II.2) ==============
-
-
-@dataclass
-class ShockEvent:
-    """Represents a market shock event for analysis."""
-
-    name: str
-    event_date: str  # YYYY-MM-DD
-    pre_window_start: str  # Start of pre-event window
-    post_window_end: str  # End of post-event window
-    description: str = ""
-
-
-# Key DeFi shock events (from Section 5.2 of the paper)
-SHOCK_EVENTS = [
-    ShockEvent(
-        name="Terra/Luna Collapse",
-        event_date="2022-05-09",
-        pre_window_start="2022-04-25",  # 2 weeks before
-        post_window_end="2022-05-23",  # 2 weeks after
-        description="UST depeg and LUNA death spiral",
-    ),
-    ShockEvent(
-        name="FTX Collapse",
-        event_date="2022-11-07",
-        pre_window_start="2022-10-31",  # 1 week before
-        post_window_end="2022-11-21",  # 2 weeks after
-        description="FTX exchange collapse and contagion",
-    ),
-]
-
-
-def find_nearest_date(target: str, dates: List[str]) -> Optional[str]:
-    """Find the nearest available date to the target date."""
-    if target in dates:
-        return target
-
-    sorted_dates = sorted(dates)
-
-    # Find closest date
-    for date in sorted_dates:
-        if date >= target:
-            return date
-
-    # Return last date if target is after all dates
-    return sorted_dates[-1] if sorted_dates else None
-
-
-def analyze_shock_network_changes(
-    snapshots: List[Dict], event: ShockEvent, config: ExperimentConfig
-) -> Dict[str, Any]:
-    """
-    Analyze network structure changes around a shock event.
-
-    Computes:
-    - Network statistics before/during/after the event
-    - Changes in concentration metrics
-    - Edge creation/deletion rates
-    - Node size volatility
-    """
-    dates = [s["date"] for s in snapshots]
-
-    # Find date indices
-    pre_start_date = find_nearest_date(event.pre_window_start, dates)
-    event_date = find_nearest_date(event.event_date, dates)
-    post_end_date = find_nearest_date(event.post_window_end, dates)
-
-    if not all([pre_start_date, event_date, post_end_date]):
-        return {"error": f"Could not find dates for event {event.name}"}
-
-    pre_start_idx = dates.index(pre_start_date)
-    event_idx = dates.index(event_date)
-    post_end_idx = dates.index(post_end_date)
-
-    log_info(f"\n  Event: {event.name}")
-    log_info(f"    Pre-window: {pre_start_date} (idx={pre_start_idx})")
-    log_info(f"    Event date: {event_date} (idx={event_idx})")
-    log_info(f"    Post-window: {post_end_date} (idx={post_end_idx})")
-
-    # Split into periods
-    pre_snapshots = snapshots[pre_start_idx:event_idx]
-    event_snapshots = snapshots[event_idx : event_idx + 1]  # Event week only
-    post_snapshots = snapshots[event_idx + 1 : post_end_idx + 1]
-
-    results = {
-        "event_name": event.name,
-        "event_date": event_date,
-        "pre_window": {
-            "start": pre_start_date,
-            "end": event_date,
-            "num_weeks": len(pre_snapshots),
-        },
-        "post_window": {
-            "start": event_date,
-            "end": post_end_date,
-            "num_weeks": len(post_snapshots),
-        },
-    }
-
-    # Compute statistics for each period
-    def compute_period_stats(snaps: List[Dict], period_name: str) -> Dict[str, float]:
-        if not snaps:
-            return {}
-
-        all_stats = []
-        for snap in snaps:
-            edge_index = (
-                np.stack([snap["edge_src"], snap["edge_dst"]])
-                if len(snap["edge_src"]) > 0
-                else np.zeros((2, 0), dtype=np.int64)
-            )
-            stats = compute_all_network_statistics(
-                edge_index=edge_index,
-                num_nodes=len(snap["node_ids"]),
-                edge_weights=snap["edge_weight"],
-                node_sizes=snap["sizes"],
-            )
-            all_stats.append(stats)
-
-        # Aggregate
-        agg_stats = {}
-        for key in all_stats[0].keys():
-            if key not in ["date"]:
-                values = [s[key] for s in all_stats]
-                agg_stats[f"{period_name}_{key}_mean"] = float(np.mean(values))
-                agg_stats[f"{period_name}_{key}_std"] = float(np.std(values))
-
-        return agg_stats
-
-    results["pre_event_stats"] = compute_period_stats(pre_snapshots, "pre")
-    results["event_stats"] = compute_period_stats(event_snapshots, "event")
-    results["post_event_stats"] = compute_period_stats(post_snapshots, "post")
-
-    # Compute change metrics
-    if pre_snapshots and post_snapshots:
-        # TVL change
-        pre_tvl = np.mean([np.sum(s["sizes"]) for s in pre_snapshots])
-        post_tvl = np.mean([np.sum(s["sizes"]) for s in post_snapshots])
-        results["tvl_change_pct"] = float((post_tvl - pre_tvl) / (pre_tvl + EPS) * 100)
-
-        # Edge count change
-        pre_edges = np.mean([len(s["edge_src"]) for s in pre_snapshots])
-        post_edges = np.mean([len(s["edge_src"]) for s in post_snapshots])
-        results["edge_count_change_pct"] = float(
-            (post_edges - pre_edges) / (pre_edges + EPS) * 100
-        )
-
-        # Concentration change (Gini)
-        pre_gini = np.mean([gini_coefficient(s["sizes"]) for s in pre_snapshots])
-        post_gini = np.mean([gini_coefficient(s["sizes"]) for s in post_snapshots])
-        results["gini_change"] = float(post_gini - pre_gini)
-
-        # HHI change
-        pre_hhi = np.mean(
-            [herfindahl_hirschman_index(s["sizes"]) for s in pre_snapshots]
-        )
-        post_hhi = np.mean(
-            [herfindahl_hirschman_index(s["sizes"]) for s in post_snapshots]
-        )
-        results["hhi_change"] = float(post_hhi - pre_hhi)
-
-        log_info(f"    TVL change: {results['tvl_change_pct']:.2f}%")
-        log_info(f"    Edge count change: {results['edge_count_change_pct']:.2f}%")
-        log_info(f"    Gini change: {results['gini_change']:.4f}")
-        log_info(f"    HHI change: {results['hhi_change']:.4f}")
-
-    return results
-
-
-def evaluate_model_during_shock(
-    model,
-    predict_fn,
-    snapshots: List[Dict],
-    event: ShockEvent,
-    config: ExperimentConfig,
-    model_name: str = "Model",
-) -> Dict[str, Any]:
-    """
-    Evaluate model prediction performance during a shock event.
-
-    Compares:
-    - Pre-event prediction accuracy
-    - During-event prediction accuracy
-    - Post-event prediction accuracy
-    """
-    dates = [s["date"] for s in snapshots]
-
-    # Find date indices
-    pre_start_date = find_nearest_date(event.pre_window_start, dates)
-    event_date = find_nearest_date(event.event_date, dates)
-    post_end_date = find_nearest_date(event.post_window_end, dates)
-
-    if not all([pre_start_date, event_date, post_end_date]):
-        return {"error": f"Could not find dates for event {event.name}"}
-
-    pre_start_idx = dates.index(pre_start_date)
-    event_idx = dates.index(event_date)
-    post_end_idx = dates.index(post_end_date)
-
-    results = {
-        "event_name": event.name,
-        "model_name": model_name,
-    }
-
-    # Evaluate on different periods
-    def evaluate_period(snap_indices: List[int], period_name: str) -> Dict:
-        if len(snap_indices) < 2:
-            return {"error": "Not enough snapshots"}
-
-        period_snaps = [snapshots[i] for i in snap_indices]
-        pairs = build_week_pairs(period_snaps, config.neg_ratio, config.seed, horizon=1)
-
-        if not pairs:
-            return {"error": "No pairs built"}
-
-        preds = predict_fn(model, pairs, config)
-        metrics = evaluate_predictions(preds)
-
-        return {
-            f"{period_name}_auprc": metrics["exist"]["auprc"],
-            f"{period_name}_auroc": metrics["exist"]["auroc"],
-            f"{period_name}_weight_mae": metrics["weight"]["mae"],
-            f"{period_name}_num_pairs": len(pairs),
-        }
-
-    # Pre-event period
-    pre_indices = list(range(max(0, pre_start_idx - 4), pre_start_idx))
-    if len(pre_indices) >= 2:
-        results.update(evaluate_period(pre_indices, "pre"))
-
-    # During-event period (event week and surrounding)
-    event_indices = list(range(pre_start_idx, min(event_idx + 2, len(snapshots))))
-    if len(event_indices) >= 2:
-        results.update(evaluate_period(event_indices, "event"))
-
-    # Post-event period
-    post_indices = list(range(event_idx + 1, min(post_end_idx + 4, len(snapshots))))
-    if len(post_indices) >= 2:
-        results.update(evaluate_period(post_indices, "post"))
-
-    # Compute performance degradation
-    if "pre_auprc" in results and "event_auprc" in results:
-        results["auprc_degradation"] = float(
-            results["pre_auprc"] - results["event_auprc"]
-        )
-        log_info(
-            f"    AUPRC degradation during {event.name}: {results['auprc_degradation']:.4f}"
-        )
-
-    return results
-
-
-def run_shock_analysis(
-    config: ExperimentConfig, model=None, model_type: str = "graphpfn"
-):
-    """
-    Run complete shock analysis for all predefined events.
-
-    Args:
-        config: Experiment configuration
-        model: Optional pretrained model (if None, will train fresh)
-        model_type: Type of model ("graphpfn" or "roland")
-    """
-    log_info(f"\n{'=' * 60}")
-    log_info("Shock Analysis (Task II: Policy-relevant Scenario Analysis)")
-    log_info(f"{'=' * 60}")
-
-    # Load data
-    meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
-    network_data = load_network_data(config.data_path)
-    all_dates = sorted(network_data.keys())
-
-    # Build snapshots
-    snapshots = [
-        build_snapshot(
-            date, network_data[date], meta_category, category_to_idx, category_list
-        )
-        for date in all_dates
-    ]
-    snapshots = enrich_snapshots_with_historical_features(snapshots)
-
-    log_info(
-        f"Loaded {len(snapshots)} snapshots from {all_dates[0]} to {all_dates[-1]}"
-    )
-
-    # Analyze network changes for each event
-    network_change_results = {}
-    for event in SHOCK_EVENTS:
-        # Check if event is in our date range
-        if event.event_date < all_dates[0] or event.event_date > all_dates[-1]:
-            log_info(
-                f"\n  Skipping {event.name}: event date {event.event_date} outside data range"
-            )
-            continue
-
-        results = analyze_shock_network_changes(snapshots, event, config)
-        network_change_results[event.name] = results
-
-    # Model performance evaluation (if model provided or can be trained)
-    model_performance_results = {}
-
-    if GRAPHPFN_AVAILABLE and model_type == "graphpfn":
-        log_info("\n--- Training GraphPFN for shock analysis ---")
-        device = torch.device(config.device)
-
-        # Train model on data before first event
-        first_event_date = min(e.pre_window_start for e in SHOCK_EVENTS)
-        train_end_idx = 0
-        for i, date in enumerate(all_dates):
-            if date >= first_event_date:
-                train_end_idx = i
-                break
-
-        if train_end_idx > 10:  # Need enough data to train
-            train_snapshots = snapshots[:train_end_idx]
-
-            # Load and setup model
-            encoder = load_graphpfn_encoder(config.checkpoint_path, device)
-            embed_dim = encoder.tfm.embed_dim
-            model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(
-                device
-            )
-
-            # Fine-tune on training data
-            for p in model.encoder.parameters():
-                p.requires_grad = True
-
-            optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-            train_pairs = build_week_pairs(
-                train_snapshots, config.neg_ratio, config.seed, horizon=1
-            )
-
-            # AMP scaler for this training run
-            shock_scaler = None
-            if config.use_amp and device.type == "cuda":
-                shock_scaler = torch.cuda.amp.GradScaler()
-
-            log_info(
-                f"  Training on {len(train_pairs)} pairs (before {first_event_date})"
-            )
-            prev_embeddings = None
-            for epoch in range(config.epochs):
-                _, prev_embeddings = train_graphpfn_epoch(
-                    model,
-                    train_pairs,
-                    optimizer,
-                    config,
-                    finetune_encoder=True,
-                    prev_embeddings=prev_embeddings,
-                    scaler=shock_scaler,
-                )
-
-            # Evaluate during each shock event
-            for event in SHOCK_EVENTS:
-                if event.event_date < all_dates[0] or event.event_date > all_dates[-1]:
-                    continue
-
-                results = evaluate_model_during_shock(
-                    model,
-                    predict_fn=predict_graphpfn,
-                    snapshots=snapshots,
-                    event=event,
-                    config=config,
-                    model_name="DeXposure-FM",
-                )
-                model_performance_results[f"graphpfn_{event.name}"] = results
-
-    elif model_type == "roland":
-        log_info("\n--- Training ROLAND for shock analysis ---")
-        device = torch.device(config.device)
-        input_dim = snapshots[0]["features"].shape[1]
-
-        # Train model
-        first_event_date = min(e.pre_window_start for e in SHOCK_EVENTS)
-        train_end_idx = next(
-            (i for i, d in enumerate(all_dates) if d >= first_event_date),
-            len(all_dates) // 2,
-        )
-
-        if train_end_idx > 10:
-            train_snapshots = snapshots[:train_end_idx]
-
-            model = ROLANDBaseline(input_dim, hidden_dim=64, out_dim=32).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-            train_pairs = build_week_pairs(
-                train_snapshots, config.neg_ratio, config.seed, horizon=1
-            )
-
-            # AMP scaler for ROLAND shock analysis
-            roland_shock_scaler = None
-            if config.use_amp and device.type == "cuda":
-                roland_shock_scaler = torch.cuda.amp.GradScaler()
-
-            h1, h2 = None, None
-            for epoch in range(config.epochs):
-                _, h1, h2 = train_roland_epoch(
-                    model, train_pairs, optimizer, config, h1, h2,
-                    scaler=roland_shock_scaler,
-                )
-
-            # Evaluate during each shock event
-            for event in SHOCK_EVENTS:
-                if event.event_date < all_dates[0] or event.event_date > all_dates[-1]:
-                    continue
-
-                def roland_predict_wrapper(model, pairs, config):
-                    preds, _, _ = predict_roland(model, pairs, config, h1, h2)
-                    return preds
-
-                results = evaluate_model_during_shock(
-                    model,
-                    predict_fn=roland_predict_wrapper,
-                    snapshots=snapshots,
-                    event=event,
-                    config=config,
-                    model_name="ROLAND",
-                )
-                model_performance_results[f"roland_{event.name}"] = results
-
-    # Compile all results
-    all_results = {
-        "network_changes": network_change_results,
-        "model_performance": model_performance_results,
-        "events_analyzed": [
-            e.name
-            for e in SHOCK_EVENTS
-            if e.event_date >= all_dates[0] and e.event_date <= all_dates[-1]
-        ],
-    }
-
-    # Print summary table
-    log_info(f"\n{'=' * 80}")
-    log_info("SHOCK ANALYSIS SUMMARY")
-    log_info(f"{'=' * 80}")
-    log_info(
-        f"{'Event':<25} {'TVL Change':<15} {'Edge Change':<15} {'Gini Δ':<12} {'HHI Δ':<12}"
-    )
-    log_info("-" * 80)
-
-    for event_name, results in network_change_results.items():
-        if "error" not in results:
-            tvl_chg = f"{results.get('tvl_change_pct', 0):.1f}%"
-            edge_chg = f"{results.get('edge_count_change_pct', 0):.1f}%"
-            gini_chg = f"{results.get('gini_change', 0):.4f}"
-            hhi_chg = f"{results.get('hhi_change', 0):.4f}"
-            log_info(
-                f"{event_name:<25} {tvl_chg:<15} {edge_chg:<15} {gini_chg:<12} {hhi_chg:<12}"
-            )
-
-    if model_performance_results:
-        log_info(
-            f"\n{'Model + Event':<35} {'Pre AUPRC':<12} {'Event AUPRC':<12} {'Degradation':<12}"
-        )
-        log_info("-" * 80)
-        for key, results in model_performance_results.items():
-            if "error" not in results:
-                pre = f"{results.get('pre_auprc', float('nan')):.4f}"
-                event = f"{results.get('event_auprc', float('nan')):.4f}"
-                deg = f"{results.get('auprc_degradation', float('nan')):.4f}"
-                log_info(f"{key:<35} {pre:<12} {event:<12} {deg:<12}")
-
-    return all_results
-
-
-# ============== Task III: Imputation ==============
-
-
-def evaluate_imputation_pairs(
-    pairs: List[WeekPair],
-    preds: List[Dict[str, Any]],
-    mask_ratio: float,
-    rng: np.random.Generator,
-) -> Dict[str, float]:
-    """Evaluate imputation performance on masked positives and nodes."""
-    edge_recall = []
-    edge_prob = []
-    edge_mae = []
-    edge_rmse = []
-    edge_corr = []
-    node_mae = []
-    node_rmse = []
-
-    for pair, pred in zip(pairs, preds):
-        y_exist = pred["y_exist"]
-        exist_prob = 1 / (1 + np.exp(-pred["exist_logits"]))
-
-        pos_idx = np.where(y_exist > 0.5)[0]
-        if len(pos_idx) > 0:
-            num_mask = max(1, int(len(pos_idx) * mask_ratio))
-            mask_idx = rng.choice(pos_idx, size=num_mask, replace=False)
-
-            masked_probs = exist_prob[mask_idx]
-            edge_recall.append(float(np.mean(masked_probs > 0.5)))
-            edge_prob.append(float(np.mean(masked_probs)))
-
-            true_w = pred["y_weight"][mask_idx]
-            pred_w = pred["weight_pred"][mask_idx]
-            edge_mae.append(float(np.mean(np.abs(true_w - pred_w))))
-            edge_rmse.append(float(np.sqrt(np.mean((true_w - pred_w) ** 2))))
-            if len(true_w) > 1 and np.std(true_w) > 0 and np.std(pred_w) > 0:
-                edge_corr.append(float(np.corrcoef(true_w, pred_w)[0, 1]))
-
-        node_mask = pred["node_mask"]
-        if node_mask.any():
-            node_indices = np.where(node_mask)[0]
-            num_mask = max(1, int(len(node_indices) * mask_ratio))
-            mask_nodes = rng.choice(node_indices, size=num_mask, replace=False)
-
-            size_t = pair.sizes_t[mask_nodes]
-            log_size_t = np.log1p(np.maximum(size_t, 0))
-            true_log_t1 = log_size_t + pred["y_node"][mask_nodes]
-            pred_log_t1 = log_size_t + pred["node_pred"][mask_nodes]
-
-            node_mae.append(float(np.mean(np.abs(true_log_t1 - pred_log_t1))))
-            node_rmse.append(float(np.sqrt(np.mean((true_log_t1 - pred_log_t1) ** 2))))
-
-    results: Dict[str, float] = {}
-
-    def add_stats(key: str, values: List[float]) -> None:
-        if values:
-            results[f"{key}_mean"] = float(np.mean(values))
-            results[f"{key}_std"] = float(np.std(values))
-
-    add_stats("edge_exist_recall", edge_recall)
-    add_stats("edge_exist_avg_prob", edge_prob)
-    add_stats("edge_weight_mae", edge_mae)
-    add_stats("edge_weight_rmse", edge_rmse)
-    add_stats("edge_weight_corr", edge_corr)
-    add_stats("node_size_mae", node_mae)
-    add_stats("node_size_rmse", node_rmse)
-
-    return results
-
-
-def run_imputation_experiment(
-    config: ExperimentConfig,
-    mask_ratios: List[float] = None,
-    snapshots: Optional[List[Dict]] = None,
-    date_splits: Optional[Dict[str, List[str]]] = None,
-    model_path: Optional[str] = None,
-):
-    """
-    Run Task III: Imputation experiment.
-
-    Tests model's ability to recover masked edges and node attributes.
-
-    Args:
-        config: Experiment configuration
-        mask_ratios: List of mask ratios to test (default: [0.1, 0.2, 0.3])
-        snapshots: Optional pre-built snapshots
-        date_splits: Optional train/test split (uses holdout if provided)
-        model_path: Optional path to a pretrained GraphPFNLinkPredictor state_dict
-    """
-    log_info(f"\n{'=' * 60}")
-    log_info("Task III: Imputation Experiment")
-    log_info(f"{'=' * 60}")
-
-    if not GRAPHPFN_AVAILABLE:
-        log_info("GraphPFN not available, skipping imputation experiment...")
-        return None
-
-    if mask_ratios is None:
-        mask_ratios = [0.1, 0.2, 0.3]
-
-    set_seed(config.seed)
-    device = torch.device(config.device)
-    rng = np.random.default_rng(config.seed)
-
-    # Load data
-    if snapshots is None:
-        meta_category, category_list, category_to_idx = load_metadata(config.meta_path)
-        network_data = load_network_data(config.data_path)
-        all_dates = sorted(network_data.keys())
-        snapshots = [
-            build_snapshot(
-                date, network_data[date], meta_category, category_to_idx, category_list
-            )
-            for date in all_dates
-        ]
-        snapshots = enrich_snapshots_with_historical_features(snapshots)
-    else:
-        all_dates = [snap["date"] for snap in snapshots]
-
-    if date_splits is None:
-        date_splits = get_single_split(all_dates)
-
-    log_info(f"Loaded {len(snapshots)} snapshots")
-
-    date_to_snap = {s["date"]: s for s in snapshots}
-    train_snapshots = [
-        date_to_snap[d] for d in date_splits["train"] if d in date_to_snap
-    ]
-    test_snapshots = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
-
-    # Load and (optionally) train model
-    encoder = load_graphpfn_encoder(config.checkpoint_path, device)
-    embed_dim = encoder.tfm.embed_dim
-    model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
-
-    for p in model.encoder.parameters():
-        p.requires_grad = True
-
-    if model_path and Path(model_path).exists():
-        log_info(f"Loading imputation model from {model_path}")
-        state = torch.load(model_path, map_location=device)
-        model.load_state_dict(state.get("model", state), strict=True)
-    else:
-        if model_path:
-            log_info(f"Imputation model not found at {model_path}; training from scratch.")
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-        train_pairs = build_week_pairs(
-            train_snapshots, config.neg_ratio, config.seed, horizon=1
-        )
-
-        # AMP scaler for imputation training
-        impute_scaler = None
-        if config.use_amp and device.type == "cuda":
-            impute_scaler = torch.cuda.amp.GradScaler()
-
-        log_info(f"Training on {len(train_pairs)} pairs...")
-        prev_embeddings = None
-        for epoch in range(config.epochs):
-            epoch_start = time.perf_counter()
-            losses, prev_embeddings = train_graphpfn_epoch(
-                model,
-                train_pairs,
-                optimizer,
-                config,
-                finetune_encoder=True,
-                prev_embeddings=prev_embeddings,
-                scaler=impute_scaler,
-            )
-            loss_str = (
-                f"exist={losses['exist_loss']:.4f}, weight={losses['weight_loss']:.4f}, "
-                f"node={losses['node_loss']:.4f}"
-            )
-            aux_str = (
-                f"stats={losses['stats_loss']:.4f}, impute={losses['impute_loss']:.4f}, "
-                f"scen={losses['scen_loss']:.4f}, smooth={losses['smooth_loss']:.4f}"
-            )
-            weighted_parts = {
-                "exist": config.exist_loss_weight * losses["exist_loss"],
-                "weight": config.weight_loss_weight * losses["weight_loss"],
-                "node": config.node_loss_weight * losses["node_loss"],
-                "stats": config.stats_loss_weight * losses["stats_loss"],
-                "impute": config.impute_loss_weight * losses["impute_loss"],
-                "scen": config.scen_loss_weight * losses["scen_loss"],
-                "smooth": config.smooth_loss_weight * losses["smooth_loss"],
-            }
-            weighted_total = sum(weighted_parts.values())
-            if weighted_total > 0:
-                contrib_str = (
-                    "contrib%="
-                    f"exist={weighted_parts['exist'] / weighted_total:.2%}, "
-                    f"weight={weighted_parts['weight'] / weighted_total:.2%}, "
-                    f"node={weighted_parts['node'] / weighted_total:.2%}, "
-                    f"stats={weighted_parts['stats'] / weighted_total:.2%}, "
-                    f"impute={weighted_parts['impute'] / weighted_total:.2%}, "
-                    f"scen={weighted_parts['scen'] / weighted_total:.2%}, "
-                    f"smooth={weighted_parts['smooth'] / weighted_total:.2%}"
-                )
-            else:
-                contrib_str = "contrib%=nan"
-            epoch_sec = time.perf_counter() - epoch_start
-            log_info(
-                f"  Epoch {epoch + 1}/{config.epochs}: {loss_str}, {aux_str}, "
-                f"{contrib_str}, time={epoch_sec:.1f}s"
-            )
-
-    test_pairs = build_week_pairs(
-        test_snapshots, config.neg_ratio, config.seed, horizon=1
-    )
-    if not test_pairs:
-        log_info("No test pairs available for imputation evaluation.")
-        return None
-
-    preds = predict_graphpfn(model, test_pairs, config)
-
-    results_by_ratio = {}
-
-    for mask_ratio in mask_ratios:
-        log_info(f"\n--- Mask ratio: {mask_ratio * 100:.0f}% ---")
-
-        ratio_results = {"mask_ratio": mask_ratio}
-        ratio_results.update(
-            evaluate_imputation_pairs(test_pairs, preds, mask_ratio, rng)
-        )
-        results_by_ratio[f"ratio_{int(mask_ratio * 100)}"] = ratio_results
-
-        log_info(
-            f"  Edge exist recall: {ratio_results.get('edge_exist_recall_mean', float('nan')):.4f}"
-        )
-        log_info(
-            f"  Edge weight MAE: {ratio_results.get('edge_weight_mae_mean', float('nan')):.4f}"
-        )
-        log_info(
-            f"  Node size MAE: {ratio_results.get('node_size_mae_mean', float('nan')):.4f}"
-        )
-
-    log_info(f"\n{'=' * 80}")
-    log_info("IMPUTATION RESULTS SUMMARY")
-    log_info(f"{'=' * 80}")
-    log_info(f"{'Mask %':<12} {'Edge Recall':<15} {'Edge MAE':<15} {'Node MAE':<15}")
-    log_info("-" * 60)
-
-    for ratio_key, results in results_by_ratio.items():
-        ratio = results.get("mask_ratio", 0) * 100
-        edge_recall = results.get("edge_exist_recall_mean", float("nan"))
-        edge_mae = results.get("edge_weight_mae_mean", float("nan"))
-        node_mae = results.get("node_size_mae_mean", float("nan"))
-        log_info(
-            f"{ratio:<12.0f} {edge_recall:<15.4f} {edge_mae:<15.4f} {node_mae:<15.4f}"
-        )
-
-    return {
-        "model": "DeXposure-FM",
-        "results": results_by_ratio,
-        "mask_ratios_tested": mask_ratios,
-        "num_test_snapshots": len(test_snapshots),
-    }
 
 
 # ============== Main ==============
@@ -4367,18 +3142,14 @@ def main():
         choices=[
             "all",
             "frozen",
-            "deposure-fm",
+            "dexposure-fm",
+            "deposure-fm",  # Backward-compatible alias
             "roland",
             "persistence",
             "stats",
-            "shock",
-            "impute",
             "compare",
-            "systemic",
-            "contagion",
-            "stability",
         ],
-        help="Experiment mode: all, frozen, deposure-fm, roland, persistence (naive baseline), stats, shock, impute, compare, systemic, contagion, stability",
+        help="Experiment mode: all, frozen, dexposure-fm (alias: deposure-fm), roland, persistence (naive baseline), stats, compare",
     )
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=20)
@@ -4402,13 +3173,6 @@ def main():
         help="Evaluate on validation every N epochs (default: 1)",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--shock-model",
-        type=str,
-        default="graphpfn",
-        choices=["graphpfn", "roland"],
-        help="Model type for shock analysis",
-    )
     # Temporal split arguments (金融惯例: Expanding Window Walk-Forward)
     parser.add_argument(
         "--holdout-start",
@@ -4489,7 +3253,7 @@ def main():
     else:
         base_output_dir = Path("output") / timestamp
 
-    mode_dir_map = {"deposure-fm": "finetuned"}
+    mode_dir_map = {"dexposure-fm": "finetuned", "deposure-fm": "finetuned"}
     if args.mode == "all":
         output_dir = base_output_dir
     else:
@@ -4620,7 +3384,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
             )
 
     holdout = split_result["holdout"]
-    log_info(f"\n  Hold-out (Final Evaluation):")
+    log_info("\n  Hold-out (Final Evaluation):")
     log_info(
         f"    Train: {holdout['train'][0] if holdout['train'] else 'N/A'} ~ {holdout['train'][-1] if holdout['train'] else 'N/A'} ({len(holdout['train'])} weeks)"
     )
@@ -4630,7 +3394,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
     log_info(
         f"    Test:  {holdout['test'][0] if holdout['test'] else 'N/A'} ~ {holdout['test'][-1] if holdout['test'] else 'N/A'} ({len(holdout['test'])} weeks)"
     )
-    log_info(f"    ⚠️  Hold-out test data is NEVER seen during training!")
+    log_info("    ⚠️  Hold-out test data is NEVER seen during training!")
 
     # 使用 holdout split 作为默认 (用于快速实验)
     date_splits = holdout
@@ -4681,9 +3445,9 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
     test_snaps = [date_to_snap[d] for d in date_splits["test"] if d in date_to_snap]
 
     run_frozen = args.mode in ["all", "frozen"]
-    run_deposure_fm = args.mode in ["all", "deposure-fm"]
+    run_dexposure_fm = args.mode in ["all", "dexposure-fm", "deposure-fm"]
     run_roland = args.mode in ["all", "roland"]
-    run_models = run_frozen or run_deposure_fm or run_roland
+    run_models = run_frozen or run_dexposure_fm or run_roland
 
     rolling_results = None
     if args.rolling and run_models:
@@ -4694,7 +3458,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
                 split_result=split_result,
                 date_to_snap=date_to_snap,
                 run_frozen=run_frozen,
-                run_deposure_fm=run_deposure_fm,
+                run_dexposure_fm=run_dexposure_fm,
                 run_roland=run_roland,
                 save_predictions=args.save_predictions,
                 output_dir=output_dir,
@@ -4755,7 +3519,7 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
             log_error(traceback.format_exc())
             save_result("graphpfn_frozen_error", str(e))
 
-    if args.mode in ["all", "deposure-fm"]:
+    if args.mode in ["all", "dexposure-fm", "deposure-fm"]:
         mode_output_dir = prepare_mode_output("finetuned")
         log_info("\n" + "=" * 60)
         log_info("[Task I] DeXposure-FM - Starting...")
@@ -4840,79 +3604,6 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
             log_error(traceback.format_exc())
             save_result("network_stats_error", str(e))
 
-    if args.mode in ["all", "shock", "stability"]:
-        log_info("\n" + "=" * 60)
-        log_info("[Task II.2] Shock Event Analysis - Starting...")
-        log_info("=" * 60)
-        try:
-            result = run_shock_analysis(config, model_type=args.shock_model)
-            all_results["shock_analysis"] = result
-            save_task_result("shock_analysis", result)
-            log_info("[Task II.2] Shock Event Analysis - Completed and saved.")
-        except Exception as e:
-            log_error(f"[Task II.2] Shock Event Analysis failed: {e}")
-            log_error(traceback.format_exc())
-            save_result("shock_analysis_error", str(e))
-
-    if args.mode in ["all", "systemic", "stability"]:
-        log_info("\n" + "=" * 60)
-        log_info("[Task II.1] Systemic Risk Measurement - Starting...")
-        log_info("=" * 60)
-        try:
-            result = run_systemic_risk_analysis(config)
-            all_results["systemic_risk"] = result
-            save_task_result("systemic_risk", result)
-            log_info("[Task II.1] Systemic Risk Measurement - Completed and saved.")
-        except Exception as e:
-            log_error(f"[Task II.1] Systemic Risk Measurement failed: {e}")
-            log_error(traceback.format_exc())
-            save_result("systemic_risk_error", str(e))
-
-    if args.mode in ["all", "contagion", "stability"]:
-        log_info("\n" + "=" * 60)
-        log_info("[Task II.3] Contagion Simulation - Starting...")
-        log_info("=" * 60)
-        try:
-            result = run_contagion_simulation(config)
-            all_results["contagion_simulation"] = result
-            save_task_result("contagion_simulation", result)
-            log_info("[Task II.3] Contagion Simulation - Completed and saved.")
-        except Exception as e:
-            log_error(f"[Task II.3] Contagion Simulation failed: {e}")
-            log_error(traceback.format_exc())
-            save_result("contagion_simulation_error", str(e))
-
-    if args.mode in ["all", "impute"]:
-        log_info("\n" + "=" * 60)
-        log_info("[Task III] Imputation Experiment - Starting...")
-        log_info("=" * 60)
-        try:
-            impute_model_path = None
-            # Search for existing finetuned model in current or recent output dirs
-            search_paths = [
-                output_dir / "finetuned" / "best_model.pt",
-                Path("output/2026-01-25_115845/finetuned/best_model.pt"),  # Recent finetuned
-            ]
-            for candidate in search_paths:
-                if candidate.exists():
-                    impute_model_path = str(candidate)
-                    log_info(f"Found pretrained model: {impute_model_path}")
-                    break
-            result = run_imputation_experiment(
-                config,
-                snapshots=all_snapshots,
-                date_splits=date_splits,
-                model_path=impute_model_path,
-            )
-            if result:
-                all_results["imputation"] = result
-                save_task_result("imputation", result)
-                log_info("[Task III] Imputation Experiment - Completed and saved.")
-        except Exception as e:
-            log_error(f"[Task III] Imputation Experiment failed: {e}")
-            log_error(traceback.format_exc())
-            save_result("imputation_error", str(e))
-
     # Save all results (final consolidated version)
     with open(output_dir / "experiment_results.json", "w") as f:
         json.dump(all_results, f, indent=2, default=str)
@@ -4920,50 +3611,42 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
 
     # Print comparison table
     if args.mode in ["all", "compare"]:
-        log_info(f"\n{'=' * 80}")
+        horizons = config.forecast_horizons
+        col_width = 14
+        sep_len = 30 + len(horizons) * (col_width + 1)
+
+        log_info("\n" + "=" * sep_len)
         log_info("COMPARISON TABLE - Multi-step Forecasting Results")
-        log_info(f"{'=' * 80}")
-        log_info(f"{'Model':<30} {'h=1 AUPRC':<15} {'h=3 AUPRC':<15} {'h=7 AUPRC':<15}")
-        log_info("-" * 80)
+        log_info("=" * sep_len)
+
+        header_cols = [f"h={h} AUPRC" for h in horizons]
+        log_info(
+            f"{'Model':<30} " + " ".join([f"{col:<{col_width}}" for col in header_cols])
+        )
+        log_info("-" * sep_len)
 
         for name, result in all_results.items():
             if isinstance(result, dict) and "results" in result:
-                h1 = (
+                values = [
                     result["results"]
-                    .get("h1", {})
+                    .get(f"h{h}", {})
                     .get("exist", {})
                     .get("auprc", float("nan"))
-                )
-                h3 = (
-                    result["results"]
-                    .get("h3", {})
-                    .get("exist", {})
-                    .get("auprc", float("nan"))
-                )
-                h7 = (
-                    result["results"]
-                    .get("h7", {})
-                    .get("exist", {})
-                    .get("auprc", float("nan"))
-                )
+                    for h in horizons
+                ]
                 log_info(
-                    f"{result.get('model', name):<30} {h1:<15.4f} {h3:<15.4f} {h7:<15.4f}"
+                    f"{result.get('model', name):<30} "
+                    + " ".join([f"{v:<{col_width}.4f}" for v in values])
                 )
 
-    log_info(f"\nExperiment completed. Available modes:")
-    log_info(f"  --mode frozen      : GraphPFN-Frozen (Task I)")
-    log_info(f"  --mode deposure-fm  : DeXposure-FM (Task I)")
-    log_info(f"  --mode roland      : ROLAND baseline (Task I)")
-    log_info(f"  --mode stats       : Network statistics computation")
-    log_info(f"  --mode shock       : Shock event analysis (Task II.2)")
-    log_info(f"  --mode systemic    : Systemic risk measurement (Task II.1)")
-    log_info(f"  --mode contagion   : Contagion simulation (Task II.3)")
-    log_info(
-        f"  --mode stability   : Full financial stability analysis (Task II: shock+systemic+contagion)"
-    )
-    log_info(f"  --mode impute      : Imputation experiment (Task III)")
-    log_info(f"  --mode all         : Run all experiments")
-    log_info(f"  --mode compare     : Print comparison table")
+    log_info("\nExperiment completed. Available modes:")
+    log_info("  --mode frozen        : GraphPFN-Frozen (Task I)")
+    log_info("  --mode dexposure-fm  : DeXposure-FM (Task I) (alias: deposure-fm)")
+    log_info("  --mode roland        : ROLAND baseline (Task I)")
+    log_info("  --mode persistence   : Persistence baseline (naive)")
+    log_info("  --mode stats         : Network statistics computation")
+    log_info("  --mode compare       : Print comparison table")
+    log_info("  --mode all           : Run all experiments")
 
 
 if __name__ == "__main__":

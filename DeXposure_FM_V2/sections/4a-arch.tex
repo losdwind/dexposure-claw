@@ -56,7 +56,7 @@ The encoder can be operated in two modes:
 
 \subsubsection{Task Heads}
 \paragraph{(1) Multi-step forecasting.}
-For horizon $h\in\{1,3,7,14\}$ weeks, we predict future edge existence and weights. The link scorer uses a Hadamard-product MLP architecture:
+For horizon $h\in\{1,4,8,12\}$ weeks, we predict future edge existence and weights. The link scorer uses a Hadamard-product MLP architecture:
 \begin{align}
 \mathbf{f}_{pq} &= [\mathbf{h}_{p,\tau}; \mathbf{h}_{q,\tau}; \mathbf{h}_{p,\tau}\odot\mathbf{h}_{q,\tau}; |\mathbf{h}_{p,\tau}-\mathbf{h}_{q,\tau}|],\\
 (\widehat{y}^{\mathrm{exist}}_{pq}, \widehat{w}_{\tau+h}(e_{pq})) &= \mathrm{MLP}_{\mathrm{link}}(\mathbf{f}_{pq}),
