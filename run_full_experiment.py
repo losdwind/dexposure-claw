@@ -1385,7 +1385,19 @@ if GRAPHPFN_AVAILABLE:
 
         inv_order = torch.argsort((~train_mask).float(), stable=True)
         order = torch.argsort(inv_order, stable=True)
-        return out["encoder_embed"].squeeze(0)[order]
+
+        # Use feature embeddings if available (better for link prediction)
+        # encoder_out_full shape: [batch, seq_len, num_features+1, embed_dim]
+        # We want feature columns (not label column), then mean pool over features
+        if "encoder_out_full" in out:
+            # Extract feature embeddings (exclude last column which is label)
+            feature_embeds = out["encoder_out_full"][:, :, :-1, :]  # [1, n, f, d]
+            # Mean pooling over features to get node embeddings
+            node_embeds = feature_embeds.mean(dim=2).squeeze(0)[order]  # [n, d]
+            return node_embeds
+        else:
+            # Fallback to original label column embeddings
+            return out["encoder_embed"].squeeze(0)[order]
 
     class GraphPFNLinkPredictor(nn.Module):
         """GraphPFN-based link predictor."""

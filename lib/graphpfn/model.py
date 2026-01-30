@@ -18,6 +18,7 @@ class GraphPFNOutput(TypedDict):
     predictions: Tensor
     features_pred: Tensor
     edge_predictions: NotRequired[Tensor]
+    encoder_embed: NotRequired[Tensor]
 
 
 class GraphPFN(nn.Module):
@@ -48,14 +49,9 @@ class GraphPFN(nn.Module):
             for param in layer_params:
                 param.requires_grad = True
 
-        # >>> We also have a separate head for edge reconstruction
+        # >>> Edge head for link prediction (simple Hadamard product)
         if edge_head:
-            self.edge_head = nn.Sequential(
-                nn.Linear(self.tfm.embed_dim, self.tfm.hid_dim),
-                nn.LayerNorm(self.tfm.hid_dim),
-                nn.GELU(),
-                nn.Linear(self.tfm.hid_dim, 1),
-            )
+            self.edge_head = nn.Linear(self.tfm.embed_dim, 1)
 
     def forward(
         self,
@@ -142,12 +138,16 @@ class GraphPFN(nn.Module):
 
         # Extract encoder embeddings
         encoder_embed = out["encoder_embed"].squeeze(0)[order, ...]
-        if edges is not None:
+
+        # Edge prediction (simple Hadamard product)
+        edge_predictions = None
+
+        if edges is not None and hasattr(self, "edge_head"):
             src, dst = edges
-            edge_embeds = encoder_embed[src, :] * encoder_embed[dst, :]
+            h_src = encoder_embed[src, :]
+            h_dst = encoder_embed[dst, :]
+            edge_embeds = h_src * h_dst
             edge_predictions = self.edge_head(edge_embeds)
-        else:
-            edge_predictions = None
 
         # Check that no features were filtered
         num_used_features = out["process_config"]["num_used_features"].sum().item()
@@ -158,6 +158,7 @@ class GraphPFN(nn.Module):
             "predictions": pred,
             "features_pred": features_pred,
             "edge_predictions": edge_predictions,
+            "encoder_embed": encoder_embed,  # Export for analysis
         }
 
 

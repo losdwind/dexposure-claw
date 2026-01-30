@@ -211,6 +211,7 @@ class FeaturesTransformer(nn.Module):
             feature_pred = self.feature_decoder(encoder_out_4_feature)
             output_decoded = {
                 "encoder_embed": encoder_out[:, :, -1, :],
+                "encoder_out_full": encoder_out,  # Full encoder output for link prediction
                 "cls_output": cls_output,
                 "reg_output": reg_output,
                 "feature_pred": feature_pred,
