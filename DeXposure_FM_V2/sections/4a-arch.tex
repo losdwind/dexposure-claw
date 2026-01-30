@@ -40,11 +40,13 @@ For each protocol $p$ we form the following inputs:
 \end{itemize}
 
 \subsubsection{Graph-Tabular Encoder}
-We employ GraphPFN \cite{eremeev2025g2tfm}, a pre-trained graph-tabular foundation model based on Transformer architecture, as our core encoder. GraphPFN jointly processes graph structure and tabular node features through multi-head self-attention with graph structure injection:
+We employ GraphPFN \cite{eremeev2025g2tfm}, a pre-trained graph-tabular foundation model based on Transformer architecture, as our core encoder. GraphPFN jointly processes graph structure and tabular node features through multi-head self-attention with graph structure injection.
+
+Internally, the LiMiX transformer within GraphPFN produces per-feature embeddings for each node. For link prediction, we extract node representations by mean-pooling over the \textit{feature column embeddings} rather than using the label column embedding (which is designed for node classification):
 \begin{equation}
-\{\mathbf{h}_{p,\tau}\}_{p\in\mathcal{P}_{\tau}} = E_{\mathrm{GraphPFN}}\!\left(G_{\tau}, \{\mathbf{x}^{\mathrm{tab}}_{p}\}_{p\in\mathcal{P}_{\tau}}\right),
+\mathbf{h}_{p,\tau} = \frac{1}{F}\sum_{f=1}^{F} \mathbf{e}_{p,\tau}^{(f)},
 \end{equation}
-where $\mathbf{h}_{p,\tau}\in\mathbb{R}^d$ is the $d$-dimensional node embedding for protocol $p$ at time $\tau$.
+where $\mathbf{e}_{p,\tau}^{(f)}\in\mathbb{R}^d$ is the embedding for feature $f$ of protocol $p$, and $F$ is the number of tabular features. This aggregation captures the joint representation of all node attributes, which is more suitable for edge-level tasks than the label-specific embedding.
 
 The encoder can be operated in two modes:
 \begin{itemize}
