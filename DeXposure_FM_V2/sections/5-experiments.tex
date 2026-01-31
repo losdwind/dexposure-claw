@@ -54,7 +54,7 @@ We compare three approaches:
 \begin{enumerate}
   \item \textbf{GraphPFN:} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
   \item \textbf{DeXposure-FM:} Pre-trained GraphPFN encoder with end-to-end fine-tuning using differential learning rates.
-\item \textbf{ROLAND:} Representative temporal GNN baseline with a GCN encoder and GRU temporal updates, trained from scratch.
+\item \textbf{ROLAND:} Representative temporal GNN baseline with a 2-layer GCN encoder (hidden\_dim=64, out\_dim=32) and GRU temporal updates for recurrent state propagation, trained from scratch. Uses the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
 \end{enumerate}
 
 \subsection{Task I: Multi-step Forecasting}
@@ -90,7 +90,7 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 & 8 & \textbf{0.994} & \textbf{0.967} & \textbf{2.554} & \textbf{3.509} & \textbf{0.229} & \textbf{0.890} \\
 & 12 & \textbf{0.993} & \textbf{0.967} & \textbf{2.648} & \textbf{3.606} & \textbf{0.286} & \textbf{1.046} \\
 \hline
-\multirow{4}{*}{GraphPFN-Frozen}
+\multirow{4}{*}{GraphPFN}
 & 1 & 0.988 & 0.938 & 3.260 & 4.383 & 0.059 & 0.401 \\
 & 4 & 0.988 & 0.940 & 3.189 & 4.049 & 0.142 & 0.682 \\
 & 8 & 0.987 & 0.938 & 3.169 & 4.064 & 0.215 & 0.896 \\
@@ -117,7 +117,7 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \begin{enumerate}
   \item \textbf{Edge existence substantially exceeds persistence:} All models dramatically outperform the naive persistence baseline (AUPRC 0.58--0.64) that simply predicts ``last week's graph.'' DeXposure-FM achieves AUPRC 0.967--0.973, representing a 52--67\% relative improvement over persistence. This confirms the models learn meaningful temporal dynamics beyond network inertia.
   \item \textbf{Edge weight matches persistence:} Surprisingly, edge weight prediction shows no improvement over the persistence baseline (MAE 2.37--2.62). DeXposure-FM achieves MAE 2.465--2.648, comparable to or slightly worse than persistence at some horizons. This indicates that learned models excel at predicting \textit{which} edges exist, but predicting \textit{how much} exposure flows through them remains fundamentally challenging---the best strategy is often ``predict last week's value.''
-  \item \textbf{Model value is in link prediction:} The primary value of DeXposure-FM lies in edge existence prediction. Compared to learned baselines, it achieves 3--8\% AUPRC improvement over GraphPFN-Frozen and 10--12\% over ROLAND, while maintaining comparable weight and node predictions.
+  \item \textbf{Model value is in link prediction:} The primary value of DeXposure-FM lies in edge existence prediction. Compared to learned baselines, it achieves 3--8\% AUPRC improvement over GraphPFN and 10--12\% over ROLAND, while maintaining comparable weight and node predictions.
   \item \textbf{Node prediction degrades with horizon:} Node TVL change prediction degrades as expected: DeXposure-FM MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$), matching persistence (0.057--0.272) at all horizons.
 \end{enumerate}
 

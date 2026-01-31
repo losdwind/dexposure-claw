@@ -21,7 +21,7 @@ For edge existence prediction, we sample negative edges uniformly from the compl
 
 \subsubsection{Training Modes}
 
-We support two training modes for the GraphPFN encoder (the ROLAND baseline is trained from scratch as described in Section~\ref{sec:evaluation}):
+We support two training modes for the GraphPFN encoder:
 
 \paragraph{Frozen probing.}
 We freeze the pre-trained GraphPFN encoder and train only the task-specific heads (link scorer and node predictor). This setting measures the transferability of pre-trained representations to the DeFi exposure domain without modifying the backbone.

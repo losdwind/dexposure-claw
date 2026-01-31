@@ -12,7 +12,7 @@
 \subsection{DeXposure-FM Architecture}
 \label{sec:dexposure-fm-architecture}
 
-DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, which internally fuses graph structure and tabular node features. The model is designed to support three downstream objectives: (1) multi-step forecasting of edge weights and network statistics; (2) policy-relevant shock analysis on historical stress events; and (3) imputation of missing edges.
+DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, which internally fuses graph structure and tabular node features. The model is designed to support two downstream objectives: (1) multi-step forecasting of edge weights and network statistics; and (2) policy-relevant shock analysis on historical stress events. Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
 
 \subsubsection{Inputs and notation (aligned with the DeXposure construction)}
 Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
@@ -79,8 +79,6 @@ We evaluate model performance during extreme market events---specifically the Te
   \item Early warning signal detection capability
 \end{itemize}
 
-\paragraph{(3) Imputation.}
-We evaluate the model's ability to reconstruct missing edges under random masking. Edges are masked at rates $\{10\%, 20\%, 30\%\}$ following a Missing Completely at Random (MCAR) mechanism, and we report reconstruction quality via AUPRC and weight MAE.
 
 \begin{comment}
     
@@ -107,8 +105,6 @@ We evaluate the model's ability to reconstruct missing edges under random maskin
   % Heads
   \node[sbox, right=1.2cm of embed] (forecast) {Forecasting head\\ $\widehat{w}_{\tau+h}(e_{pq}),\,\widehat{\Delta}_{p,\tau+h}$};
   \node[sbox, above=0.55cm of forecast] (shock) {Shock analysis\\ Terra/FTX events};
-  \node[sbox, below=0.55cm of forecast] (impute) {Imputation\\ MCAR masking};
-
   % Arrows
   \draw[arrow] (tabin.east) -- ++(0.55,0) |- (egraph.west);
   \draw[arrow] (graphin) -- (egraph);
@@ -117,12 +113,11 @@ We evaluate the model's ability to reconstruct missing edges under random maskin
   \draw[arrow] (embed) -- (forecast);
 
   \draw[arrow] (embed.east) -- ++(0.3,0) |- (shock.west);
-  \draw[arrow] (embed.east) -- ++(0.3,0) |- (impute.west);
 
   % Grouping boxes
   \node[draw, dashed, rounded corners, fit=(tabin)(graphin), inner sep=6pt, label={[align=center]above:Inputs}] {};
 \end{tikzpicture}
-\caption{DeXposure-FM architecture aligned with the DeXposure exposure-graph construction. The model uses a pre-trained GraphPFN encoder to jointly process graph structure and tabular node features, producing node embeddings $\mathbf{h}_{p,\tau}$ that support multi-step forecasting, shock analysis, and imputation tasks.}
+\caption{DeXposure-FM architecture aligned with the DeXposure exposure-graph construction. The model uses a pre-trained GraphPFN encoder to jointly process graph structure and tabular node features, producing node embeddings $\mathbf{h}_{p,\tau}$ that support multi-step forecasting and shock analysis tasks.}
 \label{fig:dexposure-fm-architecture}
 \end{figure}
 
