@@ -30,10 +30,19 @@ Usage:
     ssh gpu-server
     cd /path/to/graph-dexposure
     python run_task2_model_based.py --experiment all
+    python run_task2_model_based.py --experiment all --no-plot          # save JSON only
     python run_task2_model_based.py --experiment forward_risk
     python run_task2_model_based.py --experiment predictive_contagion
     python run_task2_model_based.py --experiment early_warning
+
+    # Regenerate figures quickly from saved JSON (no model/data needed)
+    python run_task2_model_based.py --plot-only --output-dir output/task2_model_based
+
+    # Minimal robustness check (no model training/inference)
+    python run_task2_model_based.py --experiment sis_sensitivity --output-dir output/task2_model_based
 """
+
+from __future__ import annotations
 
 import argparse
 import copy
@@ -44,30 +53,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import matplotlib
-matplotlib.use("Agg")  # Non-interactive backend for server
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.patches import Patch
-import networkx as nx
 import numpy as np
-import torch
 
-# Figure configuration for publication quality
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 10,
-    "axes.labelsize": 11,
-    "axes.titlesize": 12,
-    "legend.fontsize": 9,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "figure.dpi": 150,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-})
+torch = None  # Lazy import for plot-only workflows
 
 # Setup logging
 logging.basicConfig(
@@ -82,22 +70,114 @@ GRAPHPFN_ROOT = Path(__file__).parent
 sys.path.insert(0, str(GRAPHPFN_ROOT))
 sys.path.insert(0, str(GRAPHPFN_ROOT / "src"))
 
-# Import from main experiment script
-from run_full_experiment import (
-    GRAPHPFN_AVAILABLE,
-    ExperimentConfig,
-    GraphPFNLinkPredictor,
-    WeekPair,
-    build_snapshot,
-    build_week_pairs,
-    get_single_split,
-    load_graphpfn_encoder,
-    load_metadata,
-    load_network_data,
-    predict_graphpfn,
-    set_seed,
-    train_graphpfn_epoch,
-)
+GRAPHPFN_AVAILABLE = None
+ExperimentConfig = None
+GraphPFNLinkPredictor = None
+WeekPair = None
+build_snapshot = None
+build_week_pairs = None
+get_single_split = None
+load_graphpfn_encoder = None
+load_metadata = None
+load_network_data = None
+predict_graphpfn = None
+set_seed = None
+train_graphpfn_epoch = None
+
+
+def _import_graphpfn_deps() -> None:
+    """Lazy import heavy deps so --plot-only can run on a lightweight environment."""
+    global GRAPHPFN_AVAILABLE
+    global ExperimentConfig
+    global GraphPFNLinkPredictor
+    global WeekPair
+    global build_snapshot
+    global build_week_pairs
+    global get_single_split
+    global load_graphpfn_encoder
+    global load_metadata
+    global load_network_data
+    global predict_graphpfn
+    global set_seed
+    global train_graphpfn_epoch
+    global torch
+    if GRAPHPFN_AVAILABLE is not None:
+        return
+
+    import torch as _torch
+    torch = _torch
+
+    from run_full_experiment import (
+        GRAPHPFN_AVAILABLE as _GRAPHPFN_AVAILABLE,
+        ExperimentConfig as _ExperimentConfig,
+        GraphPFNLinkPredictor as _GraphPFNLinkPredictor,
+        WeekPair as _WeekPair,
+        build_snapshot as _build_snapshot,
+        build_week_pairs as _build_week_pairs,
+        get_single_split as _get_single_split,
+        load_graphpfn_encoder as _load_graphpfn_encoder,
+        load_metadata as _load_metadata,
+        load_network_data as _load_network_data,
+        predict_graphpfn as _predict_graphpfn,
+        set_seed as _set_seed,
+        train_graphpfn_epoch as _train_graphpfn_epoch,
+    )
+
+    GRAPHPFN_AVAILABLE = _GRAPHPFN_AVAILABLE
+    ExperimentConfig = _ExperimentConfig
+    GraphPFNLinkPredictor = _GraphPFNLinkPredictor
+    WeekPair = _WeekPair
+    build_snapshot = _build_snapshot
+    build_week_pairs = _build_week_pairs
+    get_single_split = _get_single_split
+    load_graphpfn_encoder = _load_graphpfn_encoder
+    load_metadata = _load_metadata
+    load_network_data = _load_network_data
+    predict_graphpfn = _predict_graphpfn
+    set_seed = _set_seed
+    train_graphpfn_epoch = _train_graphpfn_epoch
+
+
+_PLOTTING_CONFIGURED = False
+
+
+def _import_matplotlib() -> Any:
+    """Lazy import matplotlib so compute-only runs don't require it."""
+    global _PLOTTING_CONFIGURED
+    try:
+        import matplotlib
+
+        if "matplotlib.pyplot" not in sys.modules:
+            matplotlib.use("Agg")  # Non-interactive backend for servers
+
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError as e:
+        raise RuntimeError(
+            "Plotting requires matplotlib. Install it (e.g. `pip install matplotlib`) "
+            "or run this script with `--no-plot` and later regenerate figures with "
+            "`--plot-only` on a machine that has matplotlib."
+        ) from e
+
+    if not _PLOTTING_CONFIGURED:
+        plt.rcParams.update(
+            {
+                "font.family": "serif",
+                "font.size": 10,
+                "axes.labelsize": 11,
+                "axes.titlesize": 12,
+                "legend.fontsize": 9,
+                "xtick.labelsize": 9,
+                "ytick.labelsize": 9,
+                "figure.dpi": 150,
+                "savefig.dpi": 300,
+                "savefig.bbox": "tight",
+                "axes.grid": True,
+                "grid.alpha": 0.3,
+            }
+        )
+        _PLOTTING_CONFIGURED = True
+
+    return plt
 
 
 # ============== Snapshot Format Adapter ==============
@@ -175,104 +255,23 @@ def gini_coefficient(values: List[float]) -> float:
     return float((2 * np.sum(index * values) - (n + 1) * np.sum(values)) / (n * np.sum(values)))
 
 
-def compute_risk_metrics_from_arrays(
-    node_ids: List[str],
-    edge_src: np.ndarray,
-    edge_dst: np.ndarray,
-    edge_weights: np.ndarray,
-    node_tvls: np.ndarray,
-) -> Dict[str, float]:
-    """
-    Compute comprehensive systemic risk metrics from array inputs using NetworkX.
-
-    This function is designed for analyzing predicted networks where you have
-    raw arrays of edges and node properties.
-
-    Returns:
-        Dictionary with risk metrics: PageRank, density, degree distribution, HHI, etc.
-    """
-    n_nodes = len(node_ids)
-    if n_nodes == 0 or len(edge_src) == 0:
-        return {"error": "Empty network"}
-
-    # Build NetworkX graph
-    G = nx.DiGraph()
-    for i, node_id in enumerate(node_ids):
-        G.add_node(i, tvl=float(node_tvls[i]) if i < len(node_tvls) else 0)
-
-    for src, dst, w in zip(edge_src, edge_dst, edge_weights):
-        if src < n_nodes and dst < n_nodes:
-            # Convert from log1p-scale
-            G.add_edge(int(src), int(dst), weight=float(np.expm1(w)))
-
-    metrics = {}
-
-    # 1. PageRank (weighted by edge weight)
-    try:
-        pagerank = nx.pagerank(G, weight="weight", max_iter=100)
-        metrics["pagerank_mean"] = float(np.mean(list(pagerank.values())))
-        metrics["pagerank_max"] = float(np.max(list(pagerank.values())))
-        metrics["pagerank_gini"] = gini_coefficient(list(pagerank.values()))
-    except Exception:
-        metrics["pagerank_mean"] = 0.0
-        metrics["pagerank_max"] = 0.0
-        metrics["pagerank_gini"] = 0.0
-
-    # 2. Network density
-    metrics["density"] = nx.density(G) if G.number_of_nodes() > 1 else 0.0
-    metrics["num_nodes"] = G.number_of_nodes()
-    metrics["num_edges"] = G.number_of_edges()
-
-    # 3. Degree distribution
-    in_degrees = [d for n, d in G.in_degree()]
-    out_degrees = [d for n, d in G.out_degree()]
-    if in_degrees:
-        metrics["in_degree_mean"] = float(np.mean(in_degrees))
-        metrics["in_degree_max"] = float(np.max(in_degrees))
-        metrics["in_degree_gini"] = gini_coefficient(in_degrees)
-    if out_degrees:
-        metrics["out_degree_mean"] = float(np.mean(out_degrees))
-        metrics["out_degree_max"] = float(np.max(out_degrees))
-
-    # 4. Edge weight concentration (HHI)
-    if len(edge_weights) > 0:
-        weights_linear = np.expm1(edge_weights)
-        weights_linear = np.maximum(weights_linear, 0)
-        total_weight = np.sum(weights_linear)
-        if total_weight > 0:
-            shares = weights_linear / total_weight
-            metrics["edge_weight_hhi"] = float(np.sum(shares**2))
-            # Top-5 concentration
-            sorted_shares = np.sort(shares)[::-1]
-            metrics["top5_edge_concentration"] = float(np.sum(sorted_shares[:5]))
-        else:
-            metrics["edge_weight_hhi"] = 0.0
-            metrics["top5_edge_concentration"] = 0.0
-
-    # 5. TVL concentration
-    if len(node_tvls) > 0:
-        total_tvl = np.sum(node_tvls)
-        if total_tvl > 0:
-            tvl_shares = node_tvls / total_tvl
-            metrics["tvl_hhi"] = float(np.sum(tvl_shares**2))
-            sorted_tvl = np.sort(tvl_shares)[::-1]
-            metrics["top10_tvl_concentration"] = float(np.sum(sorted_tvl[:10]))
-        metrics["total_tvl"] = float(total_tvl)
-        metrics["tvl_gini"] = gini_coefficient(node_tvls.tolist())
-
-    return metrics
-
-
 def compute_systemic_importance_score(
     snap: Dict,
-    alpha: float = 0.4,
-    beta: float = 0.3,
-    gamma: float = 0.3,
+    alpha: float = 1 / 3,
+    beta: float = 1 / 3,
+    gamma: float = 1 / 3,
+    tail_k: int = 5,
+    pagerank_max_iter: int = 100,
 ) -> Dict[str, float]:
     """
-    Compute systemic importance score for each node.
+    Compute systemic importance score (SIS) for each node.
 
-    Score = alpha * (TVL share) + beta * (in-degree centrality) + gamma * (out-degree centrality)
+    SIS_p = alpha * PageRank_p + beta * TailExposure_p + gamma * log(1 + TVL_p)
+
+    - PageRank captures network interconnectedness (weighted by exposures).
+    - TailExposure measures concentration of the node's largest outgoing exposures:
+      sum(top-k outgoing exposure weights) / sum(all outgoing exposure weights).
+    - log(1+TVL) captures protocol scale.
     """
     nodes = snap.get("nodes", {})
     edges = snap.get("edges", [])
@@ -280,35 +279,93 @@ def compute_systemic_importance_score(
     if not nodes:
         return {}
 
-    # TVL share
-    tvl_values = {n: data.get("tvlUsd", 0) for n, data in nodes.items()}
-    total_tvl = sum(tvl_values.values())
-    tvl_share = {n: v / total_tvl if total_tvl > 0 else 0 for n, v in tvl_values.items()}
+    components = compute_sis_components(snap, tail_k=tail_k, pagerank_max_iter=pagerank_max_iter)
+    pagerank_norm = components["pagerank"]
+    tail_exposure = components["tail_exposure"]
+    log_tvl_norm = components["log_tvl_norm"]
 
-    # Degree centrality
-    in_degree = {n: 0 for n in nodes}
-    out_degree = {n: 0 for n in nodes}
-    for edge in edges:
-        src, dst = edge.get("source"), edge.get("target")
-        if src in out_degree:
-            out_degree[src] += 1
-        if dst in in_degree:
-            in_degree[dst] += 1
-
-    max_degree = len(nodes) - 1 if len(nodes) > 1 else 1
-    in_centrality = {n: d / max_degree for n, d in in_degree.items()}
-    out_centrality = {n: d / max_degree for n, d in out_degree.items()}
-
-    # Combined score
-    scores = {}
+    # PageRank, TailExposure, and log(1+TVL) are normalized to comparable scales.
+    scores: Dict[str, float] = {}
     for n in nodes:
         scores[n] = (
-            alpha * tvl_share.get(n, 0) +
-            beta * in_centrality.get(n, 0) +
-            gamma * out_centrality.get(n, 0)
+            alpha * float(pagerank_norm.get(n, 0.0))
+            + beta * float(tail_exposure.get(n, 0.0))
+            + gamma * float(log_tvl_norm.get(n, 0.0))
         )
 
     return scores
+
+
+def compute_sis_components(
+    snap: Dict[str, Any],
+    tail_k: int = 5,
+    pagerank_max_iter: int = 100,
+) -> Dict[str, Dict[str, float]]:
+    """
+    Compute normalized SIS components for a snapshot:
+    - pagerank: weighted PageRank, normalized to [0,1] by dividing max value
+    - tail_exposure: top-k outgoing exposure share in [0,1]
+    - log_tvl_norm: log(1+TVL) normalized to [0,1] by dividing max value
+    """
+    nodes = snap.get("nodes", {})
+    edges = snap.get("edges", [])
+    if not nodes:
+        return {"pagerank": {}, "tail_exposure": {}, "log_tvl_norm": {}}
+
+    import networkx as nx
+
+    # 1) Weighted PageRank on exposure graph
+    G = nx.DiGraph()
+    for node_id, data in nodes.items():
+        G.add_node(node_id, tvl=float(data.get("tvlUsd", 0.0)))
+
+    for edge in edges:
+        src, dst = edge.get("source"), edge.get("target")
+        w = float(edge.get("weight", 0.0))
+        if src in nodes and dst in nodes and w > 0:
+            G.add_edge(src, dst, weight=w)
+
+    try:
+        pagerank_raw = nx.pagerank(G, weight="weight", max_iter=pagerank_max_iter)
+    except Exception:
+        pagerank_raw = {n: 0.0 for n in nodes}
+
+    pr_max = max(pagerank_raw.values()) if pagerank_raw else 0.0
+    if pr_max > 0:
+        pagerank = {n: float(pagerank_raw.get(n, 0.0)) / pr_max for n in nodes}
+    else:
+        pagerank = {n: 0.0 for n in nodes}
+
+    # 2) TailExposure: concentration of outgoing exposures
+    outgoing_weights: Dict[str, List[float]] = {n: [] for n in nodes}
+    for edge in edges:
+        src = edge.get("source")
+        w = float(edge.get("weight", 0.0))
+        if src in outgoing_weights and w > 0:
+            outgoing_weights[src].append(w)
+
+    tail_exposure: Dict[str, float] = {}
+    for n, ws in outgoing_weights.items():
+        if not ws:
+            tail_exposure[n] = 0.0
+            continue
+        total = float(np.sum(ws))
+        if total <= 0:
+            tail_exposure[n] = 0.0
+            continue
+        top_k_sum = float(np.sum(sorted(ws, reverse=True)[:tail_k]))
+        tail_exposure[n] = top_k_sum / total
+
+    # 3) log(1+TVL) term (normalized to [0,1])
+    tvl_values = {n: float(data.get("tvlUsd", 0.0)) for n, data in nodes.items()}
+    log_tvl = {n: float(np.log1p(max(v, 0.0))) for n, v in tvl_values.items()}
+    log_tvl_max = max(log_tvl.values()) if log_tvl else 0.0
+    if log_tvl_max > 0:
+        log_tvl_norm = {n: v / log_tvl_max for n, v in log_tvl.items()}
+    else:
+        log_tvl_norm = {n: 0.0 for n in nodes}
+
+    return {"pagerank": pagerank, "tail_exposure": tail_exposure, "log_tvl_norm": log_tvl_norm}
 
 
 def compute_sector_spillover_index(
@@ -476,10 +533,11 @@ def plot_early_warning_timeseries(
     Plot Early Warning time series for Terra/Luna and FTX events.
 
     Creates a 2-row figure showing:
-    - Risk metrics (HHI, Density) over time
-    - Predicted vs Actual comparison
-    - Event date markers
+    - Risk concentration (HHI): Predicted vs Actual
+    - Forward-looking stress loss: Predicted vs Actual
     """
+    plt = _import_matplotlib()
+
     events_data = results.get("events", {})
     if not events_data:
         logger.warning("No early warning data to plot")
@@ -488,9 +546,14 @@ def plot_early_warning_timeseries(
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     fig.suptitle("Early Warning Analysis: Model Predictions Before Major Events", fontsize=14, fontweight="bold")
 
-    for row_idx, (event_id, event_data) in enumerate(events_data.items()):
+    preferred_order = [k for k in ["terra_luna", "ftx"] if k in events_data]
+    remaining = [k for k in events_data.keys() if k not in preferred_order]
+    event_ids = preferred_order + remaining
+
+    for row_idx, event_id in enumerate(event_ids):
         if row_idx >= 2:
             break
+        event_data = events_data[event_id]
 
         event_info = event_data.get("event_info", {})
         predictions = event_data.get("predictions", [])
@@ -524,7 +587,8 @@ def plot_early_warning_timeseries(
 
         ax1.set_xlabel("Weeks into event period")
         ax1.set_ylabel("TVL HHI (Concentration)")
-        ax1.set_title(f"{event_name}: Risk Concentration")
+        title_suffix = f" (event {event_date})" if event_date else ""
+        ax1.set_title(f"{event_name}{title_suffix}: Risk Concentration")
         ax1.set_xticks(x_pos)
         ax1.set_xticklabels([f"W{i+1}" for i in range(len(dates))], rotation=45)
         ax1.legend(loc="best", framealpha=0.9)
@@ -533,12 +597,15 @@ def plot_early_warning_timeseries(
         # Plot Contagion Loss (right column)
         ax2 = axes[row_idx, 1]
 
-        valid_pred = [v if not np.isnan(v) else 0 for v in pred_contagion]
-        valid_actual = [v if not np.isnan(v) else 0 for v in actual_contagion]
+        pred_arr = np.array(pred_contagion, dtype=float)
+        actual_arr = np.array(actual_contagion, dtype=float)
+
+        bar_pred = np.nan_to_num(pred_arr, nan=0.0)
+        bar_actual = np.nan_to_num(actual_arr, nan=0.0)
 
         width = 0.35
-        ax2.bar(x_pos - width/2, valid_pred, width, color=COLORS["predicted"], label="Predicted", alpha=0.8)
-        ax2.bar(x_pos + width/2, valid_actual, width, color=COLORS["actual"], label="Actual", alpha=0.8)
+        ax2.bar(x_pos - width/2, bar_pred, width, color=COLORS["predicted"], label="Predicted", alpha=0.8)
+        ax2.bar(x_pos + width/2, bar_actual, width, color=COLORS["actual"], label="Actual", alpha=0.8)
 
         ax2.set_xlabel("Weeks into event period")
         ax2.set_ylabel("Contagion Loss (%)")
@@ -549,11 +616,19 @@ def plot_early_warning_timeseries(
         ax2.set_ylim(bottom=0)
 
         # Add annotation for prediction accuracy
-        if valid_pred and valid_actual:
-            mae = np.mean(np.abs(np.array(valid_pred) - np.array(valid_actual)))
-            ax2.text(0.95, 0.95, f"MAE: {mae:.2f}%", transform=ax2.transAxes,
-                    ha="right", va="top", fontsize=9,
-                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+        valid_mask = ~np.isnan(pred_arr) & ~np.isnan(actual_arr)
+        if np.any(valid_mask):
+            mae = float(np.mean(np.abs(pred_arr[valid_mask] - actual_arr[valid_mask])))
+            ax2.text(
+                0.95,
+                0.95,
+                f"MAE: {mae:.2f}%",
+                transform=ax2.transAxes,
+                ha="right",
+                va="top",
+                fontsize=9,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+            )
 
     plt.tight_layout()
 
@@ -580,16 +655,28 @@ def plot_contagion_comparison(
         logger.warning("No contagion data to plot")
         return
 
-    # Collect data across horizons
-    scenarios = ["Top Protocol Shock", "Top 5 Protocols Shock", "Bridge Sector Shock"]
+    plt = _import_matplotlib()
 
-    fig, axes = plt.subplots(1, len(horizons_data), figsize=(4 * len(horizons_data), 5), sharey=True)
-    if len(horizons_data) == 1:
+    scenarios = [s.get("name") for s in results.get("scenarios", []) if isinstance(s, dict) and s.get("name")]
+    if not scenarios:
+        scenarios = ["Top Protocol Shock", "Top 5 Protocols Shock", "Bridge Sector Shock"]
+
+    def _parse_horizon_key(key: str) -> int:
+        # Expecting "h=1", "h=4", ...
+        try:
+            return int(key.split("=")[1])
+        except Exception:
+            return 10**9
+
+    horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
+
+    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4 * len(horizon_items), 5), sharey=True)
+    if len(horizon_items) == 1:
         axes = [axes]
 
     fig.suptitle("Predictive Contagion: Forward-looking Stress Testing", fontsize=14, fontweight="bold")
 
-    for ax_idx, (horizon_key, horizon_data) in enumerate(horizons_data.items()):
+    for ax_idx, (horizon_key, horizon_data) in enumerate(horizon_items):
         ax = axes[ax_idx]
         samples = horizon_data.get("samples", [])
 
@@ -672,17 +759,27 @@ def plot_forward_risk_scatter(
         logger.warning("No forward risk data to plot")
         return
 
+    plt = _import_matplotlib()
+
+    def _parse_horizon_key(key: str) -> int:
+        try:
+            return int(key.split("=")[1])
+        except Exception:
+            return 10**9
+
+    horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
+
     metrics_to_plot = [
         ("tvl_hhi", "TVL Concentration (HHI)"),
         ("density", "Network Density"),
-        ("mean_sis", "Mean Systemic Importance"),
-        ("degree_gini", "Degree Inequality (Gini)"),
+        ("mean_sis", "Mean Systemic Importance (SIS)"),
+        ("spillover_index", "Cross-sector Spillover Concentration (HHI)"),
     ]
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 10))
     fig.suptitle("Forward-looking Risk Metric Prediction Accuracy", fontsize=14, fontweight="bold")
 
-    horizon_colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(horizons_data)))
+    horizon_colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(horizon_items)))
 
     for ax_idx, (metric_key, metric_label) in enumerate(metrics_to_plot):
         ax = axes[ax_idx // 2, ax_idx % 2]
@@ -690,7 +787,7 @@ def plot_forward_risk_scatter(
         all_pred = []
         all_actual = []
 
-        for h_idx, (horizon_key, horizon_data) in enumerate(horizons_data.items()):
+        for h_idx, (horizon_key, horizon_data) in enumerate(horizon_items):
             pred_metrics = horizon_data.get("predicted_metrics", [])
             actual_metrics = horizon_data.get("actual_metrics", [])
 
@@ -698,15 +795,17 @@ def plot_forward_risk_scatter(
             actual_vals = [m.get(metric_key, np.nan) for m in actual_metrics]
 
             # Filter valid pairs
-            valid_mask = ~(np.isnan(pred_vals) | np.isnan(actual_vals))
-            pred_vals = np.array(pred_vals)[valid_mask]
-            actual_vals = np.array(actual_vals)[valid_mask]
+            pred_arr = np.array(pred_vals, dtype=float)
+            actual_arr = np.array(actual_vals, dtype=float)
+            valid_mask = ~np.isnan(pred_arr) & ~np.isnan(actual_arr)
+            pred_arr = pred_arr[valid_mask]
+            actual_arr = actual_arr[valid_mask]
 
-            if len(pred_vals) > 0:
-                ax.scatter(actual_vals, pred_vals, c=[horizon_colors[h_idx]],
+            if len(pred_arr) > 0:
+                ax.scatter(actual_arr, pred_arr, c=[horizon_colors[h_idx]],
                           label=horizon_key, alpha=0.6, s=30, edgecolors="white", linewidth=0.5)
-                all_pred.extend(pred_vals)
-                all_actual.extend(actual_vals)
+                all_pred.extend(pred_arr.tolist())
+                all_actual.extend(actual_arr.tolist())
 
         if all_pred and all_actual:
             # Add 45-degree reference line
@@ -764,16 +863,82 @@ def plot_all_figures(
     logger.info(f"All figures saved to {output_dir / 'figures'}")
 
 
+# ============== Results I/O ==============
+
+
+def _load_json(path: Path) -> Dict[str, Any]:
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def load_saved_task2_results(output_dir: Path) -> Dict[str, Any]:
+    """
+    Load previously saved results from `output_dir`.
+
+    Prefers the consolidated `all_results.json`; falls back to per-experiment json files.
+    Returns a dict with optional keys: forward_risk, predictive_contagion, early_warning.
+    """
+    all_path = output_dir / "all_results.json"
+    if all_path.exists():
+        data = _load_json(all_path)
+        if isinstance(data, dict):
+            return data
+        return {}
+
+    results: Dict[str, Any] = {}
+    paths = {
+        "forward_risk": output_dir / "exp1_forward_risk.json",
+        "predictive_contagion": output_dir / "exp2_predictive_contagion.json",
+        "early_warning": output_dir / "exp3_early_warning.json",
+    }
+    for key, path in paths.items():
+        if path.exists():
+            results[key] = _load_json(path)
+    return results
+
+
+def parse_int_list(spec: str) -> List[int]:
+    """
+    Parse a comma-separated integer list like "1,4,8,12".
+
+    Returns [] if spec is empty.
+    """
+    spec = (spec or "").strip()
+    if not spec:
+        return []
+    parts = [p.strip() for p in spec.split(",") if p.strip()]
+    values: List[int] = []
+    for p in parts:
+        try:
+            values.append(int(p))
+        except ValueError as e:
+            raise ValueError(f"Invalid integer in list: {p!r} (spec={spec!r})") from e
+    return values
+
+
 # ============== Model Loading ==============
 
 def load_or_train_model(
     config: ExperimentConfig,
     train_pairs: List[WeekPair],
     force_retrain: bool = False,
+    frozen: bool = False,
 ) -> GraphPFNLinkPredictor:
-    """Load cached DeXposure-FM model or train if not exists."""
+    """
+    Load cached model or train if not exists.
+
+    Args:
+        config: Experiment configuration
+        train_pairs: Training data pairs
+        force_retrain: Force retraining even if cache exists
+        frozen: If True, use frozen encoder (faster); if False, fine-tune (better)
+    """
+    _import_graphpfn_deps()
     MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path = MODEL_CACHE_DIR / "dexposure_fm.pt"
+
+    # Different cache paths for frozen vs finetuned
+    model_name = "graphpfn_frozen" if frozen else "dexposure_fm"
+    cache_path = MODEL_CACHE_DIR / f"{model_name}.pt"
     device = torch.device(config.device)
 
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
@@ -786,18 +951,28 @@ def load_or_train_model(
         model.load_state_dict(state["model"], strict=True)
         return model
 
-    logger.info("Training DeXposure-FM (fine-tuned)...")
+    # Set encoder trainability
+    finetune_encoder = not frozen
     for p in model.encoder.parameters():
-        p.requires_grad = True
+        p.requires_grad = finetune_encoder
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    mode_name = "GraphPFN-Frozen" if frozen else "DeXposure-FM (fine-tuned)"
+    logger.info(f"Training {mode_name}...")
+
+    # Only train head parameters if frozen
+    if frozen:
+        trainable_params = [p for p in model.parameters() if p.requires_grad]
+        optimizer = torch.optim.Adam(trainable_params, lr=config.lr)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
     best_state = None
     best_loss = float("inf")
 
     for epoch in range(config.epochs):
         losses, _ = train_graphpfn_epoch(
             model, train_pairs, optimizer, config,
-            finetune_encoder=True, prev_embeddings=None
+            finetune_encoder=finetune_encoder, prev_embeddings=None
         )
         total_loss = losses["exist_loss"] + losses["weight_loss"]
 
@@ -987,18 +1162,193 @@ def compute_network_risk_metrics(
 
     # 6. Sector spillover (if meta_category available)
     # Note: compute_sector_spillover_index returns a dict of sector->sector->weight
-    # We compute a scalar spillover index as the total cross-sector exposure
+    # We compute:
+    # - spillover_total: total cross-sector exposure (scale-dependent)
+    # - spillover_index: HHI concentration of off-diagonal sector exposures (scale-invariant)
     try:
         dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=edge_weight_is_log)
         sector_exposure = compute_sector_spillover_index(dict_snap, meta_category)
-        total_spillover = sum(
-            sum(targets.values()) for targets in sector_exposure.values()
-        )
-        metrics["spillover_index"] = float(total_spillover)
+        off_diag_weights = [
+            float(w)
+            for targets in sector_exposure.values()
+            for w in targets.values()
+            if float(w) > 0
+        ]
+        total_spillover = float(np.sum(off_diag_weights)) if off_diag_weights else 0.0
+        metrics["spillover_total"] = total_spillover
+
+        if total_spillover > 0:
+            shares = np.array(off_diag_weights, dtype=float) / total_spillover
+            metrics["spillover_index"] = float(np.sum(shares**2))
+        else:
+            metrics["spillover_index"] = 0.0
     except Exception as e:
         logger.warning(f"Could not compute spillover: {e}")
 
     return metrics
+
+
+# ============== Robustness: SIS Weight Sensitivity ==============
+
+
+def _rank_desc(values: np.ndarray) -> np.ndarray:
+    """Rank values in descending order (0 = highest rank)."""
+    order = np.argsort(-values, kind="mergesort")
+    ranks = np.empty_like(order, dtype=np.int64)
+    ranks[order] = np.arange(len(values))
+    return ranks.astype(np.float64)
+
+
+def _spearman_rho_from_scores(a: Dict[str, float], b: Dict[str, float]) -> float:
+    keys = sorted(set(a.keys()) & set(b.keys()))
+    if len(keys) < 2:
+        return float("nan")
+    a_vals = np.array([a[k] for k in keys], dtype=np.float64)
+    b_vals = np.array([b[k] for k in keys], dtype=np.float64)
+    ra = _rank_desc(a_vals)
+    rb = _rank_desc(b_vals)
+    if len(keys) < 2:
+        return float("nan")
+    return float(np.corrcoef(ra, rb)[0, 1])
+
+
+def _topk_overlap_from_scores(a: Dict[str, float], b: Dict[str, float], k: int = 20) -> float:
+    keys = list(set(a.keys()) & set(b.keys()))
+    if not keys:
+        return 0.0
+    k_eff = min(k, len(keys))
+    a_top = sorted(keys, key=lambda x: a.get(x, float("-inf")), reverse=True)[:k_eff]
+    b_top = sorted(keys, key=lambda x: b.get(x, float("-inf")), reverse=True)[:k_eff]
+    return float(len(set(a_top) & set(b_top)) / k_eff) if k_eff > 0 else 0.0
+
+
+def run_sis_weight_sensitivity(
+    observed_snapshots: List[Dict[str, Any]],
+    output_dir: Path,
+    sample_weeks: int = 10,
+    top_k: int = 20,
+) -> Dict[str, Any]:
+    """
+    Minimal robustness check for SIS: show rankings are stable under alternative weights.
+
+    This is a post-processing analysis on observed networks only (no model training/inference).
+    """
+    rng = np.random.default_rng(42)
+    if not observed_snapshots:
+        return {"error": "no_snapshots"}
+
+    if sample_weeks <= 0:
+        sampled = observed_snapshots
+    else:
+        n = min(sample_weeks, len(observed_snapshots))
+        idx = rng.choice(len(observed_snapshots), size=n, replace=False)
+        sampled = [observed_snapshots[i] for i in sorted(idx.tolist())]
+
+    weight_sets = [
+        {"name": "equal", "alpha": 1 / 3, "beta": 1 / 3, "gamma": 1 / 3},
+        {"name": "pagerank-heavy", "alpha": 0.50, "beta": 0.25, "gamma": 0.25},
+        {"name": "tail-heavy", "alpha": 0.25, "beta": 0.50, "gamma": 0.25},
+        {"name": "tvl-heavy", "alpha": 0.25, "beta": 0.25, "gamma": 0.50},
+    ]
+
+    def _combine(components: Dict[str, Dict[str, float]], w: Dict[str, float]) -> Dict[str, float]:
+        pr = components["pagerank"]
+        tail = components["tail_exposure"]
+        log_tvl = components["log_tvl_norm"]
+        nodes = pr.keys()
+        return {
+            n: w["alpha"] * pr.get(n, 0.0) + w["beta"] * tail.get(n, 0.0) + w["gamma"] * log_tvl.get(n, 0.0)
+            for n in nodes
+        }
+
+    baseline_w = weight_sets[0]
+    alt_ws = weight_sets[1:]
+
+    per_week = []
+    by_alt = {w["name"]: {"spearman_rho": [], "topk_overlap": []} for w in alt_ws}
+
+    for snap in sampled:
+        # build_snapshot() produces array-format snapshots with LINEAR edge weights
+        dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=False)
+        components = compute_sis_components(dict_snap)
+        baseline_scores = _combine(components, baseline_w)
+
+        week_row = {
+            "date": snap.get("date", ""),
+            "n_nodes": len(dict_snap.get("nodes", {})),
+            "n_edges": len(dict_snap.get("edges", [])),
+            "comparisons": {},
+        }
+
+        for w in alt_ws:
+            alt_scores = _combine(components, w)
+            rho = _spearman_rho_from_scores(baseline_scores, alt_scores)
+            overlap = _topk_overlap_from_scores(baseline_scores, alt_scores, k=top_k)
+            week_row["comparisons"][w["name"]] = {"spearman_rho": rho, "topk_overlap": overlap}
+            by_alt[w["name"]]["spearman_rho"].append(rho)
+            by_alt[w["name"]]["topk_overlap"].append(overlap)
+
+        per_week.append(week_row)
+
+    summary = {}
+    for w in alt_ws:
+        name = w["name"]
+        rhos = np.array(by_alt[name]["spearman_rho"], dtype=np.float64)
+        overlaps = np.array(by_alt[name]["topk_overlap"], dtype=np.float64)
+        summary[name] = {
+            "weights": {"alpha": w["alpha"], "beta": w["beta"], "gamma": w["gamma"]},
+            "spearman_rho_mean": float(np.nanmean(rhos)) if rhos.size else float("nan"),
+            "spearman_rho_std": float(np.nanstd(rhos)) if rhos.size else float("nan"),
+            "topk_overlap_mean": float(np.nanmean(overlaps)) if overlaps.size else float("nan"),
+            "topk_overlap_std": float(np.nanstd(overlaps)) if overlaps.size else float("nan"),
+        }
+
+    results = {
+        "baseline": baseline_w,
+        "alternatives": alt_ws,
+        "sample_weeks": len(sampled),
+        "top_k": top_k,
+        "per_week": per_week,
+        "summary": summary,
+    }
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_json = output_dir / "sis_weight_sensitivity.json"
+    with open(out_json, "w") as f:
+        json.dump(results, f, indent=2, default=float)
+
+    # Write a small LaTeX table for easy paste into appendix
+    out_tex = output_dir / "sis_weight_sensitivity_table.tex"
+    lines = []
+    lines.append(r"\\begin{table}[t]")
+    lines.append(r"\\centering")
+    lines.append(r"\\small")
+    lines.append(r"\\begin{tabular}{lcc}")
+    lines.append(r"\\hline")
+    lines.append(r"Weights $(\\alpha,\\beta,\\gamma)$ & Spearman $\\rho$ & Top-%d overlap\\\\" % top_k)
+    lines.append(r"\\hline")
+    for w in alt_ws:
+        name = w["name"]
+        s = summary[name]
+        w_str = f"({w['alpha']:.2f},{w['beta']:.2f},{w['gamma']:.2f})"
+        rho_str = f"{s['spearman_rho_mean']:.3f} $\\pm$ {s['spearman_rho_std']:.3f}"
+        ov_str = f"{s['topk_overlap_mean']:.3f} $\\pm$ {s['topk_overlap_std']:.3f}"
+        lines.append(f"{w['name']} {w_str} & {rho_str} & {ov_str}\\\\")
+    lines.append(r"\\hline")
+    lines.append(r"\\end{tabular}")
+    lines.append(
+        r"\\caption{SIS weight sensitivity (robustness check). We report stability against the equal-weight baseline "
+        r"$(\\alpha,\\beta,\\gamma)=(1/3,1/3,1/3)$ over %d sampled weeks.}" % len(sampled)
+    )
+    lines.append(r"\\label{tab:sis-sensitivity}")
+    lines.append(r"\\end{table}")
+    with open(out_tex, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    logger.info(f"SIS sensitivity saved to {out_json}")
+    logger.info(f"LaTeX table saved to {out_tex}")
+
+    return results
 
 
 # ============== Experiment 1: Forward-looking Risk Metric Prediction ==============
@@ -1009,6 +1359,7 @@ def run_forward_risk_prediction(
     test_snapshots: List[Dict],
     meta_category: Dict,
     horizons: List[int] = [1, 4, 8, 12],
+    max_pairs_per_horizon: int = 0,
     output_dir: Path = OUTPUT_DIR,
 ) -> Dict[str, Any]:
     """
@@ -1037,6 +1388,15 @@ def run_forward_risk_prediction(
         if not test_pairs:
             logger.warning(f"No test pairs for horizon {horizon}")
             continue
+
+        if max_pairs_per_horizon > 0 and len(test_pairs) > max_pairs_per_horizon:
+            rng = np.random.default_rng(config.seed + horizon)
+            idx = rng.choice(len(test_pairs), size=max_pairs_per_horizon, replace=False)
+            idx = sorted(idx.tolist())
+            test_pairs = [test_pairs[i] for i in idx]
+            logger.info(
+                f"  Subsampled to {len(test_pairs)} pairs (max_pairs_per_horizon={max_pairs_per_horizon})"
+            )
 
         # Get predictions
         preds = predict_graphpfn(model, test_pairs, config)
@@ -1122,6 +1482,7 @@ def run_predictive_contagion(
     test_snapshots: List[Dict],
     meta_category: Dict,
     horizons: List[int] = [1, 4, 8],
+    max_samples_per_horizon: int = 10,
     output_dir: Path = OUTPUT_DIR,
 ) -> Dict[str, Any]:
     """
@@ -1158,7 +1519,8 @@ def run_predictive_contagion(
             continue
 
         # Sample a few pairs for detailed analysis
-        sample_pairs = test_pairs[:min(10, len(test_pairs))]
+        sample_n = min(max_samples_per_horizon, len(test_pairs)) if max_samples_per_horizon > 0 else len(test_pairs)
+        sample_pairs = test_pairs[:sample_n]
         preds = predict_graphpfn(model, sample_pairs, config)
 
         horizon_results = {"samples": []}
@@ -1462,13 +1824,12 @@ def run_early_warning_analysis(
 # ============== Main ==============
 
 def main():
-    default_device = ExperimentConfig().device
     parser = argparse.ArgumentParser(description="Task II: Model-based Financial Stability Analysis")
     parser.add_argument(
         "--experiment",
         type=str,
         default="all",
-        choices=["all", "forward_risk", "predictive_contagion", "early_warning"],
+        choices=["all", "forward_risk", "predictive_contagion", "early_warning", "sis_sensitivity"],
         help="Which experiment to run",
     )
     parser.add_argument("--epochs", type=int, default=20, help="Training epochs if model needs training")
@@ -1476,18 +1837,68 @@ def main():
     parser.add_argument(
         "--device",
         type=str,
-        default=default_device,
-        help=f"Device to use (default: {default_device})",
+        default=None,
+        help="Device to use (default: inferred from ExperimentConfig; unused with --plot-only)",
     )
     parser.add_argument("--force-retrain", action="store_true", help="Force model retraining")
+    parser.add_argument(
+        "--frozen",
+        action="store_true",
+        help="Use frozen encoder (GraphPFN-Frozen) instead of fine-tuning (faster, for quick validation)",
+    )
     parser.add_argument("--output-dir", type=str, default="output/task2_model_based")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Quick smoke-test mode: fewer epochs/pairs and smaller horizons for faster iteration",
+    )
+    parser.add_argument(
+        "--forward-horizons",
+        type=str,
+        default="1,4,8,12",
+        help="Comma-separated horizons for forward_risk (default: 1,4,8,12)",
+    )
+    parser.add_argument(
+        "--contagion-horizons",
+        type=str,
+        default="1,4,8",
+        help="Comma-separated horizons for predictive_contagion (default: 1,4,8)",
+    )
+    parser.add_argument(
+        "--max-train-pairs",
+        type=int,
+        default=0,
+        help="Limit number of training week-pairs (0 = all). Useful for quick runs.",
+    )
+    parser.add_argument(
+        "--max-forward-pairs",
+        type=int,
+        default=0,
+        help="Max number of test pairs per horizon for forward_risk (0 = all).",
+    )
+    parser.add_argument(
+        "--max-contagion-samples",
+        type=int,
+        default=10,
+        help="Max number of test pairs per horizon for predictive_contagion (default: 10).",
+    )
+    parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help="Only regenerate figures from saved JSON results in --output-dir (no model/data needed)",
+    )
+    parser.add_argument(
+        "--no-plot",
+        action="store_true",
+        help="Skip generating figures (useful on servers without matplotlib)",
+    )
+    parser.add_argument(
+        "--reuse-results",
+        action="store_true",
+        help="If exp*.json exists in --output-dir, load it instead of recomputing that experiment",
+    )
 
     args = parser.parse_args()
-    if args.device.startswith("cuda") and default_device == "cpu":
-        logger.warning(
-            "CUDA requested but DGL CUDA is not available; falling back to CPU."
-        )
-        args.device = "cpu"
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1501,8 +1912,68 @@ def main():
     logger.info("Task II: Model-based Forward-looking Financial Stability Analysis")
     logger.info("=" * 70)
     logger.info(f"Experiment: {args.experiment}")
-    logger.info(f"Device: {args.device}")
     logger.info(f"Output: {output_dir}")
+
+    if args.plot_only:
+        logger.info("Mode: plot-only (loading saved results, no model/data)")
+        saved = load_saved_task2_results(output_dir)
+        if not saved:
+            logger.error(
+                f"No saved results found in {output_dir}. Expected `all_results.json` "
+                "or `exp1_forward_risk.json` / `exp2_predictive_contagion.json` / "
+                "`exp3_early_warning.json`."
+            )
+            return
+
+        try:
+            plot_all_figures(
+                forward_risk_results=saved.get("forward_risk") if args.experiment in ["all", "forward_risk"] else None,
+                contagion_results=saved.get("predictive_contagion") if args.experiment in ["all", "predictive_contagion"] else None,
+                early_warning_results=saved.get("early_warning") if args.experiment in ["all", "early_warning"] else None,
+                output_dir=output_dir,
+            )
+        except RuntimeError as e:
+            logger.error(str(e))
+            return
+        return
+
+    DEFAULT_EPOCHS = 20
+    DEFAULT_FORWARD_HORIZONS = "1,4,8,12"
+    DEFAULT_CONTAGION_HORIZONS = "1,4,8"
+    DEFAULT_MAX_FORWARD_PAIRS = 0
+    DEFAULT_MAX_CONTAGION_SAMPLES = 10
+    DEFAULT_MAX_TRAIN_PAIRS = 0
+
+    if args.quick:
+        if args.epochs == DEFAULT_EPOCHS:
+            args.epochs = 3
+        if args.forward_horizons == DEFAULT_FORWARD_HORIZONS:
+            args.forward_horizons = "1"
+        if args.contagion_horizons == DEFAULT_CONTAGION_HORIZONS:
+            args.contagion_horizons = "1"
+        if args.max_forward_pairs == DEFAULT_MAX_FORWARD_PAIRS:
+            args.max_forward_pairs = 5
+        if args.max_contagion_samples == DEFAULT_MAX_CONTAGION_SAMPLES:
+            args.max_contagion_samples = 5
+        if args.max_train_pairs == DEFAULT_MAX_TRAIN_PAIRS:
+            args.max_train_pairs = 20
+        logger.info(
+            f"Quick mode: epochs={args.epochs}, forward_horizons={args.forward_horizons}, "
+            f"contagion_horizons={args.contagion_horizons}, max_train_pairs={args.max_train_pairs}, "
+            f"max_forward_pairs={args.max_forward_pairs}, max_contagion_samples={args.max_contagion_samples}"
+        )
+
+    _import_graphpfn_deps()
+    default_device = ExperimentConfig().device
+    if args.device is None:
+        args.device = default_device
+    logger.info(f"Device: {args.device}")
+    logger.info(f"Model: {'GraphPFN-Frozen' if args.frozen else 'DeXposure-FM (fine-tuned)'}")
+
+    if args.device.startswith("cuda") and default_device == "cpu":
+        logger.warning("CUDA requested but DGL CUDA is not available; falling back to CPU.")
+        args.device = "cpu"
+        logger.info(f"Device: {args.device}")
 
     if not GRAPHPFN_AVAILABLE:
         logger.error("GraphPFN not available. Please install required dependencies.")
@@ -1539,28 +2010,66 @@ def main():
     logger.info(f"Train snapshots: {len(train_snapshots)}")
     logger.info(f"Test snapshots: {len(test_snapshots)}")
 
+    if args.experiment == "sis_sensitivity":
+        logger.info("\nRunning SIS weight sensitivity (robustness check)...")
+        _ = run_sis_weight_sensitivity(test_snapshots, output_dir=output_dir, sample_weeks=10, top_k=20)
+        return
+
+    forward_horizons = parse_int_list(args.forward_horizons)
+    contagion_horizons = parse_int_list(args.contagion_horizons)
+
     # Build training pairs and load/train model
     logger.info("\nPreparing model...")
     train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
-    model = load_or_train_model(config, train_pairs, force_retrain=args.force_retrain)
+    if args.max_train_pairs > 0 and len(train_pairs) > args.max_train_pairs:
+        train_pairs = train_pairs[-args.max_train_pairs:]
+        logger.info(f"Subsampled train_pairs to {len(train_pairs)} (max_train_pairs={args.max_train_pairs})")
+    model = load_or_train_model(config, train_pairs, force_retrain=args.force_retrain, frozen=args.frozen)
 
     # Run experiments
     results = {}
 
     if args.experiment in ["all", "forward_risk"]:
-        results["forward_risk"] = run_forward_risk_prediction(
-            config, model, test_snapshots, meta_category, output_dir=output_dir
-        )
+        exp_path = output_dir / "exp1_forward_risk.json"
+        if args.reuse_results and exp_path.exists():
+            logger.info(f"\nLoading cached forward_risk results from {exp_path}")
+            results["forward_risk"] = _load_json(exp_path)
+        else:
+            results["forward_risk"] = run_forward_risk_prediction(
+                config,
+                model,
+                test_snapshots,
+                meta_category,
+                horizons=forward_horizons,
+                max_pairs_per_horizon=args.max_forward_pairs,
+                output_dir=output_dir,
+            )
 
     if args.experiment in ["all", "predictive_contagion"]:
-        results["predictive_contagion"] = run_predictive_contagion(
-            config, model, test_snapshots, meta_category, output_dir=output_dir
-        )
+        exp_path = output_dir / "exp2_predictive_contagion.json"
+        if args.reuse_results and exp_path.exists():
+            logger.info(f"\nLoading cached predictive_contagion results from {exp_path}")
+            results["predictive_contagion"] = _load_json(exp_path)
+        else:
+            results["predictive_contagion"] = run_predictive_contagion(
+                config,
+                model,
+                test_snapshots,
+                meta_category,
+                horizons=contagion_horizons,
+                max_samples_per_horizon=args.max_contagion_samples,
+                output_dir=output_dir,
+            )
 
     if args.experiment in ["all", "early_warning"]:
-        results["early_warning"] = run_early_warning_analysis(
-            config, model, snapshots, date_to_snap, meta_category, output_dir=output_dir
-        )
+        exp_path = output_dir / "exp3_early_warning.json"
+        if args.reuse_results and exp_path.exists():
+            logger.info(f"\nLoading cached early_warning results from {exp_path}")
+            results["early_warning"] = _load_json(exp_path)
+        else:
+            results["early_warning"] = run_early_warning_analysis(
+                config, model, snapshots, date_to_snap, meta_category, output_dir=output_dir
+            )
 
     # Save combined results
     with open(output_dir / "all_results.json", "w") as f:
@@ -1571,12 +2080,20 @@ def main():
     logger.info("GENERATING VISUALIZATION FIGURES")
     logger.info("=" * 70)
 
-    plot_all_figures(
-        forward_risk_results=results.get("forward_risk"),
-        contagion_results=results.get("predictive_contagion"),
-        early_warning_results=results.get("early_warning"),
-        output_dir=output_dir,
-    )
+    if args.no_plot:
+        logger.info("Skipping figure generation (--no-plot).")
+    else:
+        try:
+            plot_all_figures(
+                forward_risk_results=results.get("forward_risk"),
+                contagion_results=results.get("predictive_contagion"),
+                early_warning_results=results.get("early_warning"),
+                output_dir=output_dir,
+            )
+        except RuntimeError as e:
+            logger.error(str(e))
+            logger.error("Tip: run with `--no-plot` and later regenerate with `--plot-only` on a machine with matplotlib.")
+            return
 
     logger.info("\n" + "=" * 70)
     logger.info("ALL EXPERIMENTS COMPLETE")
