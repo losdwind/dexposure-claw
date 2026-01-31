@@ -2117,13 +2117,17 @@ def compute_recall_at_k(
     if n_positive == 0:
         return {f"recall@{k}": float("nan") for k in k_values}
 
+    n_scores = len(y_score)
+    if n_scores == 0:
+        return {f"recall@{k}": float("nan") for k in k_values}
+
     # Get indices of top-K predictions
     top_indices = np.argsort(y_score)[::-1]
 
     for k in k_values:
-        if k > len(y_score):
-            k = len(y_score)
-        top_k_indices = top_indices[:k]
+        # Keep metric keys stable even when n_scores < k.
+        k_eff = min(k, n_scores)
+        top_k_indices = top_indices[:k_eff]
         true_positives_in_top_k = y_true[top_k_indices].sum()
         results[f"recall@{k}"] = float(true_positives_in_top_k / n_positive)
 
@@ -2662,59 +2666,65 @@ def run_graphpfn_experiment(
         f"  Train: {len(train_snaps)}, Val: {len(val_snaps) if val_snaps else 0}, Test: {len(test_snaps) if test_snaps else 0}"
     )
 
-    # Load encoder
+    # Load encoder ONCE. We reinitialize model heads per horizon for clean comparisons.
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
     embed_dim = encoder.tfm.embed_dim
-
-    # Create model
-    model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
-
-    # Set encoder trainability
-    for p in model.encoder.parameters():
-        p.requires_grad = finetune
-
-    # Layer-wise learning rate: encoder uses lower LR for stable fine-tuning
+    base_encoder_state = None
     if finetune:
-        encoder_params = list(model.encoder.parameters())
-        encoder_param_set = set(encoder_params)
-        head_params = [p for p in model.parameters() if p not in encoder_param_set]
-        optimizer = torch.optim.Adam(
-            [
-                {
-                    "params": encoder_params,
-                    "lr": config.lr * 0.1,
-                },  # Lower LR for pretrained encoder
-                {"params": head_params, "lr": config.lr},  # Full LR for new head
-            ],
-            weight_decay=config.weight_decay,
-        )
-        log_info(
-            f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}"
-        )
-    else:
-        optimizer = torch.optim.Adam(
-            [p for p in model.parameters() if p.requires_grad],
-            lr=config.lr,
-            weight_decay=config.weight_decay,
-        )
-
-    # === Performance optimizations ===
-    # Mixed precision scaler (2-3x speedup on modern GPUs)
-    scaler = None
-    if config.use_amp and device.type == "cuda":
-        scaler = torch.cuda.amp.GradScaler()
-        log_info("  AMP enabled (mixed precision training)")
-
-    # Embedding cache for frozen encoder (3-5x speedup)
-    embedding_cache = None
-    if not finetune and config.cache_frozen_embeddings:
-        embedding_cache = EmbeddingCache(model, device)
-        log_info("  Embedding cache enabled (frozen encoder)")
+        # Keep a CPU copy so we can reset the encoder between horizons without doubling GPU memory.
+        base_encoder_state = {k: v.detach().cpu() for k, v in encoder.state_dict().items()}
 
     # Build pairs for each horizon
     results = {}
     for horizon in config.forecast_horizons:
         log_info(f"\n--- Horizon h={horizon} ---")
+
+        # Ensure per-horizon runs are comparable/reproducible (fresh head init, deterministic RNG).
+        set_seed(config.seed)
+
+        # Reset encoder to pretrained weights for each horizon (avoid cross-horizon leakage).
+        if finetune and base_encoder_state is not None:
+            encoder.load_state_dict(base_encoder_state, strict=False)
+
+        # Create a fresh model head per horizon.
+        model = GraphPFNLinkPredictor(encoder, embed_dim, config.hidden_dim).to(device)
+
+        # Set encoder trainability
+        for p in model.encoder.parameters():
+            p.requires_grad = finetune
+
+        # Optimizer (layer-wise LR when fine-tuning)
+        if finetune:
+            encoder_params = list(model.encoder.parameters())
+            encoder_param_set = set(encoder_params)
+            head_params = [p for p in model.parameters() if p not in encoder_param_set]
+            optimizer = torch.optim.Adam(
+                [
+                    {"params": encoder_params, "lr": config.lr * 0.1},
+                    {"params": head_params, "lr": config.lr},
+                ],
+                weight_decay=config.weight_decay,
+            )
+            log_info(
+                f"  Using layer-wise LR: encoder={config.lr * 0.1:.1e}, head={config.lr:.1e}"
+            )
+        else:
+            optimizer = torch.optim.Adam(
+                [p for p in model.parameters() if p.requires_grad],
+                lr=config.lr,
+                weight_decay=config.weight_decay,
+            )
+
+        # === Performance optimizations ===
+        scaler = None
+        if config.use_amp and device.type == "cuda":
+            scaler = torch.cuda.amp.GradScaler()
+            log_info("  AMP enabled (mixed precision training)")
+
+        embedding_cache = None
+        if not finetune and config.cache_frozen_embeddings:
+            embedding_cache = EmbeddingCache(model, device)
+            log_info("  Embedding cache enabled (frozen encoder)")
 
         train_pairs = build_week_pairs(
             train_snaps, config.neg_ratio, config.seed, horizon
@@ -2813,7 +2823,7 @@ def run_graphpfn_experiment(
             log_info(f"  Restored best model with val_{metric_name}={best_metric:.4f}")
             try:
                 if model_output_dir:
-                    best_model_path = model_output_dir / "best_model.pt"
+                    best_model_path = model_output_dir / f"best_model_h{horizon}.pt"
                     torch.save({"model": model.state_dict()}, best_model_path)
                     log_info(f"  Saved best model to: {best_model_path}")
             except Exception as e:
@@ -2862,6 +2872,11 @@ def run_graphpfn_experiment(
             with open(intermediate_path, "w") as f:
                 json.dump(intermediate_result, f, indent=2)
             log_info(f"  Intermediate results saved to: {intermediate_path.name}")
+
+        # Free horizon-specific model to reduce peak GPU memory when looping over horizons.
+        del model, optimizer, embedding_cache, scaler
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
     result = {
         "model": mode,
@@ -3604,10 +3619,11 @@ def _run_experiments(args, config: ExperimentConfig, output_dir: Path):
             log_error(traceback.format_exc())
             save_result("network_stats_error", str(e))
 
-    # Save all results (final consolidated version)
-    with open(output_dir / "experiment_results.json", "w") as f:
+    # Save consolidated results without overwriting ResultManager's experiment_results.json.
+    all_results_path = output_dir / "all_results.json"
+    with open(all_results_path, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
-    log_info(f"\nAll results saved to: {output_dir / 'experiment_results.json'}")
+    log_info(f"\nAll results saved to: {all_results_path}")
 
     # Print comparison table
     if args.mode in ["all", "compare"]:

@@ -40,15 +40,34 @@ import copy
 import json
 import logging
 import sys
-import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
+import matplotlib
+matplotlib.use("Agg")  # Non-interactive backend for server
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.patches import Patch
 import networkx as nx
 import numpy as np
 import torch
+
+# Figure configuration for publication quality
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.size": 10,
+    "axes.labelsize": 11,
+    "axes.titlesize": 12,
+    "legend.fontsize": 9,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "figure.dpi": 150,
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight",
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+})
 
 # Setup logging
 logging.basicConfig(
@@ -130,7 +149,8 @@ def array_snap_to_dict_snap(
             w = float(edge_weight[i]) if i < len(edge_weight) else 0.0
             # Convert from log scale if needed
             if edge_weight_is_log:
-                w = max(0, np.exp(w) - 1)
+                w = float(np.expm1(w))
+                w = max(0.0, w)
             edges.append({
                 "source": node_ids[src_idx],
                 "target": node_ids[dst_idx],
@@ -182,7 +202,8 @@ def compute_risk_metrics_from_arrays(
 
     for src, dst, w in zip(edge_src, edge_dst, edge_weights):
         if src < n_nodes and dst < n_nodes:
-            G.add_edge(int(src), int(dst), weight=float(np.exp(w) - 1))  # Convert from log-scale
+            # Convert from log1p-scale
+            G.add_edge(int(src), int(dst), weight=float(np.expm1(w)))
 
     metrics = {}
 
@@ -215,7 +236,7 @@ def compute_risk_metrics_from_arrays(
 
     # 4. Edge weight concentration (HHI)
     if len(edge_weights) > 0:
-        weights_linear = np.exp(edge_weights) - 1
+        weights_linear = np.expm1(edge_weights)
         weights_linear = np.maximum(weights_linear, 0)
         total_weight = np.sum(weights_linear)
         if total_weight > 0:
@@ -353,14 +374,18 @@ def simulate_contagion(
     tvl = {n: data.get("tvlUsd", 0) for n, data in nodes.items()}
     losses = {n: 0.0 for n in nodes}
 
-    # Build exposure matrix (creditor -> debtor -> weight)
-    exposures = {}
+    # Build exposure index for propagation.
+    # We treat an edge `creditor -> debtor` as "creditor has exposure to debtor".
+    # When debtor is distressed, losses propagate to its creditors (incoming neighbors).
+    exposures_in = {}
     for edge in edges:
         src, dst = edge.get("source"), edge.get("target")
-        weight = edge.get("weight", 0)
-        if src not in exposures:
-            exposures[src] = {}
-        exposures[src][dst] = weight
+        weight = float(edge.get("weight", 0) or 0.0)
+        if src is None or dst is None:
+            continue
+        if dst not in exposures_in:
+            exposures_in[dst] = {}
+        exposures_in[dst][src] = exposures_in[dst].get(src, 0.0) + weight
 
     # Initial shock
     distressed = set()
@@ -375,8 +400,8 @@ def simulate_contagion(
         new_distressed = set()
 
         for node in distressed:
-            # Propagate losses to creditors
-            for creditor, exposure in exposures.get(node, {}).items():
+            # Propagate debtor losses to its creditors
+            for creditor, exposure in exposures_in.get(node, {}).items():
                 if creditor not in distressed:
                     # Loss proportional to exposure share
                     loss_share = exposure / tvl[node] if tvl[node] > 0 else 0
@@ -431,6 +456,312 @@ SHOCK_EVENTS = {
         "description": "Exchange failure and FTT token collapse",
     },
 }
+
+
+# ============== Visualization Functions ==============
+
+COLORS = {
+    "predicted": "#2E86AB",  # Blue
+    "actual": "#E94F37",     # Red
+    "observed": "#7B8D8E",   # Gray
+    "event": "#F39C12",      # Orange
+}
+
+
+def plot_early_warning_timeseries(
+    results: Dict[str, Any],
+    output_dir: Path,
+) -> None:
+    """
+    Plot Early Warning time series for Terra/Luna and FTX events.
+
+    Creates a 2-row figure showing:
+    - Risk metrics (HHI, Density) over time
+    - Predicted vs Actual comparison
+    - Event date markers
+    """
+    events_data = results.get("events", {})
+    if not events_data:
+        logger.warning("No early warning data to plot")
+        return
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    fig.suptitle("Early Warning Analysis: Model Predictions Before Major Events", fontsize=14, fontweight="bold")
+
+    for row_idx, (event_id, event_data) in enumerate(events_data.items()):
+        if row_idx >= 2:
+            break
+
+        event_info = event_data.get("event_info", {})
+        predictions = event_data.get("predictions", [])
+        baseline = event_data.get("baseline_metrics", {})
+
+        if not predictions:
+            continue
+
+        event_name = event_info.get("name", event_id)
+        event_date = event_info.get("event_date", "")
+
+        # Extract time series data
+        dates = [p["target_date"] for p in predictions]
+        pred_hhi = [p["predicted_metrics"].get("tvl_hhi", np.nan) for p in predictions]
+        actual_hhi = [p["actual_metrics"].get("tvl_hhi", np.nan) for p in predictions]
+        pred_contagion = [p.get("predicted_contagion_loss", np.nan) for p in predictions]
+        actual_contagion = [p.get("actual_contagion_loss", np.nan) for p in predictions]
+
+        baseline_hhi = baseline.get("tvl_hhi", np.nan)
+
+        # Plot HHI (left column)
+        ax1 = axes[row_idx, 0]
+        x_pos = np.arange(len(dates))
+
+        ax1.plot(x_pos, pred_hhi, "o-", color=COLORS["predicted"], label="Predicted", linewidth=2, markersize=6)
+        ax1.plot(x_pos, actual_hhi, "s--", color=COLORS["actual"], label="Actual", linewidth=2, markersize=6)
+        ax1.axhline(y=baseline_hhi, color=COLORS["observed"], linestyle=":", linewidth=1.5, label=f"Baseline (pre-event)")
+
+        # Mark event window
+        ax1.axvspan(-0.5, len(dates)-0.5, alpha=0.1, color=COLORS["event"], label="Event window")
+
+        ax1.set_xlabel("Weeks into event period")
+        ax1.set_ylabel("TVL HHI (Concentration)")
+        ax1.set_title(f"{event_name}: Risk Concentration")
+        ax1.set_xticks(x_pos)
+        ax1.set_xticklabels([f"W{i+1}" for i in range(len(dates))], rotation=45)
+        ax1.legend(loc="best", framealpha=0.9)
+        ax1.set_ylim(bottom=0)
+
+        # Plot Contagion Loss (right column)
+        ax2 = axes[row_idx, 1]
+
+        valid_pred = [v if not np.isnan(v) else 0 for v in pred_contagion]
+        valid_actual = [v if not np.isnan(v) else 0 for v in actual_contagion]
+
+        width = 0.35
+        ax2.bar(x_pos - width/2, valid_pred, width, color=COLORS["predicted"], label="Predicted", alpha=0.8)
+        ax2.bar(x_pos + width/2, valid_actual, width, color=COLORS["actual"], label="Actual", alpha=0.8)
+
+        ax2.set_xlabel("Weeks into event period")
+        ax2.set_ylabel("Contagion Loss (%)")
+        ax2.set_title(f"{event_name}: Stress Test Loss")
+        ax2.set_xticks(x_pos)
+        ax2.set_xticklabels([f"W{i+1}" for i in range(len(dates))], rotation=45)
+        ax2.legend(loc="best", framealpha=0.9)
+        ax2.set_ylim(bottom=0)
+
+        # Add annotation for prediction accuracy
+        if valid_pred and valid_actual:
+            mae = np.mean(np.abs(np.array(valid_pred) - np.array(valid_actual)))
+            ax2.text(0.95, 0.95, f"MAE: {mae:.2f}%", transform=ax2.transAxes,
+                    ha="right", va="top", fontsize=9,
+                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+
+    plt.tight_layout()
+
+    fig_path = output_dir / "figures" / "fig_early_warning.pdf"
+    fig_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(fig_path)
+    plt.savefig(fig_path.with_suffix(".png"))
+    plt.close()
+
+    logger.info(f"Saved Early Warning figure to {fig_path}")
+
+
+def plot_contagion_comparison(
+    results: Dict[str, Any],
+    output_dir: Path,
+) -> None:
+    """
+    Plot Contagion simulation comparison: Observed(t) vs Predicted(t+h) vs Actual(t+h).
+
+    Creates grouped bar chart showing system loss across different shock scenarios.
+    """
+    horizons_data = results.get("horizons", {})
+    if not horizons_data:
+        logger.warning("No contagion data to plot")
+        return
+
+    # Collect data across horizons
+    scenarios = ["Top Protocol Shock", "Top 5 Protocols Shock", "Bridge Sector Shock"]
+
+    fig, axes = plt.subplots(1, len(horizons_data), figsize=(4 * len(horizons_data), 5), sharey=True)
+    if len(horizons_data) == 1:
+        axes = [axes]
+
+    fig.suptitle("Predictive Contagion: Forward-looking Stress Testing", fontsize=14, fontweight="bold")
+
+    for ax_idx, (horizon_key, horizon_data) in enumerate(horizons_data.items()):
+        ax = axes[ax_idx]
+        samples = horizon_data.get("samples", [])
+
+        if not samples:
+            continue
+
+        # Aggregate across samples for each scenario
+        scenario_results = {s: {"observed": [], "predicted": [], "actual": []} for s in scenarios}
+
+        for sample in samples:
+            for scenario_name, scenario_data in sample.get("scenarios", {}).items():
+                if scenario_name in scenario_results:
+                    scenario_results[scenario_name]["observed"].append(
+                        scenario_data.get("observed_t", {}).get("total_loss_pct", 0)
+                    )
+                    scenario_results[scenario_name]["predicted"].append(
+                        scenario_data.get("predicted_t_h", {}).get("total_loss_pct", 0)
+                    )
+                    scenario_results[scenario_name]["actual"].append(
+                        scenario_data.get("actual_t_h", {}).get("total_loss_pct", 0)
+                    )
+
+        # Plot grouped bars
+        x = np.arange(len(scenarios))
+        width = 0.25
+
+        observed_means = [np.mean(scenario_results[s]["observed"]) if scenario_results[s]["observed"] else 0 for s in scenarios]
+        predicted_means = [np.mean(scenario_results[s]["predicted"]) if scenario_results[s]["predicted"] else 0 for s in scenarios]
+        actual_means = [np.mean(scenario_results[s]["actual"]) if scenario_results[s]["actual"] else 0 for s in scenarios]
+
+        observed_stds = [np.std(scenario_results[s]["observed"]) if len(scenario_results[s]["observed"]) > 1 else 0 for s in scenarios]
+        predicted_stds = [np.std(scenario_results[s]["predicted"]) if len(scenario_results[s]["predicted"]) > 1 else 0 for s in scenarios]
+        actual_stds = [np.std(scenario_results[s]["actual"]) if len(scenario_results[s]["actual"]) > 1 else 0 for s in scenarios]
+
+        bars1 = ax.bar(x - width, observed_means, width, yerr=observed_stds,
+                       label="Observed (t)", color=COLORS["observed"], alpha=0.8, capsize=3)
+        bars2 = ax.bar(x, predicted_means, width, yerr=predicted_stds,
+                       label="Predicted (t+h)", color=COLORS["predicted"], alpha=0.8, capsize=3)
+        bars3 = ax.bar(x + width, actual_means, width, yerr=actual_stds,
+                       label="Actual (t+h)", color=COLORS["actual"], alpha=0.8, capsize=3)
+
+        ax.set_xlabel("Shock Scenario")
+        ax.set_ylabel("System Loss (%)" if ax_idx == 0 else "")
+        ax.set_title(f"Horizon {horizon_key}")
+        ax.set_xticks(x)
+        ax.set_xticklabels(["Top-1", "Top-5", "Bridge"], rotation=0)
+
+        if ax_idx == 0:
+            ax.legend(loc="upper left", framealpha=0.9)
+
+        # Add prediction accuracy annotation
+        pred_vs_actual_mae = np.mean(np.abs(np.array(predicted_means) - np.array(actual_means)))
+        ax.text(0.95, 0.95, f"Pred vs Actual\nMAE: {pred_vs_actual_mae:.2f}%",
+                transform=ax.transAxes, ha="right", va="top", fontsize=8,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+
+    plt.tight_layout()
+
+    fig_path = output_dir / "figures" / "fig_contagion_comparison.pdf"
+    fig_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(fig_path)
+    plt.savefig(fig_path.with_suffix(".png"))
+    plt.close()
+
+    logger.info(f"Saved Contagion Comparison figure to {fig_path}")
+
+
+def plot_forward_risk_scatter(
+    results: Dict[str, Any],
+    output_dir: Path,
+) -> None:
+    """
+    Plot Forward Risk Prediction scatter plots: Predicted vs Actual for key metrics.
+
+    Creates 2x2 panel showing correlation between predicted and actual values
+    for HHI, Density, SIS, and Spillover metrics across horizons.
+    """
+    horizons_data = results.get("horizons", {})
+    if not horizons_data:
+        logger.warning("No forward risk data to plot")
+        return
+
+    metrics_to_plot = [
+        ("tvl_hhi", "TVL Concentration (HHI)"),
+        ("density", "Network Density"),
+        ("mean_sis", "Mean Systemic Importance"),
+        ("degree_gini", "Degree Inequality (Gini)"),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+    fig.suptitle("Forward-looking Risk Metric Prediction Accuracy", fontsize=14, fontweight="bold")
+
+    horizon_colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(horizons_data)))
+
+    for ax_idx, (metric_key, metric_label) in enumerate(metrics_to_plot):
+        ax = axes[ax_idx // 2, ax_idx % 2]
+
+        all_pred = []
+        all_actual = []
+
+        for h_idx, (horizon_key, horizon_data) in enumerate(horizons_data.items()):
+            pred_metrics = horizon_data.get("predicted_metrics", [])
+            actual_metrics = horizon_data.get("actual_metrics", [])
+
+            pred_vals = [m.get(metric_key, np.nan) for m in pred_metrics]
+            actual_vals = [m.get(metric_key, np.nan) for m in actual_metrics]
+
+            # Filter valid pairs
+            valid_mask = ~(np.isnan(pred_vals) | np.isnan(actual_vals))
+            pred_vals = np.array(pred_vals)[valid_mask]
+            actual_vals = np.array(actual_vals)[valid_mask]
+
+            if len(pred_vals) > 0:
+                ax.scatter(actual_vals, pred_vals, c=[horizon_colors[h_idx]],
+                          label=horizon_key, alpha=0.6, s=30, edgecolors="white", linewidth=0.5)
+                all_pred.extend(pred_vals)
+                all_actual.extend(actual_vals)
+
+        if all_pred and all_actual:
+            # Add 45-degree reference line
+            all_vals = np.concatenate([all_pred, all_actual])
+            min_val, max_val = np.min(all_vals), np.max(all_vals)
+            margin = (max_val - min_val) * 0.1
+            line_range = [min_val - margin, max_val + margin]
+            ax.plot(line_range, line_range, "k--", alpha=0.5, linewidth=1, label="Perfect prediction")
+
+            # Compute R²
+            corr = np.corrcoef(all_pred, all_actual)[0, 1]
+            r_squared = corr ** 2
+            ax.text(0.05, 0.95, f"$R^2$ = {r_squared:.3f}", transform=ax.transAxes,
+                   ha="left", va="top", fontsize=10,
+                   bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+
+            ax.set_xlim(line_range)
+            ax.set_ylim(line_range)
+
+        ax.set_xlabel(f"Actual {metric_label}")
+        ax.set_ylabel(f"Predicted {metric_label}")
+        ax.set_title(metric_label)
+        ax.legend(loc="lower right", fontsize=8, framealpha=0.9)
+        ax.set_aspect("equal", adjustable="box")
+
+    plt.tight_layout()
+
+    fig_path = output_dir / "figures" / "fig_forward_risk_scatter.pdf"
+    fig_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(fig_path)
+    plt.savefig(fig_path.with_suffix(".png"))
+    plt.close()
+
+    logger.info(f"Saved Forward Risk Scatter figure to {fig_path}")
+
+
+def plot_all_figures(
+    forward_risk_results: Optional[Dict] = None,
+    contagion_results: Optional[Dict] = None,
+    early_warning_results: Optional[Dict] = None,
+    output_dir: Path = OUTPUT_DIR,
+) -> None:
+    """Generate all Task II figures."""
+    logger.info("Generating Task II visualization figures...")
+
+    if forward_risk_results:
+        plot_forward_risk_scatter(forward_risk_results, output_dir)
+
+    if contagion_results:
+        plot_contagion_comparison(contagion_results, output_dir)
+
+    if early_warning_results:
+        plot_early_warning_timeseries(early_warning_results, output_dir)
+
+    logger.info(f"All figures saved to {output_dir / 'figures'}")
 
 
 # ============== Model Loading ==============
@@ -607,7 +938,7 @@ def compute_network_risk_metrics(
     if len(edge_weight) > 0:
         # Convert to linear scale if needed
         if edge_weight_is_log:
-            weights_linear = np.exp(np.array(edge_weight)) - 1
+            weights_linear = np.expm1(np.array(edge_weight))
         else:
             weights_linear = np.array(edge_weight)
         weights_linear = np.maximum(weights_linear, 0)
@@ -644,7 +975,7 @@ def compute_network_risk_metrics(
     # 5. SIS scores (if available)
     # Need to convert array format to dict format for compute_systemic_importance_score
     try:
-        dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=True)
+        dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=edge_weight_is_log)
         sis = compute_systemic_importance_score(dict_snap)
         if sis:
             sis_values = list(sis.values())
@@ -658,7 +989,7 @@ def compute_network_risk_metrics(
     # Note: compute_sector_spillover_index returns a dict of sector->sector->weight
     # We compute a scalar spillover index as the total cross-sector exposure
     try:
-        dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=True)
+        dict_snap = array_snap_to_dict_snap(snap, edge_weight_is_log=edge_weight_is_log)
         sector_exposure = compute_sector_spillover_index(dict_snap, meta_category)
         total_spillover = sum(
             sum(targets.values()) for targets in sector_exposure.values()
@@ -981,10 +1312,21 @@ def run_early_warning_analysis(
         event_start, event_end = event_info["event_window"]
 
         # Get pre-event and event-period snapshots
-        pre_dates = [d for d in all_dates if pre_start <= d <= pre_end]
         event_dates = [d for d in all_dates if event_start <= d <= event_end]
+        if not event_dates:
+            logger.warning(f"Insufficient data for {event_info['name']}")
+            continue
 
-        if len(pre_dates) < 2 or len(event_dates) < 1:
+        # Use the last available snapshot strictly before the first event week as anchor.
+        first_event_idx = all_dates.index(event_dates[0])
+        if first_event_idx <= 0:
+            logger.warning(f"Insufficient pre-event data for {event_info['name']}")
+            continue
+
+        anchor_date = all_dates[first_event_idx - 1]
+        pre_dates = [d for d in all_dates if pre_start <= d <= anchor_date]
+
+        if len(pre_dates) < 2:
             logger.warning(f"Insufficient data for {event_info['name']}")
             continue
 
@@ -1001,21 +1343,28 @@ def run_early_warning_analysis(
             "actual_event_metrics": [],
         }
 
-        # For each week in pre-event period, predict into event period
-        last_pre_snap = pre_snapshots[-1]
+        # Anchor is the last observed week before the event window.
+        last_pre_snap = date_to_snap.get(anchor_date, pre_snapshots[-1])
 
-        # For early warning, we use h=1 predictions iteratively
-        # Starting from last_pre_snap, predict one week at a time into event period
+        # For early warning, use 1-step-ahead predictions:
+        # predict each event-week network from the immediately preceding observed week.
         for week_idx, event_date in enumerate(event_dates):
             if event_date not in date_to_snap:
                 continue
 
             event_snap = date_to_snap[event_date]
 
-            # Build prediction pair with h=1 (one-step ahead)
-            # We predict from last_pre_snap to event_snap
+            prev_idx = all_dates.index(event_date) - 1
+            if prev_idx < 0:
+                continue
+            prev_date = all_dates[prev_idx]
+            if prev_date not in date_to_snap:
+                continue
+            prev_snap = date_to_snap[prev_date]
+
+            # Build prediction pair with h=1 (one-step ahead, truly consecutive in time)
             test_pairs = build_week_pairs(
-                [last_pre_snap, event_snap],
+                [prev_snap, event_snap],
                 config.neg_ratio,
                 config.seed,
                 horizon=1  # Always use h=1 for early warning
@@ -1113,6 +1462,7 @@ def run_early_warning_analysis(
 # ============== Main ==============
 
 def main():
+    default_device = ExperimentConfig().device
     parser = argparse.ArgumentParser(description="Task II: Model-based Financial Stability Analysis")
     parser.add_argument(
         "--experiment",
@@ -1123,11 +1473,21 @@ def main():
     )
     parser.add_argument("--epochs", type=int, default=20, help="Training epochs if model needs training")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=default_device,
+        help=f"Device to use (default: {default_device})",
+    )
     parser.add_argument("--force-retrain", action="store_true", help="Force model retraining")
     parser.add_argument("--output-dir", type=str, default="output/task2_model_based")
 
     args = parser.parse_args()
+    if args.device.startswith("cuda") and default_device == "cpu":
+        logger.warning(
+            "CUDA requested but DGL CUDA is not available; falling back to CPU."
+        )
+        args.device = "cpu"
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1206,10 +1566,23 @@ def main():
     with open(output_dir / "all_results.json", "w") as f:
         json.dump(results, f, indent=2, default=float)
 
+    # Generate visualization figures
+    logger.info("\n" + "=" * 70)
+    logger.info("GENERATING VISUALIZATION FIGURES")
+    logger.info("=" * 70)
+
+    plot_all_figures(
+        forward_risk_results=results.get("forward_risk"),
+        contagion_results=results.get("predictive_contagion"),
+        early_warning_results=results.get("early_warning"),
+        output_dir=output_dir,
+    )
+
     logger.info("\n" + "=" * 70)
     logger.info("ALL EXPERIMENTS COMPLETE")
     logger.info("=" * 70)
     logger.info(f"Results saved to: {output_dir}")
+    logger.info(f"Figures saved to: {output_dir / 'figures'}")
 
 
 if __name__ == "__main__":
