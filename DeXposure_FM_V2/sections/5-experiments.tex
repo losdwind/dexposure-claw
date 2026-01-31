@@ -126,6 +126,9 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 
 We conduct comprehensive financial stability analysis, combining systemic risk measurement, historical shock analysis, and contagion simulation. This task directly addresses macro-prudential policy applications.
 
+\paragraph{Model-based evaluation protocol (pseudo out-of-sample).}
+For Task II components that rely on forecasts, we use a fixed DeXposure-FM forecaster trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Stage 2 in Section~\ref{subsec:dataset}). We then evaluate on the strict 2025 hold-out set without any model re-estimation or parameter updates during the test period. Each test week provides a prediction origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for statistical evaluation. We compute risk metrics and stress-test outcomes on the predicted future network $\hat{G}_{t+h}$ and compare them to the realized network $G_{t+h}$. To handle protocol entry/exit, all network-level comparisons are computed on the common node set $V_t \cap V_{t+h}$.
+
 \subsubsection{Systemic Risk Measurement}
 \label{subsubsec:systemic-risk}
 
@@ -153,6 +156,17 @@ We track structural change rates that may signal emerging instability:
   \item Assortativity shift: rapid changes in degree correlation
 \end{itemize}
 
+\subsubsection{Model-based Forward-looking Risk Assessment}
+\label{subsubsec:forward-looking-risk}
+
+Beyond descriptive monitoring on observed networks, we use DeXposure-FM to enable forward-looking stability assessment by forecasting future exposure graphs and then computing stability measures on the predicted graphs.
+
+\paragraph{Forward-looking risk metric prediction.}
+For each horizon $h \in \{1,4,8,12\}$ and each test origin week $t$ in the 2025 hold-out, we forecast the exposure network $\hat{G}_{t+h}$ and compute risk metrics (e.g., TVL concentration, edge concentration, density, spillover index, and summary statistics of SIS). We then compare these predicted metrics to their realized counterparts computed on $G_{t+h}$, reporting accuracy via MAE/RMSE and correlation across test pairs.
+
+\paragraph{Predictive stress testing via contagion simulation.}
+We run the contagion simulation (Section~\ref{subsubsec:contagion}) on three networks for each test origin: the observed network at $t$, the predicted network $\hat{G}_{t+h}$, and the realized future network $G_{t+h}$. The key question is whether stress-test losses computed on $\hat{G}_{t+h}$ approximate those on $G_{t+h}$, enabling forward-looking macroprudential scenario analysis.
+
 \subsubsection{Shock Event Analysis}
 \label{subsubsec:shock-events}
 
@@ -165,11 +179,11 @@ We analyze model behavior during two major DeFi stress events.
 \end{enumerate}
 
 \paragraph{Analysis framework.}
-For each event, we examine a pre/event/post window and report both structural shifts and forecasting quality on economically material edges:
+For each event, we examine a pre/event/post window. To avoid event leakage in the case study, we train an event-specific forecaster using only snapshots strictly prior to the event window, and then generate one-step-ahead forecasts within the event window. We report structural shifts and forward-looking stability measures:
 \begin{enumerate}
   \item \textbf{Network structure changes:} TVL, edge count, Gini coefficient, HHI.
-  \item \textbf{Forecasting quality under stress:} AUPRC, Recall@K, and TVL-weighted MAE reported for pre/event/post windows, with $\Delta(\text{event} - \text{pre})$.
-  \item \textbf{Early warning signals:} whether structural indicators spiked before the event.
+  \item \textbf{Forward-looking risk metrics:} predicted vs.\ realized stability indicators during the event window.
+  \item \textbf{Predictive stress losses:} predicted vs.\ realized contagion losses under the same shock definitions.
 \end{enumerate}
 
 \paragraph{Results.}
@@ -199,11 +213,11 @@ We implement a DebtRank-style contagion simulation to assess systemic loss propa
 Given an initial shock to protocol $p_0$ with loss ratio $\delta_0$:
 \begin{enumerate}
   \item \textbf{Initialize:} $\text{Loss}_{p_0} = \delta_0 \cdot \text{TVL}_{p_0}$
-  \item \textbf{Propagate:} For each creditor $q$ with exposure $E_{qp_0}$ to $p_0$:
+  \item \textbf{Propagate:} When a distressed debtor $p$ has loss $\text{Loss}_p$, we allocate its loss to its creditors $q$ proportionally to their exposures $E_{qp}$:
   \begin{equation}
-    \text{Loss}_q^{(1)} = E_{qp_0} \cdot \delta_0
+    \Delta \text{Loss}_q \;=\; \text{Loss}_p \cdot \frac{E_{qp}}{\sum_{q'} E_{q'p}}.
   \end{equation}
-  \item \textbf{Iterate:} If $\text{Loss}_q^{(r)} > \tau \cdot \text{TVL}_q$ (with distress threshold $\tau = 0.1$, i.e., 10\% TVL loss), protocol $q$ becomes distressed and propagates losses to its creditors.
+  \item \textbf{Iterate:} If $\text{Loss}_q > \tau \cdot \text{TVL}_q$ (with distress threshold $\tau = 0.1$, i.e., 10\% TVL loss), protocol $q$ becomes distressed and then propagates losses to its creditors. Losses are capped at $\text{TVL}_q$.
   \item \textbf{Terminate:} When no new protocols become distressed.
 \end{enumerate}
 

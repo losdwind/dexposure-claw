@@ -428,7 +428,7 @@ def simulate_contagion(
     edges = snap.get("edges", [])
 
     # Initialize TVL and losses
-    tvl = {n: data.get("tvlUsd", 0) for n, data in nodes.items()}
+    tvl = {n: float(data.get("tvlUsd", 0.0) or 0.0) for n, data in nodes.items()}
     losses = {n: 0.0 for n in nodes}
 
     # Build exposure index for propagation.
@@ -438,6 +438,8 @@ def simulate_contagion(
     for edge in edges:
         src, dst = edge.get("source"), edge.get("target")
         weight = float(edge.get("weight", 0) or 0.0)
+        if weight <= 0.0:
+            continue
         if src is None or dst is None:
             continue
         if dst not in exposures_in:
@@ -446,33 +448,60 @@ def simulate_contagion(
 
     # Initial shock
     distressed = set()
+    active = set()
     for node in shocked_nodes:
         if node in tvl:
-            losses[node] = shock_fraction * tvl[node]
+            tvl_n = float(tvl[node])
+            if tvl_n <= 0:
+                continue
+            losses[node] = shock_fraction * tvl_n
             distressed.add(node)
+            active.add(node)
 
     # Propagation rounds
     affected_history = [len(distressed)]
     for round_num in range(max_rounds):
-        new_distressed = set()
-
-        for node in distressed:
-            # Propagate debtor losses to its creditors
-            for creditor, exposure in exposures_in.get(node, {}).items():
-                if creditor not in distressed:
-                    # Loss proportional to exposure share
-                    loss_share = exposure / tvl[node] if tvl[node] > 0 else 0
-                    propagated_loss = losses[node] * loss_share
-                    losses[creditor] += propagated_loss
-
-                    # Check if creditor becomes distressed
-                    if losses[creditor] > distress_threshold * tvl.get(creditor, 0):
-                        new_distressed.add(creditor)
-
-        if not new_distressed:
+        if not active:
             break
 
-        distressed = distressed.union(new_distressed)
+        new_active = set()
+        for node in active:
+            creditors = exposures_in.get(node, {})
+            if not creditors:
+                continue
+            total_exposure = float(np.sum(list(creditors.values())))
+            if total_exposure <= 0:
+                continue
+
+            node_loss = float(losses.get(node, 0.0))
+            if node_loss <= 0:
+                continue
+
+            # Propagate debtor losses to its creditors proportionally.
+            for creditor, exposure in creditors.items():
+                exposure = float(exposure)
+                if exposure <= 0:
+                    continue
+                if creditor not in tvl:
+                    continue
+
+                loss_share = exposure / total_exposure
+                propagated_loss = node_loss * loss_share
+                losses[creditor] += propagated_loss
+
+                tvl_c = float(tvl.get(creditor, 0.0))
+                if tvl_c > 0:
+                    losses[creditor] = min(losses[creditor], tvl_c)
+
+                    # Check if creditor becomes distressed (only once, when crossing threshold)
+                    if creditor not in distressed and losses[creditor] > distress_threshold * tvl_c:
+                        distressed.add(creditor)
+                        new_active.add(creditor)
+
+        if not new_active:
+            break
+
+        active = new_active
         affected_history.append(len(distressed))
 
     # Compute aggregate statistics
@@ -923,6 +952,7 @@ def load_or_train_model(
     train_pairs: List[WeekPair],
     force_retrain: bool = False,
     frozen: bool = False,
+    cache_tag: Optional[str] = None,
 ) -> GraphPFNLinkPredictor:
     """
     Load cached model or train if not exists.
@@ -932,12 +962,16 @@ def load_or_train_model(
         train_pairs: Training data pairs
         force_retrain: Force retraining even if cache exists
         frozen: If True, use frozen encoder (faster); if False, fine-tune (better)
+        cache_tag: Optional tag for isolated caches (e.g., per-event models).
     """
     _import_graphpfn_deps()
     MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     # Different cache paths for frozen vs finetuned
     model_name = "graphpfn_frozen" if frozen else "dexposure_fm"
+    if cache_tag:
+        safe_tag = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in cache_tag)
+        model_name = f"{model_name}__{safe_tag}"
     cache_path = MODEL_CACHE_DIR / f"{model_name}.pt"
     device = torch.device(config.device)
 
@@ -1011,7 +1045,10 @@ def reconstruct_network_from_predictions(
     Returns:
         Reconstructed snapshot dictionary compatible with risk analysis functions
     """
-    # Edge predictions
+    # Get node_mask: only include nodes that exist at both t and t+h
+    node_mask = pair.node_mask
+
+    # Edge predictions - filter edges to only include valid nodes
     exist_prob = 1 / (1 + np.exp(-pred["exist_logits"]))
     edge_mask = exist_prob > edge_threshold
 
@@ -1019,21 +1056,38 @@ def reconstruct_network_from_predictions(
     pred_dst = pair.pair_dst[edge_mask]
     pred_weights = pred["weight_pred"][edge_mask]
 
-    # Node predictions (TVL change)
+    # Further filter edges: both endpoints must be valid nodes
+    valid_edge_mask = node_mask[pred_src] & node_mask[pred_dst]
+    pred_src = pred_src[valid_edge_mask]
+    pred_dst = pred_dst[valid_edge_mask]
+    pred_weights = pred_weights[valid_edge_mask]
+
+    # Node predictions (TVL change) - only for valid nodes
     sizes_t = pair.sizes_t
     log_size_t = np.log1p(np.maximum(sizes_t, 0))
     pred_log_tvl = log_size_t + pred["node_pred"]
     pred_sizes = np.expm1(np.maximum(pred_log_tvl, 0))
 
+    # Filter to valid nodes only
+    valid_node_ids = [nid for i, nid in enumerate(pair.node_ids) if node_mask[i]]
+    valid_categories = [cat for i, cat in enumerate(pair.categories) if node_mask[i]]
+    valid_sizes = pred_sizes[node_mask]
+    valid_features = pair.features_t[node_mask] if pair.features_t is not None else None
+
+    # Remap edge indices to new node ordering
+    old_to_new = {old_idx: new_idx for new_idx, old_idx in enumerate(np.where(node_mask)[0])}
+    remapped_src = np.array([old_to_new[s] for s in pred_src])
+    remapped_dst = np.array([old_to_new[d] for d in pred_dst])
+
     return {
         "date": pred.get("time_t1", "predicted"),
-        "node_ids": pair.node_ids,
-        "categories": pair.categories,
-        "sizes": pred_sizes,
-        "edge_src": pred_src,
-        "edge_dst": pred_dst,
+        "node_ids": valid_node_ids,
+        "categories": valid_categories,
+        "sizes": valid_sizes,
+        "edge_src": remapped_src,
+        "edge_dst": remapped_dst,
         "edge_weight": pred_weights,
-        "features": pair.features_t,  # Use original features
+        "features": valid_features,
     }
 
 
@@ -1041,23 +1095,51 @@ def reconstruct_actual_network(
     pred: Dict[str, Any],
     pair: WeekPair,
 ) -> Dict[str, Any]:
-    """Reconstruct actual network at t+h from ground truth."""
-    edge_mask = pair.y_exist > 0.5
+    """Reconstruct actual network at t+h from ground truth.
 
+    Only includes nodes that exist at both t and t+h (node_mask=True).
+    """
+    # Get node_mask: only include nodes that exist at both t and t+h
+    node_mask = pair.node_mask
+
+    # Edge selection based on ground truth
+    edge_mask = pair.y_exist > 0.5
+    actual_src = pair.pair_src[edge_mask]
+    actual_dst = pair.pair_dst[edge_mask]
+    actual_weights = pair.y_weight[edge_mask]
+
+    # Further filter edges: both endpoints must be valid nodes
+    valid_edge_mask = node_mask[actual_src] & node_mask[actual_dst]
+    actual_src = actual_src[valid_edge_mask]
+    actual_dst = actual_dst[valid_edge_mask]
+    actual_weights = actual_weights[valid_edge_mask]
+
+    # Node sizes from ground truth
     sizes_t = pair.sizes_t
     log_size_t = np.log1p(np.maximum(sizes_t, 0))
     actual_log_tvl = log_size_t + pair.y_node
     actual_sizes = np.expm1(np.maximum(actual_log_tvl, 0))
 
+    # Filter to valid nodes only
+    valid_node_ids = [nid for i, nid in enumerate(pair.node_ids) if node_mask[i]]
+    valid_categories = [cat for i, cat in enumerate(pair.categories) if node_mask[i]]
+    valid_sizes = actual_sizes[node_mask]
+    valid_features = pair.features_t[node_mask] if pair.features_t is not None else None
+
+    # Remap edge indices to new node ordering
+    old_to_new = {old_idx: new_idx for new_idx, old_idx in enumerate(np.where(node_mask)[0])}
+    remapped_src = np.array([old_to_new[s] for s in actual_src])
+    remapped_dst = np.array([old_to_new[d] for d in actual_dst])
+
     return {
         "date": pred.get("time_t1", "actual"),
-        "node_ids": pair.node_ids,
-        "categories": pair.categories,
-        "sizes": actual_sizes,
-        "edge_src": pair.pair_src[edge_mask],
-        "edge_dst": pair.pair_dst[edge_mask],
-        "edge_weight": pair.y_weight[edge_mask],
-        "features": pair.features_t,
+        "node_ids": valid_node_ids,
+        "categories": valid_categories,
+        "sizes": valid_sizes,
+        "edge_src": remapped_src,
+        "edge_dst": remapped_dst,
+        "edge_weight": actual_weights,
+        "features": valid_features,
     }
 
 
@@ -1520,7 +1602,13 @@ def run_predictive_contagion(
 
         # Sample a few pairs for detailed analysis
         sample_n = min(max_samples_per_horizon, len(test_pairs)) if max_samples_per_horizon > 0 else len(test_pairs)
-        sample_pairs = test_pairs[:sample_n]
+        if sample_n >= len(test_pairs):
+            sample_pairs = test_pairs
+        else:
+            rng = np.random.default_rng(config.seed + horizon)
+            idx = rng.choice(len(test_pairs), size=sample_n, replace=False)
+            idx = sorted(idx.tolist())
+            sample_pairs = [test_pairs[i] for i in idx]
         preds = predict_graphpfn(model, sample_pairs, config)
 
         horizon_results = {"samples": []}
@@ -1641,10 +1729,10 @@ def run_predictive_contagion(
 
 def run_early_warning_analysis(
     config: ExperimentConfig,
-    model: GraphPFNLinkPredictor,
     all_snapshots: List[Dict],
     date_to_snap: Dict[str, Dict],
     meta_category: Dict,
+    frozen: bool = False,
     output_dir: Path = OUTPUT_DIR,
 ) -> Dict[str, Any]:
     """
@@ -1652,8 +1740,12 @@ def run_early_warning_analysis(
 
     Demonstrates the model's ability to predict risk before major events.
 
+    IMPORTANT: To avoid data leakage, we train a SEPARATE model for each event
+    using ONLY data from before the event start date. This ensures the model
+    has never seen any information about the shock event during training.
+
     For each shock event (Terra/Luna, FTX):
-    1. Get network snapshots from pre-event period
+    1. Train model on data strictly before event start (no leakage!)
     2. Use model to predict risk metrics for event period
     3. Compare predicted vs actual risk trajectories
     4. Assess early warning capability
@@ -1662,6 +1754,7 @@ def run_early_warning_analysis(
     logger.info("EXPERIMENT 3: Shock Early Warning Analysis")
     logger.info("=" * 70)
     logger.info("Goal: Show model can predict elevated risk before major shocks")
+    logger.info("NOTE: Training separate model for each event to avoid data leakage")
 
     all_dates = sorted([s["date"] for s in all_snapshots])
     results = {"events": {}}
@@ -1695,12 +1788,41 @@ def run_early_warning_analysis(
         logger.info(f"    Pre-event weeks: {len(pre_dates)}")
         logger.info(f"    Event weeks: {len(event_dates)}")
 
+        # =================================================================
+        # CRITICAL FIX: Train model only on data BEFORE event start
+        # This avoids data leakage - model never sees the shock event
+        # =================================================================
+        train_cutoff = event_start  # All data before event window
+        train_dates = [d for d in all_dates if d < train_cutoff]
+        train_snapshots = [date_to_snap[d] for d in train_dates if d in date_to_snap]
+
+        logger.info(f"    Training on {len(train_snapshots)} weeks (< {train_cutoff})")
+
+        if len(train_snapshots) < 10:
+            logger.warning(f"Insufficient training data for {event_info['name']}")
+            continue
+
+        # Train a fresh model for this event
+        train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
+        logger.info(f"    Training pairs: {len(train_pairs)}")
+
+        event_model = load_or_train_model(
+            config,
+            train_pairs,
+            force_retrain=True,
+            frozen=frozen,
+            cache_tag=f"early_warning_{event_id}_cutoff_{train_cutoff}",
+        )
+        logger.info(f"    Model trained for {event_info['name']} (no event data leakage)")
+
         pre_snapshots = [date_to_snap[d] for d in pre_dates if d in date_to_snap]
 
         event_results = {
             "event_info": event_info,
             "pre_dates": pre_dates,
             "event_dates": event_dates,
+            "train_cutoff": train_cutoff,
+            "train_weeks": len(train_snapshots),
             "predictions": [],
             "actual_event_metrics": [],
         }
@@ -1736,7 +1858,8 @@ def run_early_warning_analysis(
                 logger.warning(f"No pairs for {event_date}")
                 continue
 
-            preds = predict_graphpfn(model, test_pairs[:1], config)
+            # Use event-specific model (trained without leakage)
+            preds = predict_graphpfn(event_model, test_pairs[:1], config)
             pred = preds[0]
             pair = test_pairs[0]
 
@@ -1750,9 +1873,15 @@ def run_early_warning_analysis(
 
             # Run contagion simulation (convert to dict format first)
             try:
-                # Shock top 5 protocols
-                tvl_order = np.argsort(actual_net["sizes"])[::-1]
-                shocked_nodes = [actual_net["node_ids"][i] for i in tvl_order[:5] if i < len(actual_net["node_ids"])]
+                # Shock top 5 protocols by TVL at time t (within the evaluation universe).
+                # We restrict to nodes that exist at both t and t+1 (pair.node_mask) so the
+                # shock is applied consistently on predicted/actual networks.
+                valid_idx = np.where(pair.node_mask)[0]
+                if valid_idx.size > 0:
+                    order = valid_idx[np.argsort(pair.sizes_t[valid_idx])[::-1]]
+                    shocked_nodes = [pair.node_ids[int(i)] for i in order[:5]]
+                else:
+                    shocked_nodes = []
 
                 pred_dict = array_snap_to_dict_snap(pred_net, edge_weight_is_log=True)
                 actual_dict = array_snap_to_dict_snap(actual_net, edge_weight_is_log=True)
@@ -2067,8 +2196,11 @@ def main():
             logger.info(f"\nLoading cached early_warning results from {exp_path}")
             results["early_warning"] = _load_json(exp_path)
         else:
+            # Note: run_early_warning_analysis now trains its own model per-event
+            # to avoid data leakage (model never sees shock event data during training)
             results["early_warning"] = run_early_warning_analysis(
-                config, model, snapshots, date_to_snap, meta_category, output_dir=output_dir
+                config, snapshots, date_to_snap, meta_category,
+                frozen=args.frozen, output_dir=output_dir
             )
 
     # Save combined results
