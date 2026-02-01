@@ -83,6 +83,7 @@ load_network_data = None
 predict_graphpfn = None
 set_seed = None
 train_graphpfn_epoch = None
+EmbeddingCache = None
 
 
 def _import_graphpfn_deps() -> None:
@@ -100,6 +101,7 @@ def _import_graphpfn_deps() -> None:
     global predict_graphpfn
     global set_seed
     global train_graphpfn_epoch
+    global EmbeddingCache
     global torch
     if GRAPHPFN_AVAILABLE is not None:
         return
@@ -111,6 +113,7 @@ def _import_graphpfn_deps() -> None:
         GRAPHPFN_AVAILABLE as _GRAPHPFN_AVAILABLE,
         ExperimentConfig as _ExperimentConfig,
         GraphPFNLinkPredictor as _GraphPFNLinkPredictor,
+        EmbeddingCache as _EmbeddingCache,
         WeekPair as _WeekPair,
         build_snapshot as _build_snapshot,
         build_week_pairs as _build_week_pairs,
@@ -126,6 +129,7 @@ def _import_graphpfn_deps() -> None:
     GRAPHPFN_AVAILABLE = _GRAPHPFN_AVAILABLE
     ExperimentConfig = _ExperimentConfig
     GraphPFNLinkPredictor = _GraphPFNLinkPredictor
+    EmbeddingCache = _EmbeddingCache
     WeekPair = _WeekPair
     build_snapshot = _build_snapshot
     build_week_pairs = _build_week_pairs
@@ -678,6 +682,9 @@ def plot_contagion_comparison(
     Plot Contagion simulation comparison: Observed(t) vs Predicted(t+h) vs Actual(t+h).
 
     Creates grouped bar chart showing system loss across different shock scenarios.
+
+    Note: The naive baseline is the observed network at time t (\"Observed (t)\"),
+    which corresponds to a persistence assumption for stress testing.
     """
     horizons_data = results.get("horizons", {})
     if not horizons_data:
@@ -690,6 +697,16 @@ def plot_contagion_comparison(
     if not scenarios:
         scenarios = ["Top Protocol Shock", "Top 5 Protocols Shock", "Bridge Sector Shock"]
 
+    def _short_scenario_label(name: str) -> str:
+        n = (name or "").lower()
+        if "top" in n and ("protocol" in n or "protocols" in n):
+            if "5" in n:
+                return "Top-5"
+            return "Top-1"
+        if "bridge" in n:
+            return "Bridge"
+        return name
+
     def _parse_horizon_key(key: str) -> int:
         # Expecting "h=1", "h=4", ...
         try:
@@ -699,11 +716,11 @@ def plot_contagion_comparison(
 
     horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
 
-    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4 * len(horizon_items), 5), sharey=True)
+    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4.8 * len(horizon_items), 5.0), sharey=True)
     if len(horizon_items) == 1:
         axes = [axes]
 
-    fig.suptitle("Predictive Contagion: Forward-looking Stress Testing", fontsize=14, fontweight="bold")
+    fig.suptitle("Predictive Contagion: Model vs Naive Baseline", fontsize=14, fontweight="bold", y=0.98)
 
     for ax_idx, (horizon_key, horizon_data) in enumerate(horizon_items):
         ax = axes[ax_idx]
@@ -740,27 +757,73 @@ def plot_contagion_comparison(
         predicted_stds = [np.std(scenario_results[s]["predicted"]) if len(scenario_results[s]["predicted"]) > 1 else 0 for s in scenarios]
         actual_stds = [np.std(scenario_results[s]["actual"]) if len(scenario_results[s]["actual"]) > 1 else 0 for s in scenarios]
 
-        bars1 = ax.bar(x - width, observed_means, width, yerr=observed_stds,
-                       label="Observed (t)", color=COLORS["observed"], alpha=0.8, capsize=3)
-        bars2 = ax.bar(x, predicted_means, width, yerr=predicted_stds,
-                       label="Predicted (t+h)", color=COLORS["predicted"], alpha=0.8, capsize=3)
-        bars3 = ax.bar(x + width, actual_means, width, yerr=actual_stds,
-                       label="Actual (t+h)", color=COLORS["actual"], alpha=0.8, capsize=3)
+        ax.bar(
+            x - width,
+            observed_means,
+            width,
+            yerr=observed_stds,
+            label="Baseline (Obs t)",
+            color=COLORS["observed"],
+            alpha=0.8,
+            capsize=3,
+        )
+        ax.bar(
+            x,
+            predicted_means,
+            width,
+            yerr=predicted_stds,
+            label="Model (Pred t+h)",
+            color=COLORS["predicted"],
+            alpha=0.8,
+            capsize=3,
+        )
+        ax.bar(
+            x + width,
+            actual_means,
+            width,
+            yerr=actual_stds,
+            label="Actual (t+h)",
+            color=COLORS["actual"],
+            alpha=0.8,
+            capsize=3,
+        )
 
         ax.set_xlabel("Shock Scenario")
         ax.set_ylabel("System Loss (%)" if ax_idx == 0 else "")
         ax.set_title(f"Horizon {horizon_key}")
         ax.set_xticks(x)
-        ax.set_xticklabels(["Top-1", "Top-5", "Bridge"], rotation=0)
+        ax.set_xticklabels([_short_scenario_label(s) for s in scenarios], rotation=0)
+        # Add a small headroom so the summary box does not overlap bars.
+        upper_vals = []
+        upper_vals.extend([m + s for m, s in zip(observed_means, observed_stds)])
+        upper_vals.extend([m + s for m, s in zip(predicted_means, predicted_stds)])
+        upper_vals.extend([m + s for m, s in zip(actual_means, actual_stds)])
+        y_max = max(upper_vals) if upper_vals else 0.0
+        if y_max > 0:
+            # Extra headroom so the in-axes legend and MAE box don't cover bars.
+            ax.set_ylim(0, y_max * 1.40)
+        else:
+            ax.set_ylim(bottom=0)
 
-        if ax_idx == 0:
-            ax.legend(loc="upper left", framealpha=0.9)
+        # Match Early Warning style: legend inside axes with a light frame.
+        ax.legend(loc="best", framealpha=0.9, ncol=1)
 
-        # Add prediction accuracy annotation
-        pred_vs_actual_mae = np.mean(np.abs(np.array(predicted_means) - np.array(actual_means)))
-        ax.text(0.95, 0.95, f"Pred vs Actual\nMAE: {pred_vs_actual_mae:.2f}%",
-                transform=ax.transAxes, ha="right", va="top", fontsize=8,
-                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+        # Horizon-level summary annotation (uses MAE across samples, not MAE of means)
+        pred_all = np.concatenate([np.abs(np.array(scenario_results[s]["predicted"]) - np.array(scenario_results[s]["actual"])) for s in scenarios if scenario_results[s]["predicted"] and scenario_results[s]["actual"]])
+        base_all = np.concatenate([np.abs(np.array(scenario_results[s]["observed"]) - np.array(scenario_results[s]["actual"])) for s in scenarios if scenario_results[s]["observed"] and scenario_results[s]["actual"]])
+        pred_overall = float(pred_all.mean()) if pred_all.size else 0.0
+        base_overall = float(base_all.mean()) if base_all.size else 0.0
+        improvement = base_overall - pred_overall
+        ax.text(
+            0.95,
+            0.95,
+            f"MAE(model): {pred_overall:.2f}%\nMAE(baseline): {base_overall:.2f}%\nΔ: {improvement:+.2f}%",
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=9,
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+        )
 
     plt.tight_layout()
 
@@ -771,6 +834,147 @@ def plot_contagion_comparison(
     plt.close()
 
     logger.info(f"Saved Contagion Comparison figure to {fig_path}")
+
+
+def plot_contagion_advantage(
+    results: Dict[str, Any],
+    output_dir: Path,
+) -> None:
+    """
+    Plot "advantage regimes" where the model beats the persistence baseline.
+
+    Uses Exp2 post-processing fields (delta_mae_all vs delta_mae_worst) computed in
+    `run_predictive_contagion()`. Positive values mean the model improves over baseline.
+    """
+    horizons_data = results.get("horizons", {})
+    if not horizons_data:
+        logger.warning("No contagion data to plot (advantage)")
+        return
+
+    plt = _import_matplotlib()
+
+    scenarios = [s.get("name") for s in results.get("scenarios", []) if isinstance(s, dict) and s.get("name")]
+    if not scenarios:
+        scenarios = ["Top Protocol Shock", "Top 5 Protocols Shock", "Bridge Sector Shock"]
+
+    has_adv = any(
+        f"{scenario_name}_advantage" in horizon_data
+        for horizon_data in horizons_data.values()
+        for scenario_name in scenarios
+    )
+    if not has_adv:
+        logger.warning("Contagion advantage stats not found in results; rerun predictive_contagion to generate them.")
+        return
+
+    def _short_scenario_label(name: str) -> str:
+        n = (name or "").lower()
+        if "top" in n and ("protocol" in n or "protocols" in n):
+            if "5" in n:
+                return "Top-5"
+            return "Top-1"
+        if "bridge" in n:
+            return "Bridge"
+        return name
+
+    def _parse_horizon_key(key: str) -> int:
+        try:
+            return int(key.split("=")[1])
+        except Exception:
+            return 10**9
+
+    horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
+
+    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4.8 * len(horizon_items), 4.6), sharey=True)
+    if len(horizon_items) == 1:
+        axes = [axes]
+
+    worst_frac = None
+    for _, hdata in horizon_items:
+        ws = hdata.get("advantage_overall", {}).get("worst_frac")
+        if ws is not None:
+            worst_frac = float(ws)
+            break
+    if worst_frac is None:
+        worst_frac = 0.2
+
+    fig.suptitle(
+        "Predictive Contagion: Where the Model Beats Persistence",
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
+    )
+
+    for ax_idx, (horizon_key, horizon_data) in enumerate(horizon_items):
+        ax = axes[ax_idx]
+
+        overall_impr = []
+        worst_impr = []
+        for s in scenarios:
+            adv = horizon_data.get(f"{s}_advantage", {})
+            overall_impr.append(float(adv.get("delta_mae_all", np.nan)))
+            worst_impr.append(float(adv.get("delta_mae_worst", np.nan)))
+
+        x = np.arange(len(scenarios))
+        width = 0.35
+
+        ax.axhline(0.0, color="k", linewidth=1.0, alpha=0.35)
+        ax.bar(
+            x - width / 2,
+            overall_impr,
+            width,
+            color=COLORS["observed"],
+            alpha=0.85,
+            label="Overall",
+        )
+        ax.bar(
+            x + width / 2,
+            worst_impr,
+            width,
+            color=COLORS["predicted"],
+            alpha=0.85,
+            label=f"Worst {int(round(100 * worst_frac))}%",
+        )
+
+        ax.set_title(f"Horizon {horizon_key}")
+        ax.set_xlabel("Shock Scenario")
+        ax.set_ylabel("ΔMAE (baseline − model) [% pts]" if ax_idx == 0 else "")
+        ax.set_xticks(x)
+        ax.set_xticklabels([_short_scenario_label(s) for s in scenarios], rotation=0)
+
+        # Symmetric y-limits for readability.
+        vals = np.array(overall_impr + worst_impr, dtype=float)
+        vals = vals[~np.isnan(vals)]
+        if vals.size:
+            m = float(np.max(np.abs(vals)))
+            if m > 0:
+                ax.set_ylim(-1.25 * m, 1.25 * m)
+
+        ax.legend(loc="best", framealpha=0.9)
+
+        overall = horizon_data.get("advantage_overall", {})
+        if overall:
+            ax.text(
+                0.95,
+                0.95,
+                f"Δ(all): {overall.get('delta_mae_all', float('nan')):+.2f}%\n"
+                f"Δ(worst): {overall.get('delta_mae_worst', float('nan')):+.2f}%\n"
+                f"Win@worst: {100*float(overall.get('win_rate_worst', float('nan'))):.0f}%",
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=9,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+            )
+
+    plt.tight_layout()
+
+    fig_path = output_dir / "figures" / "fig_contagion_advantage.pdf"
+    fig_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(fig_path)
+    plt.savefig(fig_path.with_suffix(".png"))
+    plt.close()
+
+    logger.info(f"Saved Contagion Advantage figure to {fig_path}")
 
 
 def plot_forward_risk_scatter(
@@ -885,6 +1089,7 @@ def plot_all_figures(
 
     if contagion_results:
         plot_contagion_comparison(contagion_results, output_dir)
+        plot_contagion_advantage(contagion_results, output_dir)
 
     if early_warning_results:
         plot_early_warning_timeseries(early_warning_results, output_dir)
@@ -904,24 +1109,24 @@ def load_saved_task2_results(output_dir: Path) -> Dict[str, Any]:
     """
     Load previously saved results from `output_dir`.
 
-    Prefers the consolidated `all_results.json`; falls back to per-experiment json files.
+    Prefers the consolidated `all_results.json`; fills any missing experiments from per-experiment json files.
     Returns a dict with optional keys: forward_risk, predictive_contagion, early_warning.
     """
+    results: Dict[str, Any] = {}
+
     all_path = output_dir / "all_results.json"
     if all_path.exists():
         data = _load_json(all_path)
         if isinstance(data, dict):
-            return data
-        return {}
+            results.update(data)
 
-    results: Dict[str, Any] = {}
     paths = {
         "forward_risk": output_dir / "exp1_forward_risk.json",
         "predictive_contagion": output_dir / "exp2_predictive_contagion.json",
         "early_warning": output_dir / "exp3_early_warning.json",
     }
     for key, path in paths.items():
-        if path.exists():
+        if key not in results and path.exists():
             results[key] = _load_json(path)
     return results
 
@@ -953,6 +1158,7 @@ def load_or_train_model(
     force_retrain: bool = False,
     frozen: bool = False,
     cache_tag: Optional[str] = None,
+    horizon: int = 1,
 ) -> GraphPFNLinkPredictor:
     """
     Load cached model or train if not exists.
@@ -963,16 +1169,21 @@ def load_or_train_model(
         force_retrain: Force retraining even if cache exists
         frozen: If True, use frozen encoder (faster); if False, fine-tune (better)
         cache_tag: Optional tag for isolated caches (e.g., per-event models).
+        horizon: Prediction horizon used to build `train_pairs`. We cache models per-horizon
+            to match `run_full_experiment.py` (separate model per horizon).
     """
     _import_graphpfn_deps()
     MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     # Different cache paths for frozen vs finetuned
     model_name = "graphpfn_frozen" if frozen else "dexposure_fm"
+    name_parts = [model_name, f"h{int(horizon)}"]
     if cache_tag:
         safe_tag = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in cache_tag)
-        model_name = f"{model_name}__{safe_tag}"
-    cache_path = MODEL_CACHE_DIR / f"{model_name}.pt"
+        name_parts.append(safe_tag)
+    cache_stem = "__".join(name_parts)
+    cache_path = MODEL_CACHE_DIR / f"{cache_stem}.pt"
+    legacy_cache_path = MODEL_CACHE_DIR / f"{model_name}.pt"
     device = torch.device(config.device)
 
     encoder = load_graphpfn_encoder(config.checkpoint_path, device)
@@ -984,6 +1195,12 @@ def load_or_train_model(
         state = torch.load(cache_path, map_location=device)
         model.load_state_dict(state["model"], strict=True)
         return model
+    if horizon == 1 and not cache_tag and legacy_cache_path.exists() and not force_retrain:
+        # Backward compatible: older runs cached only the h=1 model without the horizon suffix.
+        logger.info(f"Loading legacy cached model from {legacy_cache_path} (treating as h=1)")
+        state = torch.load(legacy_cache_path, map_location=device)
+        model.load_state_dict(state["model"], strict=True)
+        return model
 
     # Set encoder trainability
     finetune_encoder = not frozen
@@ -991,24 +1208,60 @@ def load_or_train_model(
         p.requires_grad = finetune_encoder
 
     mode_name = "GraphPFN-Frozen" if frozen else "DeXposure-FM (fine-tuned)"
-    logger.info(f"Training {mode_name}...")
+    logger.info(f"Training {mode_name} (h={horizon})...")
 
-    # Only train head parameters if frozen
-    if frozen:
-        trainable_params = [p for p in model.parameters() if p.requires_grad]
-        optimizer = torch.optim.Adam(trainable_params, lr=config.lr)
+    # Match `run_full_experiment.py` optimizer setup (layer-wise LR + weight decay).
+    weight_decay = float(getattr(config, "weight_decay", 0.0))
+    if finetune_encoder:
+        encoder_params = list(model.encoder.parameters())
+        encoder_param_set = set(encoder_params)
+        head_params = [p for p in model.parameters() if p not in encoder_param_set]
+        optimizer = torch.optim.Adam(
+            [
+                {"params": encoder_params, "lr": float(config.lr) * 0.1},
+                {"params": head_params, "lr": float(config.lr)},
+            ],
+            weight_decay=weight_decay,
+        )
+        logger.info(
+            f"  Optimizer: layer-wise LR (encoder={float(config.lr)*0.1:.1e}, head={float(config.lr):.1e}), wd={weight_decay:.1e}"
+        )
     else:
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+        trainable_params = [p for p in model.parameters() if p.requires_grad]
+        optimizer = torch.optim.Adam(
+            trainable_params, lr=float(config.lr), weight_decay=weight_decay
+        )
+        logger.info(f"  Optimizer: frozen head-only (lr={float(config.lr):.1e}, wd={weight_decay:.1e})")
 
-    best_state = None
+    scaler = None
+    if bool(getattr(config, "use_amp", False)) and device.type == "cuda":
+        scaler = torch.cuda.amp.GradScaler()
+        logger.info("  AMP enabled (mixed precision training)")
+
+    embedding_cache = None
+    if (not finetune_encoder) and bool(getattr(config, "cache_frozen_embeddings", False)):
+        embedding_cache = EmbeddingCache(model, device)
+        logger.info("  Embedding cache enabled (frozen encoder)")
+
+    best_state: Optional[Dict[str, Any]] = None
     best_loss = float("inf")
+    prev_embeddings = None
 
     for epoch in range(config.epochs):
-        losses, _ = train_graphpfn_epoch(
+        losses, prev_embeddings = train_graphpfn_epoch(
             model, train_pairs, optimizer, config,
-            finetune_encoder=finetune_encoder, prev_embeddings=None
+            finetune_encoder=finetune_encoder, prev_embeddings=prev_embeddings,
+            scaler=scaler, embedding_cache=embedding_cache,
         )
-        total_loss = losses["exist_loss"] + losses["weight_loss"]
+        total_loss = (
+            float(getattr(config, "exist_loss_weight", 1.0)) * float(losses.get("exist_loss", 0.0))
+            + float(getattr(config, "weight_loss_weight", 1.0)) * float(losses.get("weight_loss", 0.0))
+            + float(getattr(config, "node_loss_weight", 1.0)) * float(losses.get("node_loss", 0.0))
+            + float(getattr(config, "stats_loss_weight", 0.0)) * float(losses.get("stats_loss", 0.0))
+            + float(getattr(config, "impute_loss_weight", 0.0)) * float(losses.get("impute_loss", 0.0))
+            + float(getattr(config, "scen_loss_weight", 0.0)) * float(losses.get("scen_loss", 0.0))
+            + float(getattr(config, "smooth_loss_weight", 0.0)) * float(losses.get("smooth_loss", 0.0))
+        )
 
         if total_loss < best_loss:
             best_loss = total_loss
@@ -1437,7 +1690,7 @@ def run_sis_weight_sensitivity(
 
 def run_forward_risk_prediction(
     config: ExperimentConfig,
-    model: GraphPFNLinkPredictor,
+    models_by_horizon: Dict[int, GraphPFNLinkPredictor],
     test_snapshots: List[Dict],
     meta_category: Dict,
     horizons: List[int] = [1, 4, 8, 12],
@@ -1464,6 +1717,12 @@ def run_forward_risk_prediction(
 
     for horizon in horizons:
         logger.info(f"\n--- Horizon h={horizon} weeks ---")
+        model = models_by_horizon.get(horizon)
+        if model is None:
+            raise ValueError(
+                f"Missing trained model for horizon h={horizon}. "
+                f"Available: {sorted(models_by_horizon.keys())}"
+            )
 
         # Build test pairs for this horizon
         test_pairs = build_week_pairs(test_snapshots, config.neg_ratio, config.seed, horizon=horizon)
@@ -1560,12 +1819,13 @@ def run_forward_risk_prediction(
 
 def run_predictive_contagion(
     config: ExperimentConfig,
-    model: GraphPFNLinkPredictor,
+    models_by_horizon: Dict[int, GraphPFNLinkPredictor],
     test_snapshots: List[Dict],
     meta_category: Dict,
     horizons: List[int] = [1, 4, 8],
     max_samples_per_horizon: int = 10,
     output_dir: Path = OUTPUT_DIR,
+    save_json: bool = True,
 ) -> Dict[str, Any]:
     """
     Experiment 2: Predictive Contagion Simulation
@@ -1583,6 +1843,49 @@ def run_predictive_contagion(
     logger.info("=" * 70)
     logger.info("Goal: Show model enables forward-looking stress testing")
 
+    WORST_FRAC = 0.2  # evaluate "advantage regime" on top-20% baseline-error samples
+    SIGN_TOL = 1e-6
+
+    def _safe_jaccard(a: set, b: set) -> float:
+        if not a and not b:
+            return 1.0
+        if not a or not b:
+            return 0.0
+        inter = len(a.intersection(b))
+        union = len(a.union(b))
+        return float(inter / union) if union > 0 else 0.0
+
+    def _topn_set(net: Dict[str, Any], n: int) -> set:
+        node_ids = net.get("node_ids", [])
+        sizes = np.array(net.get("sizes", []), dtype=float)
+        if n <= 0 or len(node_ids) == 0 or sizes.size == 0:
+            return set()
+        n_eff = min(int(n), len(node_ids))
+        order = np.argsort(sizes)[::-1][:n_eff]
+        return {node_ids[int(i)] for i in order if int(i) < len(node_ids)}
+
+    def _sector_set(net: Dict[str, Any], sector: str) -> set:
+        node_ids = net.get("node_ids", [])
+        s = (sector or "").lower()
+        out = set()
+        for nid in node_ids:
+            if s and s in (meta_category.get(nid, "") or "").lower():
+                out.add(nid)
+        return out
+
+    def _sign_with_tol(x: np.ndarray, tol: float = SIGN_TOL) -> np.ndarray:
+        x = np.asarray(x, dtype=float)
+        return np.where(x > tol, 1.0, np.where(x < -tol, -1.0, 0.0))
+
+    def _topk_idx(values: np.ndarray, frac: float = WORST_FRAC) -> np.ndarray:
+        """Return indices of the largest `frac` values (at least 1)."""
+        v = np.asarray(values, dtype=float)
+        n = int(v.size)
+        if n <= 0:
+            return np.array([], dtype=int)
+        k = max(1, int(np.ceil(float(frac) * n)))
+        return np.argsort(v)[::-1][:k]
+
     # Define shock scenarios
     scenarios = [
         {"name": "Top Protocol Shock", "top_n": 1, "shock_ratio": 0.5},
@@ -1594,6 +1897,12 @@ def run_predictive_contagion(
 
     for horizon in horizons:
         logger.info(f"\n--- Horizon h={horizon} weeks ---")
+        model = models_by_horizon.get(horizon)
+        if model is None:
+            raise ValueError(
+                f"Missing trained model for horizon h={horizon}. "
+                f"Available: {sorted(models_by_horizon.keys())}"
+            )
 
         test_pairs = build_week_pairs(test_snapshots, config.neg_ratio, config.seed, horizon=horizon)
         if not test_pairs or len(test_pairs) < 3:
@@ -1659,6 +1968,51 @@ def run_predictive_contagion(
                 # Run contagion on all three networks
                 # Convert array format to dict format for simulate_contagion
                 try:
+                    # --- Diagnostics: how stable is the shocked-node set? ---
+                    # For Top-N, compare top-N sets under observed/predicted/actual.
+                    # For Sector, compare sector membership sets under observed/predicted/actual.
+                    diag = {}
+                    if "top_n" in scenario:
+                        n = int(scenario["top_n"])
+                        obs_set = _topn_set(observed_net, n)
+                        pred_set = _topn_set(pred_net, n)
+                        act_set = _topn_set(actual_net, n)
+                        used_set = set(shocked_nodes)
+                        diag = {
+                            "shock_set_type": "top_n",
+                            "top_n": n,
+                            "jaccard_obs_vs_actual": _safe_jaccard(obs_set, act_set),
+                            "jaccard_pred_vs_actual": _safe_jaccard(pred_set, act_set),
+                            "jaccard_used_vs_actual": _safe_jaccard(used_set, act_set),
+                            "match_obs_eq_actual": bool(obs_set == act_set),
+                            "match_pred_eq_actual": bool(pred_set == act_set),
+                            "match_used_eq_actual": bool(used_set == act_set),
+                            "obs_size": len(obs_set),
+                            "pred_size": len(pred_set),
+                            "actual_size": len(act_set),
+                            "used_size": len(used_set),
+                        }
+                    elif "sector" in scenario:
+                        sector = str(scenario["sector"])
+                        obs_set = _sector_set(observed_net, sector)
+                        pred_set = _sector_set(pred_net, sector)
+                        act_set = _sector_set(actual_net, sector)
+                        used_set = set(shocked_nodes)
+                        diag = {
+                            "shock_set_type": "sector",
+                            "sector": sector,
+                            "jaccard_obs_vs_actual": _safe_jaccard(obs_set, act_set),
+                            "jaccard_pred_vs_actual": _safe_jaccard(pred_set, act_set),
+                            "jaccard_used_vs_actual": _safe_jaccard(used_set, act_set),
+                            "match_obs_eq_actual": bool(obs_set == act_set),
+                            "match_pred_eq_actual": bool(pred_set == act_set),
+                            "match_used_eq_actual": bool(used_set == act_set),
+                            "obs_size": len(obs_set),
+                            "pred_size": len(pred_set),
+                            "actual_size": len(act_set),
+                            "used_size": len(used_set),
+                        }
+
                     observed_dict = array_snap_to_dict_snap(observed_net, edge_weight_is_log=True)
                     predicted_dict = array_snap_to_dict_snap(pred_net, edge_weight_is_log=True)
                     actual_dict = array_snap_to_dict_snap(actual_net, edge_weight_is_log=True)
@@ -1684,6 +2038,7 @@ def run_predictive_contagion(
                             "affected_count": contagion_actual["affected_count"],
                             "depth": contagion_actual["propagation_rounds"],
                         },
+                        "shock_set_diagnostics": diag,
                     }
                 except Exception as e:
                     logger.warning(f"Contagion simulation failed: {e}")
@@ -1694,33 +2049,177 @@ def run_predictive_contagion(
         for scenario in scenarios:
             predicted_losses = []
             actual_losses = []
+            observed_losses = []
 
             for sample in horizon_results["samples"]:
                 if scenario["name"] in sample["scenarios"]:
                     s = sample["scenarios"][scenario["name"]]
                     predicted_losses.append(s["predicted_t_h"]["total_loss_pct"])
                     actual_losses.append(s["actual_t_h"]["total_loss_pct"])
+                    observed_losses.append(s["observed_t"]["total_loss_pct"])
 
             if predicted_losses:
-                mae = np.mean(np.abs(np.array(predicted_losses) - np.array(actual_losses)))
-                corr = np.corrcoef(predicted_losses, actual_losses)[0, 1] if len(predicted_losses) > 1 else np.nan
+                pred_arr = np.array(predicted_losses, dtype=float)
+                act_arr = np.array(actual_losses, dtype=float)
+                obs_arr = np.array(observed_losses, dtype=float)
+
+                model_abs_err = np.abs(pred_arr - act_arr)
+                base_abs_err = np.abs(obs_arr - act_arr)
+
+                mae = float(np.mean(model_abs_err))
+                corr = float(np.corrcoef(pred_arr, act_arr)[0, 1]) if len(pred_arr) > 1 else float("nan")
+                baseline_mae = float(np.mean(base_abs_err))
+
+                # "Advantage regime" evaluation: where baseline fails most.
+                worst_idx = _topk_idx(base_abs_err, frac=WORST_FRAC)
+                worst_k = int(worst_idx.size)
+                mae_model_worst = float(np.mean(model_abs_err[worst_idx])) if worst_k else float("nan")
+                mae_base_worst = float(np.mean(base_abs_err[worst_idx])) if worst_k else float("nan")
+                win_rate_all = float(np.mean(model_abs_err < base_abs_err)) if pred_arr.size else float("nan")
+                win_rate_worst = float(np.mean(model_abs_err[worst_idx] < base_abs_err[worst_idx])) if worst_k else float("nan")
+
+                # Delta(contagion loss) analysis: focuses on change rather than level.
+                delta_actual = act_arr - obs_arr
+                delta_model = pred_arr - obs_arr
+                corr_delta = float(np.corrcoef(delta_model, delta_actual)[0, 1]) if len(delta_model) > 1 else float("nan")
+                sign_acc_delta = float(np.mean(_sign_with_tol(delta_model) == _sign_with_tol(delta_actual))) if delta_model.size else float("nan")
+                sign_acc_delta_worst = (
+                    float(np.mean(_sign_with_tol(delta_model[worst_idx]) == _sign_with_tol(delta_actual[worst_idx])))
+                    if worst_k
+                    else float("nan")
+                )
 
                 horizon_results[f"{scenario['name']}_accuracy"] = {
                     "mae_loss_pct": float(mae),
                     "correlation": float(corr),
                     "n_samples": len(predicted_losses),
+                    "baseline_mae_loss_pct": float(baseline_mae),
+                }
+
+                horizon_results[f"{scenario['name']}_advantage"] = {
+                    "n_samples": int(len(pred_arr)),
+                    "worst_frac": float(WORST_FRAC),
+                    "worst_k": int(worst_k),
+                    "mae_model_all": float(mae),
+                    "mae_baseline_all": float(baseline_mae),
+                    "delta_mae_all": float(baseline_mae - mae),
+                    "win_rate_all": float(win_rate_all),
+                    "mae_model_worst": float(mae_model_worst),
+                    "mae_baseline_worst": float(mae_base_worst),
+                    "delta_mae_worst": float(mae_base_worst - mae_model_worst) if np.isfinite(mae_base_worst) and np.isfinite(mae_model_worst) else float("nan"),
+                    "win_rate_worst": float(win_rate_worst),
+                    "delta_corr_all": float(corr_delta),
+                    "delta_sign_acc_all": float(sign_acc_delta),
+                    "delta_sign_acc_worst": float(sign_acc_delta_worst),
+                    "avg_abs_delta_actual_all": float(np.mean(np.abs(delta_actual))),
+                    "avg_abs_delta_actual_worst": float(np.mean(np.abs(delta_actual[worst_idx]))) if worst_k else float("nan"),
                 }
 
                 logger.info(f"  {scenario['name']}: MAE={mae:.2f}%, Corr={corr:.3f}")
 
+        # Horizon-wide advantage summary (concatenate scenarios; avoids "MAE of means")
+        all_pred, all_act, all_obs = [], [], []
+        for scenario in scenarios:
+            for sample in horizon_results["samples"]:
+                if scenario["name"] not in sample.get("scenarios", {}):
+                    continue
+                s = sample["scenarios"][scenario["name"]]
+                all_pred.append(float(s["predicted_t_h"]["total_loss_pct"]))
+                all_act.append(float(s["actual_t_h"]["total_loss_pct"]))
+                all_obs.append(float(s["observed_t"]["total_loss_pct"]))
+
+        if all_pred:
+            pred_arr = np.array(all_pred, dtype=float)
+            act_arr = np.array(all_act, dtype=float)
+            obs_arr = np.array(all_obs, dtype=float)
+            model_abs_err = np.abs(pred_arr - act_arr)
+            base_abs_err = np.abs(obs_arr - act_arr)
+            worst_idx = _topk_idx(base_abs_err, frac=WORST_FRAC)
+            worst_k = int(worst_idx.size)
+            delta_actual = act_arr - obs_arr
+            delta_model = pred_arr - obs_arr
+            horizon_results["advantage_overall"] = {
+                "n_samples": int(pred_arr.size),
+                "worst_frac": float(WORST_FRAC),
+                "worst_k": int(worst_k),
+                "mae_model_all": float(np.mean(model_abs_err)),
+                "mae_baseline_all": float(np.mean(base_abs_err)),
+                "delta_mae_all": float(np.mean(base_abs_err) - np.mean(model_abs_err)),
+                "win_rate_all": float(np.mean(model_abs_err < base_abs_err)),
+                "mae_model_worst": float(np.mean(model_abs_err[worst_idx])) if worst_k else float("nan"),
+                "mae_baseline_worst": float(np.mean(base_abs_err[worst_idx])) if worst_k else float("nan"),
+                "delta_mae_worst": (
+                    float(np.mean(base_abs_err[worst_idx]) - np.mean(model_abs_err[worst_idx])) if worst_k else float("nan")
+                ),
+                "win_rate_worst": float(np.mean(model_abs_err[worst_idx] < base_abs_err[worst_idx])) if worst_k else float("nan"),
+                "delta_corr_all": float(np.corrcoef(delta_model, delta_actual)[0, 1]) if pred_arr.size > 1 else float("nan"),
+                "delta_sign_acc_all": float(np.mean(_sign_with_tol(delta_model) == _sign_with_tol(delta_actual))),
+                "delta_sign_acc_worst": (
+                    float(np.mean(_sign_with_tol(delta_model[worst_idx]) == _sign_with_tol(delta_actual[worst_idx])))
+                    if worst_k
+                    else float("nan")
+                ),
+                "avg_abs_delta_actual_all": float(np.mean(np.abs(delta_actual))),
+                "avg_abs_delta_actual_worst": float(np.mean(np.abs(delta_actual[worst_idx]))) if worst_k else float("nan"),
+            }
+
+        # Aggregate shock-set diagnostics per scenario
+        for scenario in scenarios:
+            j_obs, j_pred, j_used = [], [], []
+            eq_obs, eq_pred, eq_used = [], [], []
+            sizes = []
+
+            for sample in horizon_results["samples"]:
+                sdata = sample.get("scenarios", {}).get(scenario["name"], {})
+                diag = sdata.get("shock_set_diagnostics", {})
+                if not diag:
+                    continue
+                j_obs.append(diag.get("jaccard_obs_vs_actual", np.nan))
+                j_pred.append(diag.get("jaccard_pred_vs_actual", np.nan))
+                j_used.append(diag.get("jaccard_used_vs_actual", np.nan))
+                eq_obs.append(1.0 if diag.get("match_obs_eq_actual") else 0.0)
+                eq_pred.append(1.0 if diag.get("match_pred_eq_actual") else 0.0)
+                eq_used.append(1.0 if diag.get("match_used_eq_actual") else 0.0)
+                sizes.append(
+                    {
+                        "obs": diag.get("obs_size", 0),
+                        "pred": diag.get("pred_size", 0),
+                        "actual": diag.get("actual_size", 0),
+                        "used": diag.get("used_size", 0),
+                    }
+                )
+
+            if j_obs:
+                j_obs_arr = np.array(j_obs, dtype=float)
+                j_pred_arr = np.array(j_pred, dtype=float)
+                j_used_arr = np.array(j_used, dtype=float)
+                eq_obs_arr = np.array(eq_obs, dtype=float)
+                eq_pred_arr = np.array(eq_pred, dtype=float)
+                eq_used_arr = np.array(eq_used, dtype=float)
+
+                horizon_results[f"{scenario['name']}_shockset"] = {
+                    "n_samples": int(len(j_obs_arr)),
+                    "jaccard_obs_vs_actual_mean": float(np.nanmean(j_obs_arr)),
+                    "jaccard_pred_vs_actual_mean": float(np.nanmean(j_pred_arr)),
+                    "jaccard_used_vs_actual_mean": float(np.nanmean(j_used_arr)),
+                    "exact_match_obs_eq_actual_rate": float(np.nanmean(eq_obs_arr)),
+                    "exact_match_pred_eq_actual_rate": float(np.nanmean(eq_pred_arr)),
+                    "exact_match_used_eq_actual_rate": float(np.nanmean(eq_used_arr)),
+                    "avg_set_size": {
+                        "obs": float(np.mean([x["obs"] for x in sizes])) if sizes else 0.0,
+                        "pred": float(np.mean([x["pred"] for x in sizes])) if sizes else 0.0,
+                        "actual": float(np.mean([x["actual"] for x in sizes])) if sizes else 0.0,
+                        "used": float(np.mean([x["used"] for x in sizes])) if sizes else 0.0,
+                    },
+                }
+
         results["horizons"][f"h={horizon}"] = horizon_results
 
-    # Save results
-    output_dir.mkdir(parents=True, exist_ok=True)
-    with open(output_dir / "exp2_predictive_contagion.json", "w") as f:
-        json.dump(results, f, indent=2, default=float)
-
-    logger.info(f"\nResults saved to {output_dir / 'exp2_predictive_contagion.json'}")
+    if save_json:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with open(output_dir / "exp2_predictive_contagion.json", "w") as f:
+            json.dump(results, f, indent=2, default=float)
+        logger.info(f"\nResults saved to {output_dir / 'exp2_predictive_contagion.json'}")
 
     return results
 
@@ -1812,6 +2311,7 @@ def run_early_warning_analysis(
             force_retrain=True,
             frozen=frozen,
             cache_tag=f"early_warning_{event_id}_cutoff_{train_cutoff}",
+            horizon=1,
         )
         logger.info(f"    Model trained for {event_info['name']} (no event data leakage)")
 
@@ -1990,8 +2490,16 @@ def main():
     parser.add_argument(
         "--contagion-horizons",
         type=str,
-        default="1,4,8",
-        help="Comma-separated horizons for predictive_contagion (default: 1,4,8)",
+        default="1,4,8,12",
+        help="Comma-separated horizons for predictive_contagion (default: 1,4,8,12)",
+    )
+    parser.add_argument(
+        "--shared-model-h1",
+        action="store_true",
+        help=(
+            "Train a single model on horizon=1 and reuse it for all horizons. "
+            "This reduces compute cost but is less strict than training a separate model per horizon."
+        ),
     )
     parser.add_argument(
         "--max-train-pairs",
@@ -2068,7 +2576,7 @@ def main():
 
     DEFAULT_EPOCHS = 20
     DEFAULT_FORWARD_HORIZONS = "1,4,8,12"
-    DEFAULT_CONTAGION_HORIZONS = "1,4,8"
+    DEFAULT_CONTAGION_HORIZONS = "1,4,8,12"
     DEFAULT_MAX_FORWARD_PAIRS = 0
     DEFAULT_MAX_CONTAGION_SAMPLES = 10
     DEFAULT_MAX_TRAIN_PAIRS = 0
@@ -2147,13 +2655,62 @@ def main():
     forward_horizons = parse_int_list(args.forward_horizons)
     contagion_horizons = parse_int_list(args.contagion_horizons)
 
-    # Build training pairs and load/train model
-    logger.info("\nPreparing model...")
-    train_pairs = build_week_pairs(train_snapshots, config.neg_ratio, config.seed, horizon=1)
-    if args.max_train_pairs > 0 and len(train_pairs) > args.max_train_pairs:
-        train_pairs = train_pairs[-args.max_train_pairs:]
-        logger.info(f"Subsampled train_pairs to {len(train_pairs)} (max_train_pairs={args.max_train_pairs})")
-    model = load_or_train_model(config, train_pairs, force_retrain=args.force_retrain, frozen=args.frozen)
+    # Build training pairs and load/train model(s).
+    #
+    # IMPORTANT: `run_full_experiment.py` trains a separate model per horizon because the supervision
+    # targets change with h. We follow the same approach here to keep training/model behavior consistent.
+    required_horizons: List[int] = []
+    if args.experiment in ["all", "forward_risk"]:
+        required_horizons.extend(forward_horizons)
+    if args.experiment in ["all", "predictive_contagion"]:
+        required_horizons.extend(contagion_horizons)
+    required_horizons = sorted({int(h) for h in required_horizons if int(h) > 0})
+
+    models_by_horizon: Dict[int, GraphPFNLinkPredictor] = {}
+    if required_horizons:
+        logger.info("\nPreparing model(s)...")
+        if args.shared_model_h1:
+            logger.info(
+                f"Using shared h=1 model for horizons: {required_horizons} "
+                "(compute-saving setting; fixed-parameter pseudo-OOS evaluation)."
+            )
+            set_seed(config.seed)
+            train_pairs = build_week_pairs(
+                train_snapshots, config.neg_ratio, config.seed, horizon=1
+            )
+            if args.max_train_pairs > 0 and len(train_pairs) > args.max_train_pairs:
+                train_pairs = train_pairs[-args.max_train_pairs :]
+                logger.info(
+                    f"Subsampled train_pairs(h=1) to {len(train_pairs)} (max_train_pairs={args.max_train_pairs})"
+                )
+            shared_model = load_or_train_model(
+                config,
+                train_pairs,
+                force_retrain=args.force_retrain,
+                frozen=args.frozen,
+                horizon=1,
+            )
+            for horizon in required_horizons:
+                models_by_horizon[horizon] = shared_model
+        else:
+            logger.info(f"Training horizons: {required_horizons}")
+            for horizon in required_horizons:
+                set_seed(config.seed)
+                train_pairs = build_week_pairs(
+                    train_snapshots, config.neg_ratio, config.seed, horizon=horizon
+                )
+                if args.max_train_pairs > 0 and len(train_pairs) > args.max_train_pairs:
+                    train_pairs = train_pairs[-args.max_train_pairs :]
+                    logger.info(
+                        f"Subsampled train_pairs(h={horizon}) to {len(train_pairs)} (max_train_pairs={args.max_train_pairs})"
+                    )
+                models_by_horizon[horizon] = load_or_train_model(
+                    config,
+                    train_pairs,
+                    force_retrain=args.force_retrain,
+                    frozen=args.frozen,
+                    horizon=horizon,
+                )
 
     # Run experiments
     results = {}
@@ -2166,7 +2723,7 @@ def main():
         else:
             results["forward_risk"] = run_forward_risk_prediction(
                 config,
-                model,
+                models_by_horizon,
                 test_snapshots,
                 meta_category,
                 horizons=forward_horizons,
@@ -2176,16 +2733,63 @@ def main():
 
     if args.experiment in ["all", "predictive_contagion"]:
         exp_path = output_dir / "exp2_predictive_contagion.json"
+        requested_horizons = sorted({int(h) for h in contagion_horizons if int(h) > 0})
+
         if args.reuse_results and exp_path.exists():
-            logger.info(f"\nLoading cached predictive_contagion results from {exp_path}")
-            results["predictive_contagion"] = _load_json(exp_path)
+            existing = _load_json(exp_path)
+            if not isinstance(existing, dict):
+                existing = {}
+
+            existing_horizons: set[int] = set()
+            existing_horizons_dict = existing.get("horizons", {})
+            if isinstance(existing_horizons_dict, dict):
+                for key in existing_horizons_dict.keys():
+                    try:
+                        existing_horizons.add(int(str(key).split("=", 1)[1]))
+                    except Exception:
+                        continue
+
+            missing_horizons = sorted(set(requested_horizons) - existing_horizons)
+            if missing_horizons:
+                logger.info(
+                    f"\nReusing predictive_contagion results for horizons {sorted(existing_horizons)}; "
+                    f"computing missing horizons {missing_horizons}"
+                )
+                new_part = run_predictive_contagion(
+                    config,
+                    models_by_horizon,
+                    test_snapshots,
+                    meta_category,
+                    horizons=missing_horizons,
+                    max_samples_per_horizon=args.max_contagion_samples,
+                    output_dir=output_dir,
+                    save_json=False,
+                )
+
+                merged = existing
+                if "scenarios" not in merged and "scenarios" in new_part:
+                    merged["scenarios"] = new_part["scenarios"]
+
+                merged_horizons = merged.get("horizons", {})
+                if not isinstance(merged_horizons, dict):
+                    merged_horizons = {}
+                merged_horizons.update(new_part.get("horizons", {}))
+                merged["horizons"] = merged_horizons
+
+                with open(exp_path, "w") as f:
+                    json.dump(merged, f, indent=2, default=float)
+                logger.info(f"Updated {exp_path} (merged horizons)")
+                results["predictive_contagion"] = merged
+            else:
+                logger.info(f"\nLoading cached predictive_contagion results from {exp_path}")
+                results["predictive_contagion"] = existing
         else:
             results["predictive_contagion"] = run_predictive_contagion(
                 config,
-                model,
+                models_by_horizon,
                 test_snapshots,
                 meta_category,
-                horizons=contagion_horizons,
+                horizons=requested_horizons,
                 max_samples_per_horizon=args.max_contagion_samples,
                 output_dir=output_dir,
             )
@@ -2204,8 +2808,18 @@ def main():
             )
 
     # Save combined results
-    with open(output_dir / "all_results.json", "w") as f:
-        json.dump(results, f, indent=2, default=float)
+    all_path = output_dir / "all_results.json"
+    merged_results: Dict[str, Any] = {}
+    if all_path.exists():
+        try:
+            prev = _load_json(all_path)
+            if isinstance(prev, dict):
+                merged_results.update(prev)
+        except Exception:
+            pass
+    merged_results.update(results)
+    with open(all_path, "w") as f:
+        json.dump(merged_results, f, indent=2, default=float)
 
     # Generate visualization figures
     logger.info("\n" + "=" * 70)
