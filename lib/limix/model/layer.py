@@ -249,8 +249,15 @@ class MultiheadAttention(torch.nn.Module):
         
         if self.batched:
             atten_out = self.compute_attention_by_torch_batched(qkv, q, kv, attn_mask)
-        elif attn_mask is None and HAVE_FLASH_ATTN and qkv.is_cuda:
-            # Only use Flash Attention on CUDA
+        elif (
+            attn_mask is None
+            and HAVE_FLASH_ATTN
+            and (
+                (qkv is not None and qkv.is_cuda)
+                or (q is not None and q.is_cuda)
+            )
+        ):
+            # Only use Flash Attention on CUDA tensors.
             atten_out = self.compute_attention_by_flashattn(qkv, q, kv)
         else:
             atten_out = self.compute_attention_by_torch(qkv, q, kv, attn_mask)

@@ -1,7 +1,7 @@
 \section{Empirical Evaluations on Machine Learning Benchmarks}
 \label{sec:evaluation}
 
-We evaluate DeXposure-FM on the DeXposure dataset through two machine learning benchmark tasks: (i) \textit{multi-step forecasting} of edge existence/weights and node TVL changes; and (ii) \textit{predictive contagion stress testing}, where we forecast future stress-test losses under counterfactual shocks. Section~\ref{sec:econ} then translates these predictive outputs into macroprudential monitoring tools (systemic importance, spillovers, stress testing, and early warning) and validates them on historical stress events.
+We evaluate DeXposure-FM on the DeXposure dataset through two machine learning benchmark tasks: (i) \textit{multi-step forecasting} of edge existence/weights and node TVL changes; and (ii) \textit{predictive contagion stress testing}, where we forecast future simulator-implied stress-test losses under fixed counterfactual shocks. Section~\ref{sec:econ} provides economic interpretation and applications of these predictive outputs.
 
 \subsection{Dataset and Experimental Setup}
 \label{subsec:dataset}
@@ -62,20 +62,11 @@ We compare three approaches:
 
 \subsubsection{Implementation Details}
 \label{subsubsec:task1-impl}
-We evaluate forecasts at horizons $h \in \{1, 4, 8, 12\}$ weeks for:
-\begin{enumerate}
-  \item \textbf{Edge existence:} Binary prediction of whether edge $(p,q)$ exists at $t+h$.
-  \item \textbf{Edge weight:} Regression on log-scaled edge weight for existing edges.
-  \item \textbf{Node TVL change:} Regression on $\Delta_{p,t+h} = \log(1+\text{TVL}_{t+h}) - \log(1+\text{TVL}_t)$.
-\end{enumerate}
-
-\noindent We report AUPRC/AUROC for edge existence and MAE/RMSE for edge weights and node $\Delta$TVL on log-scaled values.
+We evaluate multi-step forecasts at horizons $h \in \{1,4,8,12\}$ weeks on three targets: (i) \textbf{edge existence}, a binary prediction of whether an edge $(p,q)$ is present at $t+h$; (ii) \textbf{edge weight}, a regression on log-scaled exposure weight for edges that exist; and (iii) \textbf{node TVL change}, a regression on $\Delta_{p,t+h}=\log(1+\text{TVL}_{p,t+h})-\log(1+\text{TVL}_{p,t})$. We report AUROC/AUPRC for edge existence and MAE/RMSE for edge weights and $\Delta$TVL (all on the log scale).
 
 \subsubsection{Empirical Results}
 \label{subsubsec:task1-results}
-For edge existence, we report AUPRC (area under precision-recall curve) and AUROC. For edge weight and node predictions, we report MAE and RMSE on log-scaled values.
-
-Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set.
+Table~\ref{tab:main-results} reports the forecasting results on the strict 2025 hold-out test set.
 %% [Updated to h={1,4,8,12} with complete DeXposure-FM results from GPU server experiments]
 
 \begin{table}[t]
@@ -117,31 +108,30 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \end{table}
 
 \paragraph{Key findings.}
-\begin{enumerate}
-  \item \textbf{Edge existence substantially exceeds persistence:} All models dramatically outperform the naive persistence baseline (AUPRC 0.58--0.64) that simply predicts ``last week's graph.'' DeXposure-FM achieves AUPRC 0.967--0.973, representing a 52--67\% relative improvement over persistence. This confirms the models learn meaningful temporal dynamics beyond network inertia.
-  \item \textbf{Edge weight matches persistence:} Surprisingly, edge weight prediction shows no improvement over the persistence baseline (MAE 2.37--2.62). DeXposure-FM achieves MAE 2.465--2.648, comparable to or slightly worse than persistence at some horizons. This indicates that learned models excel at predicting \textit{which} edges exist, but predicting \textit{how much} exposure flows through them remains fundamentally challenging---the best strategy is often ``predict last week's value.''
-  \item \textbf{Model value is in link prediction:} The primary value of DeXposure-FM lies in edge existence prediction. Compared to learned baselines, it achieves 3--8\% AUPRC improvement over GraphPFN and 10--12\% over ROLAND, while maintaining comparable weight and node predictions.
-  \item \textbf{Node prediction degrades with horizon:} Node TVL change prediction degrades as expected: DeXposure-FM MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$), matching persistence (0.057--0.272) at all horizons.
-\end{enumerate}
+Despite the strong persistence of the exposure network (Table~\ref{tab:data-stats}), DeXposure-FM substantially improves \textbf{edge existence} prediction: it achieves AUROC 0.993--0.995 and AUPRC 0.967--0.973, compared to AUPRC 0.58--0.64 for the persistence baseline and 0.936--0.940 for GraphPFN. This indicates that the model captures systematic edge formation and decay patterns beyond copying last week's graph.
 
-\subsection{Task II: Financial Stability Analysis}
+For \textbf{edge weights}, performance is largely bounded by the persistence baseline: DeXposure-FM achieves MAE 2.47--2.65, comparable to persistence (2.37--2.62), while improving over the learned baselines (GraphPFN/ROLAND MAE $\approx$ 3.1--3.3). In this setting, accurately forecasting exposure magnitudes remains difficult, and last week's value is often a strong predictor.
+
+For \textbf{node TVL changes}, all methods degrade with horizon, as expected. DeXposure-FM's MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$) and remains comparable to persistence (0.057--0.272), suggesting that long-horizon TVL dynamics are challenging to forecast at weekly frequency.
+
+\subsection{Task II: Predictive Contagion Stress Testing}
 \label{subsec:stability}
 
-This task evaluates whether forward-looking network forecasts translate into forward-looking \emph{stress test} forecasts. Specifically, we compare contagion losses computed on the model-predicted future network $\hat{G}_{t+h}$ with losses on the realized future network $G_{t+h}$, under fixed counterfactual shock definitions.
+This benchmark evaluates whether forward-looking network forecasts translate into accurate forecasts of \emph{stress-test losses} generated by a fixed contagion simulator. Specifically, we compare system losses computed on the model-predicted future network $\hat{G}_{t+h}$ with losses on the realized future network $G_{t+h}$, under fixed counterfactual shock definitions.
 
 \subsubsection{Implementation Details}
 \label{subsubsec:task2-impl}
 We use a fixed DeXposure-FM forecaster trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Stage 2 in Section~\ref{subsec:dataset}). We then evaluate on the strict 2025 hold-out set without re-estimation during the test period. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
 
-Stress-test losses are computed using a DebtRank-style contagion simulator (Section~\ref{subsubsec:contagion}) under three scenarios: (i) \textbf{Top protocol shock} (50\% TVL loss to the largest protocol), (ii) \textbf{Top-5 protocols shock} (30\% TVL loss to the top-5 protocols), and (iii) \textbf{Bridge sector shock} (100\% TVL loss to bridge protocols). For each $(t,t+h)$, we run the simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
+Stress-test losses are computed using a DebtRank-style contagion simulator \citep{EisenbergNoe2001,BattistonEtAl2012DebtRank} under three scenarios: (i) \textbf{Top protocol shock} (50\% TVL loss to the largest protocol), (ii) \textbf{Top-5 protocols shock} (30\% TVL loss to the top-5 protocols), and (iii) \textbf{Bridge sector shock} (100\% TVL loss to bridge protocols). For each $(t,t+h)$, we run the same simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
 
-Because the DeFi exposure network is highly persistent (Table~\ref{tab:data-stats}), the persistence baseline is difficult to beat on average. To surface policy-relevant headroom, we also evaluate an \emph{advantage regime}: the \textbf{worst 20\%} of test cases under persistence (largest baseline absolute errors within each horizon, pooled across shock scenarios). We summarize performance with $\Delta \mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$, where positive values indicate improvement over persistence.
+Because the DeFi exposure network is highly persistent (Table~\ref{tab:data-stats}), the persistence baseline is difficult to beat on average. We therefore report both (i) overall performance and (ii) a \emph{post-hoc stratified evaluation} on the \textbf{worst 20\%} of test cases under persistence, defined by the largest baseline absolute errors within each horizon (pooled across shock scenarios). This stratification is computed on the held-out test set and is not used for model selection. We summarize improvement with $\Delta \mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$, where positive values indicate lower error than persistence.
 
 \subsubsection{Empirical Results}
 \label{subsubsec:task2-results}
 Figure~\ref{fig:contagion-comparison} shows the three-way comparison (baseline vs.\ model vs.\ realized) and Figure~\ref{fig:contagion-advantage} visualizes $\Delta\mathrm{MAE}$ in both the overall population and the worst-20\% tail. Table~\ref{tab:contagion-advantage} reports horizon-level summary statistics.
 
-Across horizons, persistence remains strong on average ($\Delta\mathrm{MAE}(\text{all})<0$), but DeXposure-FM consistently improves performance in the tail ($\Delta\mathrm{MAE}(\text{worst20\%})>0$), with worst20\% win rates of 83--100\%. These gains are concentrated in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}), consistent with non-stationary exposure reallocation through cross-chain liquidity conduits. Section~\ref{sec:econ} further examines how these forecasts support macroprudential tools such as forward-looking risk metric monitoring and early warning event studies.
+Across horizons, persistence remains strong on average ($\Delta\mathrm{MAE}(\text{all})<0$). In the worst20\% stratum---cases where persistence deviates most from realized losses---DeXposure-FM yields positive $\Delta\mathrm{MAE}(\text{worst20\%})$ with win rates of 83--100\%. Improvements are largest in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}). Section~\ref{sec:econ} provides economic interpretation and downstream applications of these forecasts.
 
 \begin{figure}[t]
 \centering
@@ -153,7 +143,7 @@ Across horizons, persistence remains strong on average ($\Delta\mathrm{MAE}(\tex
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/fig_contagion_advantage.pdf}
-\caption{Advantage regimes for forward-looking stress testing. Bars report $\Delta\mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$ in system loss (\% points). ``Overall'' is the full test set; ``Worst 20\%'' restricts to the 20\% largest baseline errors (tail regime). Positive values indicate DeXposure-FM outperforms persistence, highlighting where a foundation model adds value under non-stationarity.}
+\caption{Advantage regimes for predictive stress testing. Bars report $\Delta\mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$ in system loss (\% points). ``Overall'' is the full test set; ``Worst 20\%'' restricts to the 20\% largest baseline errors (tail regime). Positive values indicate DeXposure-FM outperforms persistence, highlighting where a learned forecaster adds value when the persistence assumption breaks.}
 \label{fig:contagion-advantage}
 \end{figure}
 

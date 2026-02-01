@@ -56,3 +56,12 @@ Evaluation results are saved in the same directory as the configuration file:
 - `report.json` - Evaluation metrics
 - Model checkpoints
 - Training logs
+
+## DeXposure-FM (Macroprudential Tools)
+
+This repository also contains DeXposure-FM experiments and a lightweight CLI for
+macroprudential monitoring on DeXposure snapshots (systemic importance, sector
+spillovers, and contagion stress tests) in **observed** and **forecast-then-measure**
+predictive modes.
+
+See `docs/macroprudential_tools.md`.

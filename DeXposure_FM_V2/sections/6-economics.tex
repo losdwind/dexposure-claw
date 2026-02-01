@@ -6,25 +6,43 @@ Section~\ref{sec:evaluation} establishes DeXposure-FM's predictive performance o
 \subsection{Macroprudential Applications}
 \label{subsec:macro-applications}
 
-DeXposure-FM generates several outputs directly relevant to macroprudential monitoring of decentralised financial infrastructure, addressing the data gaps highlighted by international standard-setters \citep{FSB2023,IOSCO2023DeFi}.
+DeXposure-FM generates several outputs directly relevant to macroprudential monitoring of decentralised financial infrastructure, addressing the data gaps highlighted.
+
+Concretely, let $G_t$ denote the observed weekly exposure graph and let $\hat{G}_{t+h}$ denote the model's $h$-step-ahead forecast. We treat each monitoring ``tool'' as a deterministic functional of a graph (a measurement map) that can be applied either \emph{descriptively} on $G_t$ or \emph{predictively} via the \emph{forecast-then-measure} pipeline:
+\begin{equation}
+G_t \;\xrightarrow{\;\;\text{DeXposure-FM}\;\;}\; \hat{G}_{t+h}
+\;\xrightarrow{\;\;\text{tools}\;\;}\;
+\widehat{\mathcal{M}}_{t+h} \equiv \mathcal{M}(\hat{G}_{t+h}),
+\end{equation}
+where $\mathcal{M}(\cdot)$ includes protocol-level systemic-importance rankings (SIS), cross-sector spillover concentration, and scenario-based stress-test losses. This framing aligns with the macroprudential objective of producing \emph{actionable, time-$t$} signals about time-$t+h$ fragility (watchlists, risk channels, and scenario backstops), while remaining fully transparent about the underlying network objects.
 
 \subsubsection{Systemic Risk Measurement: SIS and Spillovers}
 \label{subsubsec:systemic-risk}
+\textbf{Economic object.}
+SIS produces a protocol-level systemic-importance ranking that combines interconnectedness and exposure concentration with protocol scale, while spillover monitoring summarizes cross-sector risk channels and their concentration.
 \textbf{Implementation.}
 We compute protocol-level and network-level indicators on each weekly exposure snapshot. For protocol $p$, the Systemic Importance Score (SIS) combines interconnectedness, exposure concentration, and scale:
 \begin{equation}
-\text{SIS}_p = \alpha \cdot \text{PageRank}_p + \beta \cdot \text{TailExposure}_p + \gamma \cdot \log(\text{TVL}_p),
+\text{SIS}_p = \alpha \cdot \widetilde{\text{PageRank}}_p + \beta \cdot \text{TailExposure}_p + \gamma \cdot \widetilde{\log(1+\text{TVL}_p)},
 \label{eq:sis}
 \end{equation}
-where $\text{TailExposure}_p$ is the share of $p$'s top-$k$ outgoing exposures (we use $k=5$), and $\alpha,\beta,\gamma$ are non-negative weights that sum to 1 (default $\alpha=\beta=\gamma=1/3$). In parallel, we aggregate edge weights into a sector-to-sector spillover matrix $\mathbf{S}\in\mathbb{R}^{K\times K}$ where $S_{ij}$ is total exposure from sector $i$ to $j$, and compute a scale-invariant spillover concentration index as the HHI of off-diagonal entries:
+where $\text{TailExposure}_p$ is the share of $p$'s top-$k$ outgoing exposures (we use $k=5$), and $\alpha,\beta,\gamma$ are non-negative weights that sum to 1 (default $\alpha=\beta=\gamma=1/3$). We normalize PageRank and $\log(1+\text{TVL})$ to comparable scales (denoted by tildes). In parallel, we aggregate edge weights into a sector-to-sector spillover matrix $\mathbf{S}\in\mathbb{R}^{K\times K}$ where $S_{ij}$ is total exposure from sector $i$ to $j$, and compute a scale-invariant spillover concentration index as the HHI of off-diagonal entries:
 \begin{equation}
 \text{SpilloverIndex} = \text{HHI}\left(\{S_{ij} : i \neq j\}\right).
 \end{equation}
 \textbf{Use case.}
-These measures operationalise the network-theoretic insight that interconnectedness, not just size, determines systemic fragility \citep{Acemoglu2015SystemicRisk,GlassermanYoung2016Contagion}. Weekly SIS rankings help identify protocols whose distress would propagate broadly, while spillover monitoring highlights sector pairs that act as risk conduits (e.g., stablecoins and bridges) \citep{KosseEtAl2023Stablecoin,ESRB2025,DieboldYilmaz2012}.
+These measures operationalise the network-theoretic insight that interconnectedness, not just size, determines systemic fragility \citep{Acemoglu2015SystemicRisk,GlassermanYoung2016Contagion}. Weekly SIS rankings help identify protocols whose distress would propagate broadly, while spillover monitoring can highlight sector pairs that act as risk conduits (e.g., stablecoins and bridges) \citep{KosseEtAl2023Stablecoin,ESRB2025,DieboldYilmaz2012}.
+\textbf{Why this is a model-enabled tool (not just a descriptive statistic).}
+SIS and spillovers are standard \emph{descriptive} measures when computed on the observed network $G_t$. The contribution of DeXposure-FM is to make them \emph{forward-looking}: we first forecast a future exposure graph $\hat{G}_{t+h}$ and then compute $\widehat{\text{SIS}}_{t+h}(p)=\text{SIS}_p(\hat{G}_{t+h})$ and $\widehat{\text{SpilloverIndex}}_{t+h}=\text{SpilloverIndex}(\hat{G}_{t+h})$. This yields actionable forecasts such as (i) a predicted watchlist of systemically important protocols at $t+h$ and (ii) predicted cross-sector risk channels. Empirically, we validate this ``forecast-then-measure'' workflow at the level of aggregate risk metrics (including mean SIS and spillover concentration) by comparing values computed on $\hat{G}_{t+h}$ vs.\ $G_{t+h}$ (Figure~\ref{fig:forward-risk-scatter}) and by event-window case studies (Figure~\ref{fig:early-warning}).
+\textbf{Operational recipe.}
+At each week $t$, a supervisor computes the current dashboard on $G_t$ and the forecast dashboard on $\hat{G}_{t+h}$. Large predicted changes in the top-$K$ SIS list or spikes in predicted spillover concentration motivate targeted stress scenarios (Section~\ref{subsubsec:contagion}) and deeper qualitative review (e.g., governance risk and code audit status of newly elevated protocols).
+\textbf{Open-source tool.}
+We release an implementation of this workflow in \texttt{run\_macroprudential\_tools.py} (CLI) and \texttt{src/macroprudential\_tools.py} (library). The CLI supports both \texttt{observed} mode (compute tools on $G_t$) and \texttt{predict} mode (forecast $\hat{G}_{t+h}$ and then compute the same tools on predicted and realized graphs when available), and outputs JSON for easy integration into monitoring pipelines.
 
 \subsubsection{Stress Testing and Contagion Assessment}
 \label{subsubsec:contagion}
+\textbf{Economic object.}
+Stress testing maps a counterfactual shock scenario into a system-wide loss measure by propagating distress through the exposure network, providing a scenario-specific analogue of macro stress tests in a DeFi setting.
 \textbf{Implementation.}
 We implement a DebtRank-style contagion simulation to assess systemic loss propagation, following the loss-allocation logic of \cite{EisenbergNoe2001} and \cite{BattistonEtAl2012DebtRank}. Given an initial shock to protocol $p_0$ with loss ratio $\delta_0$:
 \begin{enumerate}
@@ -39,15 +57,17 @@ We implement a DebtRank-style contagion simulation to assess systemic loss propa
 We report total system loss (as a percentage of total TVL), contagion depth (propagation rounds), and affected-protocol counts. The three stress scenarios used throughout are: top protocol shock (50\% TVL loss), top-5 protocols shock (30\%), and bridge sector shock (100\%).
 
 \textbf{Empirical verification.}
-Section~\ref{subsec:stability} evaluates \emph{forward-looking} stress testing: we run the same simulator on $G_t$ (persistence baseline), $\hat{G}_{t+h}$ (model forecast), and $G_{t+h}$ (realized future) and compare the resulting system losses. Although persistence is hard to beat on average due to high edge overlap, DeXposure-FM improves in the worst 20\% tail regime where persistence fails (Table~\ref{tab:contagion-advantage}), with gains concentrated in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}). Operationally, this suggests using the foundation model as a \emph{backstop} for scenario analysis during non-stationary periods.
+Section~\ref{subsec:stability} evaluates \emph{forward-looking} stress testing: we run the same simulator on $G_t$ (persistence baseline), $\hat{G}_{t+h}$ (model forecast), and $G_{t+h}$ (realized future) and compare the resulting system losses. Because the DeXposure network is highly persistent week-to-week, the persistence baseline is strong \emph{on average}. However, in the subset of weeks where realized losses deviate most from persistence (the worst 20\% baseline-error regime), DeXposure-FM provides consistent improvements (Table~\ref{tab:contagion-advantage}), with gains concentrated in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}). This supports a macroprudential interpretation: the model is most valuable as a \emph{backstop} for scenario analysis under non-stationary reallocation of exposures.
 
 \subsubsection{Forward-looking Risk Metric Forecasting}
 \label{subsubsec:forward-looking-risk}
+\textbf{Economic object.}
+Aggregate risk metrics (e.g., concentration, density, spillovers) serve as dashboard-style indicators of evolving fragility. Forecasting these aggregates provides a practical way to monitor trend shifts and calibrate the forecast-then-measure pipeline.
 \textbf{Implementation.}
 Beyond stress testing, we can forecast aggregate stability indicators by first predicting a future exposure graph $\hat{G}_{t+h}$ and then computing deterministic risk metrics on it (e.g., TVL concentration, edge concentration, network density, spillover index, and summary statistics of SIS). We compare these predicted metrics to their realized counterparts on $G_{t+h}$ across the 2025 hold-out set.
 
 \textbf{Empirical verification.}
-Figure~\ref{fig:forward-risk-scatter} reports predicted vs.\ realized risk metrics for $h\in\{1,4,8,12\}$. As expected under strong network persistence, many aggregates are difficult to outperform with persistence-style baselines, but the forecasts remain useful for \emph{trend monitoring} and for triggering deeper scenario analysis when predicted metrics move sharply.
+Figure~\ref{fig:forward-risk-scatter} reports predicted vs.\ realized risk metrics for $h\in\{1,4,8,12\}$. We interpret these plots as a \emph{calibration and monitoring} check: even when persistence dominates levels, the predicted metrics can flag directional changes and large deviations that motivate deeper scenario analysis and qualitative review.
 
 \begin{figure}[t]
 \centering
@@ -58,12 +78,14 @@ Figure~\ref{fig:forward-risk-scatter} reports predicted vs.\ realized risk metri
 
 \subsubsection{Early Warning Signals and Event Studies}
 \label{subsubsec:shock-events}
+\textbf{Economic object.}
+Early warning analysis evaluates whether forecast-based measurements shift in advance of major stress events, providing event-study evidence that the forecast-then-measure tools can produce timely alerts around regime changes.
 \textbf{Implementation.}
 We examine two major stress events: the Terra/Luna collapse (May 9, 2022) and the FTX collapse (November 7, 2022). To avoid event leakage, for each event we train an event-specific forecaster using only snapshots strictly prior to the event window, then generate one-step-ahead forecasts within the event window. We track structural indicators and stress-test outcomes (via Section~\ref{subsubsec:contagion}) and monitor potential early warning features:
 \begin{itemize}
-  \item Density change: $\Delta\rho_t = (\rho_t - \rho_{t-1})/\rho_{t-1}$,
-  \item Concentration spikes: $\Delta\text{HHI}_t > 2\sigma$,
-  \item Assortativity shifts: rapid changes in degree correlation.
+  \item Changes in network connectivity (e.g., density $\rho_t$),
+  \item Concentration shifts (e.g., TVL HHI), with practical threshold rules such as $\Delta\text{HHI}_t > 2\sigma$,
+  \item Predicted stress-test losses under standard scenarios (Section~\ref{subsubsec:contagion}).
 \end{itemize}
 
 \textbf{Empirical verification.}
@@ -76,11 +98,11 @@ Table~\ref{tab:shock-results} summarizes structural shifts during the event wind
 \hline
 \textbf{Event} & \textbf{Pre-TVL (\$B)} & \textbf{Post-TVL (\$B)} & \textbf{$\Delta$TVL} & \textbf{$\Delta$Edges} \\
 \hline
-Terra/Luna & 257.1 & 171.0 & $-$33.5\% & +9.4\% \\
-FTX & 127.0 & 177.2 & +39.5\% & $-$3.3\% \\
+Terra/Luna & 261.9 & 166.3 & $-$36.5\% & +9.3\% \\
+FTX & 119.9 & 175.1 & +46.1\% & $-$1.8\% \\
 \hline
 \end{tabular}
-\caption{Network structure changes during stress events. Terra/Luna shows a classic flight-to-quality pattern with TVL collapse but edge count increase as capital reorganizes across protocols. The FTX event shows a \emph{positive} $\Delta$TVL because our dataset captures only on-chain DeFi protocols: the collapse of a centralised exchange triggered capital migration \emph{into} DeFi as users withdrew funds to self-custody, consistent with the ``flight to decentralisation'' narrative \citep{VidalTomasEtAl2023FTX}.}
+\caption{Network structure changes during stress events, comparing the last pre-event week (anchor) to the final week of the event window. Terra/Luna shows a flight-to-quality pattern with TVL collapse but edge count increase as capital reorganizes across protocols. The FTX event shows a \emph{positive} $\Delta$TVL because our dataset captures only on-chain DeFi protocols: the collapse of a centralised exchange triggered capital migration \emph{into} DeFi as users withdrew funds to self-custody, consistent with the ``flight to decentralisation'' narrative \citep{VidalTomasEtAl2023FTX}.}
 \label{tab:shock-results}
 \end{table}
 
@@ -92,38 +114,19 @@ FTX & 127.0 & 177.2 & +39.5\% & $-$3.3\% \\
 \end{figure}
 
 
-\subsection{Validity and Scope}
-\label{subsec:validity}
+\subsection{Scope, Limitations, and Implementation Considerations}
+\label{subsec:limitations}
 
-Model-based risk measures are only as reliable as the conditions under which they were trained and validated \citep{MullainathanSpiess2017}. We identify several boundaries that users should keep in mind.
+Model-based network risk measurement is only as reliable as the data coverage and the stability of the mapping from observables to exposures \citep{MullainathanSpiess2017}. We summarize the main boundaries that matter for interpreting and deploying the tools in Section~\ref{subsec:macro-applications}.
 
-\paragraph{Stable versus turbulent regimes.}
-The DeXposure dataset exhibits 98.5\% mean edge overlap week-to-week, meaning most credit relationships persist. Under such stable conditions, edge-existence forecasting is highly accurate (DeXposure-FM AUROC 0.993 at $h=12$; Table~\ref{tab:main-results}). During structural breaks---new protocol launches, governance attacks, or rapid deleveraging---the historical edge distribution may shift abruptly. In these regimes, persistence-style baselines can fail, and forward-looking models can add the most value (e.g., the worst20\% tail-regime gains in Table~\ref{tab:contagion-advantage}).
+\paragraph{Stable vs. turbulent regimes (and drift).}
+The DeXposure dataset exhibits 98.5\% mean edge overlap week-to-week, so persistence is strong under stable conditions. During structural breaks---new protocol launches, governance attacks, or rapid deleveraging---the historical edge distribution may shift abruptly. In these settings, persistence-style baselines can fail, and forward-looking forecasts can be most informative (e.g., the worst20\% tail-regime gains in Table~\ref{tab:contagion-advantage}). Because DeFi evolves rapidly, periodic retraining on updated snapshots is necessary to mitigate model drift.
 
-\paragraph{Coverage.}
-DeXposure-FM is trained exclusively on on-chain DeFi protocols sourced from DeFiLlama. It does not observe:
-\begin{itemize}
-  \item Centralised exchange (CEX) balances or order-book exposures,
-  \item Over-the-counter (OTC) derivatives or lending agreements,
-  \item Off-chain reserves backing stablecoins (e.g., Treasury holdings of USDC) \citep{AnaduEtAl2023StablecoinsMMF}.
-\end{itemize}
-Consequently, the model captures intra-DeFi contagion but cannot directly assess spillovers to or from traditional financial institutions---a gap that matters as DeFi-TradFi linkages deepen \citep{ESRB2025}.
+\paragraph{Data coverage and external validity.}
+DeXposure-FM is trained exclusively on on-chain DeFi protocols sourced from DeFiLlama. It does not observe (i) centralised exchange balances or order-book exposures, (ii) OTC derivatives or off-chain lending agreements, or (iii) off-chain reserves backing stablecoins \citep{AnaduEtAl2023StablecoinsMMF}. Consequently, the tools are best interpreted as measures of \emph{intra-DeFi} fragility and cannot directly assess spillovers to or from traditional financial institutions---a limitation that becomes more salient as DeFi-TradFi linkages deepen \citep{ESRB2025}.
 
-\paragraph{Temporal resolution.}
-The dataset aggregates to weekly snapshots. Intraday or even daily dynamics---such as flash-loan attacks \citep{Qin2021FlashLoans} or rapid liquidation cascades \citep{Warmuz2023ToxicLiquidationSpirals}---are smoothed out. For high-frequency risk monitoring, complementary tools operating on block-level data would be required.
+\paragraph{Measurement proxies (TVL and exposure weights).}
+TVL is a convenient but imperfect proxy for economically meaningful exposures \citep{Bertomeu2024}. It aggregates heterogeneous collateral and liquidity profiles (stablecoins, volatile tokens, LP positions) without risk weights. Likewise, exposure weights derived from TVL flow reconstructions may not map one-to-one to contractual seniority or liquidation priority. In practice, the tools are most useful for relative monitoring (rankings, concentration changes, and scenario deltas) rather than absolute loss accounting.
 
-
-\subsection{Practical Caveats for Policymakers}
-\label{subsec:caveats}
-
-\paragraph{Complement, not replace, qualitative judgment.}
-Model outputs such as SIS rankings and spillover indices are quantitative summaries, not definitive verdicts. A protocol may rank low on SIS yet pose idiosyncratic risks (e.g., smart-contract vulnerabilities, oracle manipulation) that network topology alone cannot capture \citep{DuleyEtAl2023Oracle,Gogol2024SoKDeFi}. Supervisors should triangulate model signals with code audits, governance analyses, and market intelligence.
-
-\paragraph{TVL as a proxy for exposure.}
-Total Value Locked is a convenient but imperfect measure \citep{Bertomeu2024}. It aggregates heterogeneous assets---stablecoins, volatile tokens, LP positions---without adjusting for liquidity or collateralisation quality. A protocol with \$1B in illiquid governance tokens is not equivalent to one with \$1B in USDC. Future work could incorporate asset-level risk weights to refine exposure estimates.
-
-\paragraph{Model drift and retraining.}
-DeFi evolves rapidly: new chains launch, token standards change, and incentive mechanisms shift. A model trained on 2020--2024 data may gradually lose accuracy as the ecosystem diverges from historical patterns. Periodic retraining on updated snapshots is essential to maintain forecast quality.
-
-\paragraph{Cross-chain data consistency.}
-DeXposure aggregates data across 602 blockchains, each with its own indexing quirks and oracle delays. Minor inconsistencies in timestamp alignment or token-price feeds can introduce noise. Users should be aware that edge weights near reporting boundaries may reflect data artefacts rather than genuine exposure changes.
+\paragraph{Temporal resolution and data quality.}
+The dataset aggregates to weekly snapshots, so intraday dynamics---such as flash-loan attacks \citep{Qin2021FlashLoans} or liquidation cascades \citep{Warmuz2023ToxicLiquidationSpirals}---are smoothed out. For high-frequency monitoring, complementary block-level tools are required. Finally, because DeXposure aggregates data across hundreds of chains with heterogeneous indexing and oracle conventions, quality control is important: edge weights near reporting boundaries may reflect data artefacts rather than genuine exposure changes.

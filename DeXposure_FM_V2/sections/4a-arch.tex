@@ -12,9 +12,9 @@
 \subsection{DeXposure-FM Architecture}
 \label{sec:dexposure-fm-architecture}
 
-DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, which internally fuses graph structure and tabular node features. The model supports two layers of downstream use: (i) multi-step forecasting of edge existence/weights and node TVL changes (Task I, Section~\ref{subsec:forecast}); and (ii) forward-looking financial stability assessment by applying risk metrics and stress tests to predicted exposure graphs (Task II, Section~\ref{subsec:stability}, and macroprudential tools in Section~\ref{sec:econ}). Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
+DeXposure-FM is designed to support two downstream objectives: (i) multi-step forecasting of edge existence/weights and node TVL changes; and (ii) forward-looking financial stability assessment by applying risk metrics and stress tests to predicted exposure graphs, and macroprudential tools in Section~\ref{sec:econ}. We provide a reference implementation of these tools (observed and forecast-then-measure) in \texttt{run\_macroprudential\_tools.py}. Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
 
-\subsubsection{Inputs and notation (aligned with the DeXposure construction)}
+\subsubsection{Inputs and Output Settings}
 Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
 For each interval $\tau$ we construct a weighted directed graph snapshot
 \begin{equation}
@@ -25,8 +25,8 @@ Node weights are given by $w_{\tau}(p)$ (the protocol's end-of-interval stock) a
 
 For each protocol $p$ we form the following inputs:
 \begin{itemize}
-  \item \textbf{Graph snapshot:} $G_{\tau}$ with node features including $w_{\tau}(p)$ and edge features including $w_{\tau}(e_{pq})$ (and optional attributes such as token class or sector pair).
-  \item \textbf{Tabular node features:} $\mathbf{x}^{\mathrm{tab}}_{p}$ contains protocol descriptors including:
+  \item \emph{graph snapshot:} $G_{\tau}$ with node features including $w_{\tau}(p)$ and edge features including $w_{\tau}(e_{pq})$ (and optional attributes such as token class or sector pair).
+  \item \emph{tabular node features:} $\mathbf{x}^{\mathrm{tab}}_{p}$ contains protocol descriptors including:
   \begin{itemize}
     \item Log-scaled TVL: $\log(1 + w_{\tau}(p))$
     \item Number of token types held
