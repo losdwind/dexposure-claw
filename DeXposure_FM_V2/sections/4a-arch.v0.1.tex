@@ -14,12 +14,8 @@
 
 DeXposure-FM is trained for multi-step forecasting of edge existence, edge weights, and node TVL changes. %; and (2) forward-looking financial stability assessment by applying risk metrics and stress tests to predicted exposure graphs, and macroprudential tools in Section~\ref{sec:econ}. We provide a reference implementation of these tools (observed and forecast-then-measure) in \texttt{run\_macroprudential\_tools.py}. Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
 
-\subsubsection{Input and Features}
-Let $t\in\mathcal{T}$ be discrete observation times and $\tau=(t_1,t_2)$ be a weekly interval. For each $\tau$, we construct a weighted directed exposure graph
-\begin{equation}
-G_\tau=(\mathcal{P}_\tau,\mathcal{E}_\tau),
-\end{equation}
-where nodes $p\in\mathcal{P}_\tau$ are protocols and edges $(p,q)\in\mathcal{E}_\tau$ represent token-mediated exposure from $p$ to issuing protocol $q$. Node weights encode protocol size (TVL) and edge weights encode the weekly change in exposure induced by token flows and valuation updates. Each node $p$ additionally has a tabular descriptor vector $\mathbf{x}^{\text{tab}}_{p,\tau}$ including log-scaled TVL and token-composition summaries (e.g., number of token types held, concentration measures, entropy) and a sector/category one-hot encoding.
+\subsubsection{Inputs and Output Settings}
+
 \begin{comment}
 Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
 For each interval $\tau$ we construct a weighted directed graph snapshot
@@ -28,10 +24,13 @@ G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau}),
 \end{equation}
 where $\mathcal{P}_{\tau}$ is the set of protocols and $\mathcal{E}_{\tau}$ is the set of directed exposure links.
 Node weights are given by $w_{\tau}(p)$ (the protocol's end-of-interval stock) as in Eq.~\eqref{eq:node-weight}, and edge weights are given by $w_{\tau}(e_{pq})$ (the change in credit exposure from $p$ to issuing protocol $q$ over $\tau$) as in Eq.~\eqref{eq:edge-weight}, where token-level value flows $F^{\sigma}_{pq,\tau}$ are defined by Eq.~\eqref{eq:value-flow}. Credit exposure exists when $X_p(t)\cap X_G(q)\neq\varnothing$ (Eq.~\eqref{eq:credit-exposure-definition}).
-
+\end{comment}
 
 %For each protocol $p$ we form the following inputs:
-Specifically, the models are using the following features.
+
+\fh{what are models' IO?}
+
+The inputs for the DeXposre-FM is as follow.s
 \begin{itemize}
   \item \emph{graph snapshot:} $G_{\tau}$ with node features including $w_{\tau}(p)$ and edge features including $w_{\tau}(e_{pq})$ (and optional attributes such as token class or sector pair).
   \item \emph{tabular node features:} $\mathbf{x}^{\mathrm{tab}}_{p}$ contains protocol descriptors including:
@@ -46,17 +45,20 @@ Specifically, the models are using the following features.
     \item Normalized out-degree: outgoing edge count / max out-degree
   \end{itemize}
 \end{itemize}
-\end{comment}
 
-\subsubsection{Pretrained Graph-Tabular Encoder}
-
-We adopt {GraphPFN} as the encoder $E(\cdot)$ in our model, which is a transformer-based graph-tabular foundation model that fuses graph structure with tabular node features via multi-head self-attention augmented with structural information \citep{eremeev2025g2tfm}. Given $(G_\tau,\{x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau})$, the encoder produces
-$d$-dimensional node representations
+\subsubsection{Graph-Tabular Encoder and Weight Prior}
+We employ GraphPFN \cite{eremeev2025g2tfm} %, a pre-trained graph-tabular foundation model based on Transformer architecture, 
+as a graph-tabular encoder in our model. %GraphPFN jointly processes graph structure and tabular node features through multi-head self-attention with graph structure injection.
+A LiMiX transformer %\fh{\cite{xx}} %within GraphPFN 
+produces %\fh{per-feature embeddings} 
+for each node. For link prediction, we extract node representations by mean-pooling %\fh{\cite{xx}} 
+over the \textit{feature column embeddings} %\fh{\cite{xx}} 
+rather than using the label column embedding %\fh{\cite{xx}} 
+(which is designed for node classification):
 \begin{equation}
-\{h_{p,\tau}\}_{p\in\mathcal{P}_\tau}
-= E_{\text{GraphPFN}}\!\left(G_\tau,\{x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau}\right),
-\qquad h_{p,\tau}\in\mathbb{R}^d .
+\mathbf{h}_{p,\tau} = \frac{1}{F}\sum_{f=1}^{F} \mathbf{e}_{p,\tau}^{(f)},
 \end{equation}
+where $\mathbf{e}_{p,\tau}^{(f)}\in\mathbb{R}^d$ is the embedding for feature $f$ of protocol $p$, and $F$ is the number of tabular features. This aggregation captures the joint representation of all node attributes, which is more suitable for edge-level tasks than the label-specific embedding.
 
 \begin{comment}
     

@@ -52,13 +52,16 @@
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
 %% for the whole article with \linenumbers.
 %% \usepackage{lineno}
-
+\newcommand{\fhc}[1]{{\tiny{\color{purple}{[FH: #1]}}}}
+\newcommand{\fh}[1]{{\color{purple}{[FH: #1]}}}
 \usepackage{tikz}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{multirow}
 %\journal{Nuclear Physics B}
 % Hide all \paragraph{} headings
 \renewcommand{\paragraph}[1]{}
+\usepackage{comment}
+
 \begin{document}
 
 \begin{frontmatter}
@@ -88,15 +91,22 @@
 %%             country={}}
 %% \fntext[label3]{}
 
-\title{DeXposure-FM: A Time-series, Graph Foundation Model on Credit Exposures and Stability on Decentralised Financial Networks}
+\title{DeXposure-FM: A Time-series, Graph Foundation Model for Credit Exposures and Stability on Decentralised Financial Networks}
 
 %% use optional labels to link authors explicitly to addresses:
-\author[label1]{Aijie Shu}%\ead{aijieshu@gmail.com}
+\author[label3,label1]{Aijie Shu}%\ead{aijieshu@gmail.com}
 \author[label2]{Wenbin Wu}
 %\author[label2]{Bryan Zhang}
 \author[label4]{Gbenga Ibikunle}%\ead{gbenga.Ibikunle@ed.ac.uk}
 \author[label3,label1]{Fengxiang He}\ead{F.He@ed.ac.uk}
 
+\affiliation[label3]{organization={School of Informatics, University of Edinburgh},
+%%             addressline={},
+%%             city={},
+%%             postcode={},
+%%             state={},
+             country={United Kingdom}}
+             
 \affiliation[label1]{organization={The Franc Team},
 %%             addressline={},
 %%             city={Edinburgh},
@@ -119,12 +129,6 @@
 %%             state={},
              country={United Kingdom}}
              
-\affiliation[label3]{organization={School of Informatics, University of Edinburgh},
-%%             addressline={},
-%%             city={},
-%%             postcode={},
-%%             state={},
-             country={United Kingdom}}
 
 %\author{Aijie Shu} %% Author name
 
@@ -157,16 +161,17 @@
 
 %% Abstract
 \begin{abstract}
-%% Text of abstract
-We introduce DeXposure-FM, to our best knowledge the first time-series, graph foundation model for measuring and forecasting inter-protocol credit exposures on decentralised financial networks. The model uses a pre-trained GraphPFN encoder with task-specific prediction heads. The model is built over a large-scale dataset DeXposure, which reconstructs value-linked credit exposures (measured by Total Value Locked, TVL) and token flows across 4,300+ protocols on 602 blockchains, covering 24,300+ unique tokens over 2020--2025, totally over 43.7 million snapshots. DeXposure-FM is fine-tuned for edge-level credit-exposure forecasting with a multi-task objective and Adam optimiser with differential learning rates for the pre-trained backbone and task-specific heads, predicting the joint dynamics of (1) protocol-level TVL and flows, (2) the topology and weights of credit-exposure links, and (3) sector structure (lending, exchanges, asset management, bridges, stablecoins, etc.).
+In contrast to traditional finance, credit exposure in Decentralised Finance (DeFi) is often implicit and token-mediated, creating a dense web of inter-protocol dependencies. Thus, a shock to a widely used token may result in significant and uncontrolled contagion effects. As the DeFi ecosystem becomes increasingly linked with traditional finance through new instruments, such as stablecoins, the risk posed by this dynamic demands quantification. We introduce DeXposure-FM as the first time series graph foundation model for measuring and forecasting inter-protocol credit exposure on DeFi networks. Using a pre-trained graph encoder with task-specific prediction heads that exploits 43.7 million observations across 4,300+ protocols on 602 blockchains and covering 24,300+ unique tokens, we train DeXposure-FM for credit-exposure forecasting, predicting the joint dynamics of protocol-level flows, the topology and weights of credit-exposure links, and sector structure (lending, exchanges, asset management, bridges and stablecoins etc.). The DeXposure-FM is empirically validated on a suite of machine learning benchmarks. It consistently outperforms the state-of-the-art approaches, including an existing graph foundation model and temporal graph neural networks. On the financial economics front, we further show how DeXposure-FM can support macroprudential monitoring, DeFi stress testing, and counterfactual policy evaluation, by constructing dynamic measures of protocol-level systemic importance, sector-to-sector spillover indices, and early-warning indicators based on shifts in network concentration and dependence on fragile collateral. 
 
-We evaluate DeXposure-FM on a suite of machine-learning benchmarks: (1) multi-step forecasting of edge-level exposures and network-level statistics, including concentration, density, and sector connectivity; (2) policy-relevant scenario analysis, where the model generates shock-consistent paths of losses and contagion during major stress events; and (3) imputation and denoising of missing or noisy exposures and TVL histories, with TVL-weighted error metrics and downstream performance on forecasting and link-prediction tasks. We compare DeXposure-FM to graph-based baselines including frozen graph encoders and temporal graph neural networks.
+%We introduce DeXposure-FM, to our best knowledge the first time-series, graph foundation model for measuring and forecasting inter-protocol credit exposures on decentralised financial networks. The model uses a pre-trained GraphPFN encoder with task-specific prediction heads. The model is built over a large-scale dataset DeXposure, which reconstructs value-linked credit exposures (measured by Total Value Locked, TVL) and token flows across 4,300+ protocols on 602 blockchains, covering 24,300+ unique tokens over 2020--2025, totally over 43.7 million snapshots. DeXposure-FM is trained for the task of edge-level credit-exposure forecasting by an advanced optimiser, Sharpness-Aware Minimization (SAM), predicting the joint dynamics of (1) protocol-level TVL and flows, (2) the topology and weights of credit-exposure links, and (3) sector structure (lending, exchanges, asset management, bridges, stablecoins, etc.).
 
-On the financial economics front, we use the foundation model to construct dynamic measures of (1) protocol-level systemic importance, (2) sector-to-sector spillover indices, and (3) early-warning indicators based on shifts in network concentration and dependence on fragile collateral. We show how these AI-generated statistics can support macroprudential monitoring, DeFi-specific stress testing, and counterfactual policy evaluation (e.g., caps on bridges or leverage and alternative collateral rules), while also highlighting conditions under which foundation-model-based measures of digital financial infrastructure are robust, and where they call for cautious interpretation by regulators and central banks.
+%We evaluate DeXposure-FM on a suite of machine-learning benchmarks: (1) multi-step forecasting of edge-level exposures and network-level statistics, including concentration, density, and sector connectivity; (2) policy-relevant scenario analysis, where the model generates shock-consistent paths of losses and contagion during major stress events; and (3) imputation and denoising of missing or noisy exposures and TVL histories, with TVL-weighted error metrics and downstream performance on forecasting and link-prediction tasks. We compare DeXposure-FM to graph-based baselines including frozen graph encoders and temporal graph neural networks.
 
-%\noindent\textit{Model:}
+%On the financial economics front, we use the foundation model to construct dynamic measures of (1) protocol-level systemic importance, (2) sector-to-sector spillover indices, and (3) early-warning indicators based on shifts in network concentration and dependence on fragile collateral. We show how these AI-generated statistics can support macroprudential monitoring, DeFi-specific stress testing, and counterfactual policy evaluation (e.g., caps on bridges or leverage and alternative collateral rules), while also highlighting conditions under which foundation-model-based measures of digital financial infrastructure are robust, and where they call for cautious interpretation by regulators and central banks.
 
-%\noindent\textit{Code:} \url{https://github.com/EVIEHub/DeXposure-FM}
+\noindent\textit{Model:}
+
+\noindent\textit{Code:} \url{https://github.com/EVIEHub/DeXposure-FM}
 
 \end{abstract}
 
@@ -177,7 +182,7 @@ On the financial economics front, we use the foundation model to construct dynam
 
 %%Research highlights
 \begin{highlights}
-\item Financial economics foundation model: We build DeXposure-FM, the first time-series, graph foundation model in DeFi and the wider financial economic space.
+\item Financial economics foundation model: We build DeXposure-FM, the first time-series, graph foundation model for decentralised finance.
 
 \item Financial economics / ML benchmarks: We show that DeXposure-FM produces competitive multi-step forecasts of edge-level exposures and network-level statistics (concentration, density, sector-to-sector links) relative to econometric and machine learning baselines (factor-VARs, temporal GNNs).
 
@@ -215,6 +220,41 @@ Time-Series Analysis \sep Graph Tabular Model \sep Foundation Model \sep Credit 
 \input{sections/2-related}
 \input{sections/3-formulation}
 \input{sections/4-model}
+
+\begin{comment}
+    
+\newpage
+
+\section{Empirical Evaluations on Machine Learning Benchmarks}
+
+\subsection{Task 1:  Multi-step Forecasting}
+
+\textbf{Implementation Deatails}
+
+\textbf{Empirical Results}
+
+\subsection{Task 2: xx}
+
+\textbf{Implementation Deatails}
+
+\textbf{Empirical Results}
+
+\section{Financial Economics Tools and Experimental Verifications}
+
+\subsection{Macroprudential Applications}
+
+\textbf{Systemic importance ranking.}
+
+\textbf{Sector spillover monitoring. }
+
+\textbf{Stress testing and contagion assessment.}
+
+\textbf{Early warning signals.}
+
+\subsection{Validity and Scope}
+\end{comment}
+
+
 \input{sections/5-experiments}
 \input{sections/6-economics}
 \input{sections/7-conclusion}
@@ -233,7 +273,7 @@ Time-Series Analysis \sep Graph Tabular Model \sep Foundation Model \sep Credit 
 %% If you have bib database file and want bibtex to generate the
 %% bibitems, please use
 %%
-\bibliographystyle{elsarticle-num} 
+\bibliographystyle{elsarticle-harv} 
 \bibliography{sections/DeXposure-FM}
 
 %% else use the following coding to input the bibitems directly in the

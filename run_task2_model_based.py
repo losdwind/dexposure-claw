@@ -716,9 +716,17 @@ def plot_contagion_comparison(
 
     horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
 
-    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4.8 * len(horizon_items), 5.0), sharey=True)
-    if len(horizon_items) == 1:
-        axes = [axes]
+    # Use a 2x2 layout (or 2 columns for fewer horizons) for readability in paper.
+    n_panels = len(horizon_items)
+    ncols = 2 if n_panels > 1 else 1
+    nrows = int(np.ceil(n_panels / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(5.2 * ncols, 4.8 * nrows),
+        sharey=True,
+    )
+    axes = np.array(axes).reshape(-1).tolist()
 
     fig.suptitle("Predictive Contagion: Model vs Naive Baseline", fontsize=14, fontweight="bold", y=0.98)
 
@@ -789,7 +797,7 @@ def plot_contagion_comparison(
         )
 
         ax.set_xlabel("Shock Scenario")
-        ax.set_ylabel("System Loss (%)" if ax_idx == 0 else "")
+        ax.set_ylabel("System Loss (%)" if (ax_idx % ncols) == 0 else "")
         ax.set_title(f"Horizon {horizon_key}")
         ax.set_xticks(x)
         ax.set_xticklabels([_short_scenario_label(s) for s in scenarios], rotation=0)
@@ -825,7 +833,11 @@ def plot_contagion_comparison(
             bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
         )
 
-    plt.tight_layout()
+    # Hide any unused panels (e.g., if horizons != 4).
+    for extra_ax in axes[len(horizon_items):]:
+        extra_ax.set_visible(False)
+
+    plt.tight_layout(rect=(0, 0, 1, 0.96))
 
     fig_path = output_dir / "figures" / "fig_contagion_comparison.pdf"
     fig_path.parent.mkdir(parents=True, exist_ok=True)
@@ -884,9 +896,17 @@ def plot_contagion_advantage(
 
     horizon_items = sorted(horizons_data.items(), key=lambda kv: _parse_horizon_key(kv[0]))
 
-    fig, axes = plt.subplots(1, len(horizon_items), figsize=(4.8 * len(horizon_items), 4.6), sharey=True)
-    if len(horizon_items) == 1:
-        axes = [axes]
+    # Use a 2x2 layout (or 2 columns for fewer horizons) for readability in paper.
+    n_panels = len(horizon_items)
+    ncols = 2 if n_panels > 1 else 1
+    nrows = int(np.ceil(n_panels / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(5.2 * ncols, 4.4 * nrows),
+        sharey=True,
+    )
+    axes = np.array(axes).reshape(-1).tolist()
 
     worst_frac = None
     for _, hdata in horizon_items:
@@ -937,7 +957,7 @@ def plot_contagion_advantage(
 
         ax.set_title(f"Horizon {horizon_key}")
         ax.set_xlabel("Shock Scenario")
-        ax.set_ylabel("ΔMAE (baseline − model) [% pts]" if ax_idx == 0 else "")
+        ax.set_ylabel("ΔMAE (baseline − model) [% pts]" if (ax_idx % ncols) == 0 else "")
         ax.set_xticks(x)
         ax.set_xticklabels([_short_scenario_label(s) for s in scenarios], rotation=0)
 
@@ -966,7 +986,11 @@ def plot_contagion_advantage(
                 bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
             )
 
-    plt.tight_layout()
+    # Hide any unused panels (e.g., if horizons != 4).
+    for extra_ax in axes[len(horizon_items):]:
+        extra_ax.set_visible(False)
+
+    plt.tight_layout(rect=(0, 0, 1, 0.96))
 
     fig_path = output_dir / "figures" / "fig_contagion_advantage.pdf"
     fig_path.parent.mkdir(parents=True, exist_ok=True)
