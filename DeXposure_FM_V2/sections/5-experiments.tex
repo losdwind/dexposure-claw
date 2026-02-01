@@ -1,7 +1,7 @@
-\section{Empirical Evaluations}
+\section{Empirical Evaluations on Machine Learning Benchmarks}
 \label{sec:evaluation}
 
-We evaluate DeXposure-FM on the DeXposure dataset, focusing on two tasks: (i) \textit{multi-step forecasting} of edge-level exposures and network-level statistics, and (ii) \textit{financial stability analysis} including model-based forward-looking risk assessment and stress testing during major events (Terra/Luna, FTX).
+We evaluate DeXposure-FM on the DeXposure dataset through two machine learning benchmark tasks: (i) \textit{multi-step forecasting} of edge existence/weights and node TVL changes; and (ii) \textit{predictive contagion stress testing}, where we forecast future stress-test losses under counterfactual shocks. Section~\ref{sec:econ} then translates these predictive outputs into macroprudential monitoring tools (systemic importance, spillovers, stress testing, and early warning) and validates them on historical stress events.
 
 \subsection{Dataset and Experimental Setup}
 \label{subsec:dataset}
@@ -60,7 +60,8 @@ We compare three approaches:
 \subsection{Task I: Multi-step Forecasting}
 \label{subsec:forecast}
 
-\paragraph{Targets.}
+\subsubsection{Implementation Details}
+\label{subsubsec:task1-impl}
 We evaluate forecasts at horizons $h \in \{1, 4, 8, 12\}$ weeks for:
 \begin{enumerate}
   \item \textbf{Edge existence:} Binary prediction of whether edge $(p,q)$ exists at $t+h$.
@@ -68,10 +69,12 @@ We evaluate forecasts at horizons $h \in \{1, 4, 8, 12\}$ weeks for:
   \item \textbf{Node TVL change:} Regression on $\Delta_{p,t+h} = \log(1+\text{TVL}_{t+h}) - \log(1+\text{TVL}_t)$.
 \end{enumerate}
 
-\paragraph{Metrics.}
+\noindent We report AUPRC/AUROC for edge existence and MAE/RMSE for edge weights and node $\Delta$TVL on log-scaled values.
+
+\subsubsection{Empirical Results}
+\label{subsubsec:task1-results}
 For edge existence, we report AUPRC (area under precision-recall curve) and AUROC. For edge weight and node predictions, we report MAE and RMSE on log-scaled values.
 
-\paragraph{Results.}
 Table~\ref{tab:main-results} presents the main forecasting results on the 2025 hold-out test set.
 %% [Updated to h={1,4,8,12} with complete DeXposure-FM results from GPU server experiments]
 
@@ -124,148 +127,50 @@ Table~\ref{tab:main-results} presents the main forecasting results on the 2025 h
 \subsection{Task II: Financial Stability Analysis}
 \label{subsec:stability}
 
-We conduct comprehensive financial stability analysis, combining systemic risk measurement, historical shock analysis, and contagion simulation. This task directly addresses macro-prudential policy applications.
+This task evaluates whether forward-looking network forecasts translate into forward-looking \emph{stress test} forecasts. Specifically, we compare contagion losses computed on the model-predicted future network $\hat{G}_{t+h}$ with losses on the realized future network $G_{t+h}$, under fixed counterfactual shock definitions.
 
-\paragraph{Model-based evaluation protocol (pseudo out-of-sample).}
-For Task II components that rely on forecasts, we use a fixed DeXposure-FM forecaster trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Stage 2 in Section~\ref{subsec:dataset}). We then evaluate on the strict 2025 hold-out set without any model re-estimation or parameter updates during the test period. Each test week provides a prediction origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for statistical evaluation. We compute risk metrics and stress-test outcomes on the predicted future network $\hat{G}_{t+h}$ and compare them to the realized network $G_{t+h}$. To handle protocol entry/exit, all network-level comparisons are computed on the common node set $V_t \cap V_{t+h}$.
+\subsubsection{Implementation Details}
+\label{subsubsec:task2-impl}
+We use a fixed DeXposure-FM forecaster trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Stage 2 in Section~\ref{subsec:dataset}). We then evaluate on the strict 2025 hold-out set without re-estimation during the test period. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
 
-\subsubsection{Systemic Risk Measurement}
-\label{subsubsec:systemic-risk}
+Stress-test losses are computed using a DebtRank-style contagion simulator (Section~\ref{subsubsec:contagion}) under three scenarios: (i) \textbf{Top protocol shock} (50\% TVL loss to the largest protocol), (ii) \textbf{Top-5 protocols shock} (30\% TVL loss to the top-5 protocols), and (iii) \textbf{Bridge sector shock} (100\% TVL loss to bridge protocols). For each $(t,t+h)$, we run the simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
 
-We compute protocol-level and network-level risk indicators for each weekly snapshot.
+Because the DeFi exposure network is highly persistent (Table~\ref{tab:data-stats}), the persistence baseline is difficult to beat on average. To surface policy-relevant headroom, we also evaluate an \emph{advantage regime}: the \textbf{worst 20\%} of test cases under persistence (largest baseline absolute errors within each horizon, pooled across shock scenarios). We summarize performance with $\Delta \mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$, where positive values indicate improvement over persistence.
 
-\paragraph{Protocol-level systemic importance score (SIS).}
-For each protocol $p$, we define:
-\begin{equation}
-\text{SIS}_p = \alpha \cdot \text{PageRank}_p + \beta \cdot \text{TailExposure}_p + \gamma \cdot \log(\text{TVL}_p),
-\label{eq:sis}
-\end{equation}
-where $\text{TailExposure}_p$ measures the concentration of $p$'s largest exposures (ratio of top-5 exposures to total), and $\alpha, \beta, \gamma$ are normalized weights summing to 1. We use equal weights $\alpha = \beta = \gamma = 1/3$ in the baseline specification; robustness to alternative weightings is discussed in Section~\ref{subsec:discussion}.
+\subsubsection{Empirical Results}
+\label{subsubsec:task2-results}
+Figure~\ref{fig:contagion-comparison} shows the three-way comparison (baseline vs.\ model vs.\ realized) and Figure~\ref{fig:contagion-advantage} visualizes $\Delta\mathrm{MAE}$ in both the overall population and the worst-20\% tail. Table~\ref{tab:contagion-advantage} reports horizon-level summary statistics.
 
-\paragraph{Sector spillover index.}
-We aggregate exposures into a sector-to-sector matrix $\mathbf{S} \in \mathbb{R}^{K \times K}$, where $S_{ij}$ is the total exposure from sector $i$ to sector $j$. The spillover index is the HHI of off-diagonal elements:
-\begin{equation}
-\text{SpilloverIndex} = \text{HHI}\left(\{S_{ij} : i \neq j\}\right).
-\end{equation}
+Across horizons, persistence remains strong on average ($\Delta\mathrm{MAE}(\text{all})<0$), but DeXposure-FM consistently improves performance in the tail ($\Delta\mathrm{MAE}(\text{worst20\%})>0$), with worst20\% win rates of 83--100\%. These gains are concentrated in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}), consistent with non-stationary exposure reallocation through cross-chain liquidity conduits. Section~\ref{sec:econ} further examines how these forecasts support macroprudential tools such as forward-looking risk metric monitoring and early warning event studies.
 
-\paragraph{Early-warning indicators.}
-We track structural change rates that may signal emerging instability:
-\begin{itemize}
-  \item Density change: $\Delta\rho_t = (\rho_t - \rho_{t-1})/\rho_{t-1}$
-  \item Concentration spike: $\Delta\text{HHI}_t > 2\sigma$ (two standard deviations above mean)
-  \item Assortativity shift: rapid changes in degree correlation
-\end{itemize}
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig_contagion_comparison.pdf}
+\caption{Predictive contagion stress testing (Task II). We compare system loss (\%) under identical shocks when running the contagion simulator on the observed network at time $t$ (persistence baseline), the model-predicted network $\hat{G}_{t+h}$, and the realized future network $G_{t+h}$.}
+\label{fig:contagion-comparison}
+\end{figure}
 
-\subsubsection{Model-based Forward-looking Risk Assessment}
-\label{subsubsec:forward-looking-risk}
-
-Beyond descriptive monitoring on observed networks, we use DeXposure-FM to enable forward-looking stability assessment by forecasting future exposure graphs and then computing stability measures on the predicted graphs.
-
-\paragraph{Forward-looking risk metric prediction.}
-For each horizon $h \in \{1,4,8,12\}$ and each test origin week $t$ in the 2025 hold-out, we forecast the exposure network $\hat{G}_{t+h}$ and compute risk metrics (e.g., TVL concentration, edge concentration, density, spillover index, and summary statistics of SIS). We then compare these predicted metrics to their realized counterparts computed on $G_{t+h}$, reporting accuracy via MAE/RMSE and correlation across test pairs.
-
-\paragraph{Predictive stress testing via contagion simulation.}
-We run the contagion simulation (Section~\ref{subsubsec:contagion}) on three networks for each test origin: the observed network at $t$, the predicted network $\hat{G}_{t+h}$, and the realized future network $G_{t+h}$. The key question is whether stress-test losses computed on $\hat{G}_{t+h}$ approximate those on $G_{t+h}$, enabling forward-looking macroprudential scenario analysis.
-
-\subsubsection{Shock Event Analysis}
-\label{subsubsec:shock-events}
-
-We analyze model behavior during two major DeFi stress events.
-
-\paragraph{Events analyzed.}
-\begin{enumerate}
-  \item \textbf{Terra/Luna collapse} (May 9, 2022): The UST algorithmic stablecoin lost its dollar peg, triggering cascading liquidations. Analysis window: April 25 -- May 23, 2022.
-  \item \textbf{FTX collapse} (November 7, 2022): The FTX exchange failure and resulting contagion through FTT token exposures. Analysis window: October 31 -- November 21, 2022.
-\end{enumerate}
-
-\paragraph{Analysis framework.}
-For each event, we examine a pre/event/post window. To avoid event leakage in the case study, we train an event-specific forecaster using only snapshots strictly prior to the event window, and then generate one-step-ahead forecasts within the event window. We report structural shifts and forward-looking stability measures:
-\begin{enumerate}
-  \item \textbf{Network structure changes:} TVL, edge count, Gini coefficient, HHI.
-  \item \textbf{Forward-looking risk metrics:} predicted vs.\ realized stability indicators during the event window.
-  \item \textbf{Predictive stress losses:} predicted vs.\ realized contagion losses under the same shock definitions.
-\end{enumerate}
-
-\paragraph{Results.}
-Table~\ref{tab:shock-results} shows network structure changes during the two stress events.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig_contagion_advantage.pdf}
+\caption{Advantage regimes for forward-looking stress testing. Bars report $\Delta\mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$ in system loss (\% points). ``Overall'' is the full test set; ``Worst 20\%'' restricts to the 20\% largest baseline errors (tail regime). Positive values indicate DeXposure-FM outperforms persistence, highlighting where a foundation model adds value under non-stationarity.}
+\label{fig:contagion-advantage}
+\end{figure}
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lcccc}
-\hline
-\textbf{Event} & \textbf{Pre-TVL (\$B)} & \textbf{Post-TVL (\$B)} & \textbf{$\Delta$TVL} & \textbf{$\Delta$Edges} \\
-\hline
-Terra/Luna & 257.1 & 171.0 & $-$33.5\% & +9.4\% \\
-FTX & 127.0 & 177.2 & +39.5\% & $-$3.3\% \\
-\hline
-\end{tabular}
-\caption{Network structure changes during stress events. Terra/Luna shows a classic flight-to-quality pattern with TVL collapse but edge count increase as capital reorganizes across protocols. The FTX event shows a \emph{positive} $\Delta$TVL because our dataset captures only on-chain DeFi protocols: the collapse of a centralised exchange triggered capital migration \emph{into} DeFi as users withdrew funds to self-custody, consistent with the ``flight to decentralisation'' narrative \citep{VidalTomasEtAl2023FTX}.}
-\label{tab:shock-results}
-\end{table}
-
-\subsubsection{Contagion Simulation}
-\label{subsubsec:contagion}
-
-We implement a DebtRank-style contagion simulation to assess systemic loss propagation.
-
-\paragraph{Shock propagation mechanism.}
-Given an initial shock to protocol $p_0$ with loss ratio $\delta_0$:
-\begin{enumerate}
-  \item \textbf{Initialize:} $\text{Loss}_{p_0} = \delta_0 \cdot \text{TVL}_{p_0}$
-  \item \textbf{Propagate:} When a distressed debtor $p$ has loss $\text{Loss}_p$, we allocate its loss to its creditors $q$ proportionally to their exposures $E_{qp}$:
-  \begin{equation}
-    \Delta \text{Loss}_q \;=\; \text{Loss}_p \cdot \frac{E_{qp}}{\sum_{q'} E_{q'p}}.
-  \end{equation}
-  \item \textbf{Iterate:} If $\text{Loss}_q > \tau \cdot \text{TVL}_q$ (with distress threshold $\tau = 0.1$, i.e., 10\% TVL loss), protocol $q$ becomes distressed and then propagates losses to its creditors. Losses are capped at $\text{TVL}_q$.
-  \item \textbf{Terminate:} When no new protocols become distressed.
-\end{enumerate}
-
-\paragraph{Simulation scenarios.}
-We simulate counterfactual shocks using actual network structure:
-\begin{itemize}
-  \item \textbf{Stablecoin de-peg:} 50\% TVL loss to major stablecoins (USDC, DAI)
-  \item \textbf{Exchange failure:} Complete TVL loss to centralized exchange protocols
-  \item \textbf{Bridge exploit:} 100\% loss to cross-chain bridge protocols
-\end{itemize}
-
-\paragraph{Metrics.}
-\begin{itemize}
-  \item \textbf{Total system loss:} $\sum_p \text{Loss}_p$ after convergence
-  \item \textbf{Contagion depth:} Number of propagation rounds before convergence
-  \item \textbf{Affected protocols:} Count of protocols with $\text{Loss} > 0$
-\end{itemize}
-
-Table~\ref{tab:contagion-results} presents contagion simulation results on the May 2022 network snapshot (4,329 nodes, 17,721 edges).
-
-\begin{table}[t]
-\centering
-\small
+\setlength{\tabcolsep}{6pt}
 \begin{tabular}{lccc}
 \hline
-\textbf{Scenario} & \textbf{System Loss (\%)} & \textbf{Depth} & \textbf{Affected} \\
+Horizon $h$ & $\Delta\mathrm{MAE}(\text{all})$ & $\Delta\mathrm{MAE}(\text{worst20\%})$ & Win rate (worst20\%) \\
 \hline
-Single protocol (50\% shock) & 0.00 & 0 & 0 \\
-Multi-protocol (top 5) & 0.00 & 0 & 0 \\
-Stablecoin cluster & 1.10 & 1 & 153 \\
-Bridge exploit (100\% loss) & \textbf{5.27} & 1 & 90 \\
+1  & $-0.95$ & $+3.04$ & 100\% \\
+4  & $-1.71$ & $+1.42$ & 83\% \\
+8  & $-0.17$ & $+2.60$ & 100\% \\
+12 & $-0.55$ & $+2.21$ & 83\% \\
 \hline
 \end{tabular}
-\caption{Contagion simulation results. Bridge protocols emerge as the primary systemic risk vector---despite shocking only 22 nodes, they cause the largest system-wide loss (5.27\% TVL). Single-protocol failures show minimal contagion, indicating network resilience to isolated shocks.}
-\label{tab:contagion-results}
+\caption{Predictive stress testing summary (2025 hold-out). $\Delta\mathrm{MAE}$ is measured in system-loss percentage points. Worst20\% selects the 20\% largest persistence-baseline errors within each horizon (pooled across shock scenarios). ``Win rate'' is the fraction of worst20\% cases where the model has lower absolute error than persistence.}
+\label{tab:contagion-advantage}
 \end{table}
-
-\subsection{Discussion}
-\label{subsec:discussion}
-
-\paragraph{Edge existence is the key prediction task.}
-The 98.5\% mean edge overlap in DeFi networks means that a naive persistence baseline (``predict last week's graph'') achieves only AUPRC 0.58--0.64 for edge existence---substantially below learned models. DeXposure-FM's 52--67\% relative AUPRC improvement over persistence (0.967--0.973 vs.\ 0.58--0.64) demonstrates that the model learns meaningful structural dynamics beyond network inertia. This is the primary source of model value.
-
-\paragraph{Weight prediction remains fundamentally hard.}
-Contrary to expectations, edge weight prediction shows no improvement over the naive persistence baseline. DeXposure-FM achieves MAE 2.465--2.648, comparable to persistence (2.37--2.62). This suggests that exposure magnitudes are inherently difficult to forecast: the best predictor of next week's exposure is often this week's exposure. While DeXposure-FM improves substantially over other \textit{learned} baselines (GraphPFN: 3.14--3.26, ROLAND: 3.20--3.24), the persistence baseline reveals that these learned models were inefficiently encoding temporal structure that could be captured by a simple heuristic. The practical implication is that model value lies in predicting \textit{which} edges exist, not \textit{how much} flows through them.
-
-\paragraph{Bridge protocols as systemic risk vectors.}
-Contagion simulations identify cross-chain bridges as disproportionate risk concentrators---shocking 22 bridge nodes causes 5.27\% system-wide loss, exceeding stablecoin scenarios (79 nodes, 1.10\% loss). This aligns with historical bridge exploits (Ronin, Wormhole) and suggests regulatory attention to bridge capitalization.
-
-\paragraph{Limitations.}
-The contagion model assumes linear loss propagation and does not capture feedback effects (e.g., liquidation cascades). Node TVL predictions degrade at longer horizons (MAE 0.056 at $h=1$ vs.\ 0.286 at $h=12$), reflecting inherent uncertainty in protocol-level forecasts beyond 2--3 months.

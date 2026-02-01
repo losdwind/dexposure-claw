@@ -12,7 +12,7 @@
 \subsection{DeXposure-FM Architecture}
 \label{sec:dexposure-fm-architecture}
 
-DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, which internally fuses graph structure and tabular node features. The model is designed to support two downstream objectives: (1) multi-step forecasting of edge weights and network statistics; and (2) policy-relevant shock analysis on historical stress events. Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
+DeXposure-FM leverages a pre-trained graph-tabular foundation model (GraphPFN) as its core encoder, which internally fuses graph structure and tabular node features. The model supports two layers of downstream use: (i) multi-step forecasting of edge existence/weights and node TVL changes (Task I, Section~\ref{subsec:forecast}); and (ii) forward-looking financial stability assessment by applying risk metrics and stress tests to predicted exposure graphs (Task II, Section~\ref{subsec:stability}, and macroprudential tools in Section~\ref{sec:econ}). Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
 
 \subsubsection{Inputs and notation (aligned with the DeXposure construction)}
 Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
@@ -75,7 +75,7 @@ Network-level statistics (concentration, density, sector connectivity) are obtai
 We evaluate model performance during extreme market events---specifically the Terra/Luna collapse (2022-05-09) and FTX collapse (2022-11-07). For each event, we examine a window around the shock date to assess:
 \begin{itemize}
   \item Network structure changes (TVL, edge count, Gini, HHI)
-  \item Model prediction performance degradation
+  \item Forward-looking risk trajectories on predicted graphs
   \item Early warning signal detection capability
 \end{itemize}
 
