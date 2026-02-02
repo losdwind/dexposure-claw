@@ -74,8 +74,30 @@ Equivalently, if $\hat{y}=\sigma(z)$ is produced from a logit $z\in\mathbb{R}$ v
 which is numerically stable and is often referred to as the logistic loss.
 \end{definition}
 
+\aj{ delete ->
+\textbf{Edge weights.}
+For positive edges $(p,q)\in\mathcal{E}_{\tau+h}$ we predict the log-scaled edge weight and apply a robust Smooth~L1 loss:}
+
+\aj{
 \textbf{Edge weights (residual learning).}
 For positive edges $(p,q)\in\mathcal{E}_{\tau+h}$ we predict a residual in log space relative to the previous observed week. Let $\tilde{w}_{\tau}(e_{pq})=\log(1+w_{\tau}(e_{pq}))$ and $\tilde{w}_{\tau+h}(e_{pq})=\log(1+w_{\tau+h}(e_{pq}))$. The link head outputs $\widehat{r}_{pq,\tau,h}$ and we apply a robust Smooth~L1 loss:
+}
+
+\aj{
+\begin{equation}
+\mathcal{L}_{\text{weight}}
+=
+\sum_{(p,q)\in\mathcal{E}_{\tau+h}}
+\mathrm{SmoothL1}\!\Big(
+\log(1+\widehat{w}_{\tau+h}(e_{pq}))
+-
+\log(1+w_{\tau+h}(e_{pq}))
+\Big).
+\label{eq:loss-weight}
+\end{equation}
+}
+
+\aj{
 \begin{equation}
 \mathcal{L}_{\text{weight}}
 =
@@ -87,7 +109,14 @@ For positive edges $(p,q)\in\mathcal{E}_{\tau+h}$ we predict a residual in log s
 \Big).
 \label{eq:loss-weight}
 \end{equation}
+}
+
+\aj{delete -> The $\log(1+\cdot)$ transform stabilizes training under the heavy-tailed exposure distribution. Here, smooth L1 (Huber) loss is defined as follows.}
+
+\aj{
 Equivalently, we reconstruct $\widehat{\tilde{w}}_{\tau+h}(e_{pq})=\tilde{w}_{\tau}(e_{pq})+\widehat{r}_{pq,\tau,h}$ and minimize $\mathrm{SmoothL1}(\widehat{\tilde{w}}_{\tau+h}(e_{pq})-\tilde{w}_{\tau+h}(e_{pq}))$. We set $\tilde{w}_{\tau}(e_{pq})=0$ when the edge is absent at time $\tau$. The $\log(1+\cdot)$ transform stabilizes training under the heavy-tailed exposure distribution. Here, smooth L1 (Huber) loss is defined as follows.
+}
+
 \begin{definition}[smooth L1 (Huber) loss]
 For a scalar prediction $\hat{u}\in\mathbb{R}$ and target $u\in\mathbb{R}$, let the residual be $r=\hat{u}-u$.
 The Smooth~L1 (Huber) loss with threshold $\delta>0$ is defined as
@@ -99,6 +128,9 @@ The Smooth~L1 (Huber) loss with threshold $\delta>0$ is defined as
 \end{cases}
 \label{eq:smoothl1}
 \end{equation}
+\aj{
+
+}
 Equivalently, written directly in terms of $(\hat{u},u)$:
 \begin{equation}
 \mathrm{SmoothL1}_\delta(\hat{u},u)=
@@ -108,6 +140,7 @@ Equivalently, written directly in terms of $(\hat{u},u)$:
 \end{cases}
 \end{equation}
 \end{definition}
+
 Smooth~L1 behaves like an $\ell_2$ loss near zero (encouraging small residuals) and like an $\ell_1$ loss for large residuals (reducing sensitivity to heavy tails and outliers). A common choice is $\delta=1$, when $\mathrm{SmoothL1}_\delta$ is briefly written as $\mathrm{SmoothL1}$.
 
 \textbf{Node-level TVL dynamics.}
@@ -149,8 +182,14 @@ We use Adam \citep{KingmaBa2015Adam} with hyperparameters $\beta_1=0.9$, $\beta_
 We train for up to 20 epochs with early stopping (patience = 3) based on validation AUPRC. Gradient clipping ($\|\nabla\|_2 \le 1.0$) is applied for stability.
 
 
+\aj{ delete this -> 
+\textbf{Optional sharpness-aware training.}
+To further improve robustness under non-stationarity, an optional variant wraps the base optimizer with Sharpness-Aware Minimization (SAM), which seeks parameters with lower local sharpness by optimizing against adversarial weight perturbations. In our experiments, SAM can be applied as a drop-in replacement for the standard Adam update while keeping the same early-stopping and validation protocol.}
+
+\aj{
 \textbf{Optional sharpness-aware training.}
 Sharpness-Aware Minimization (SAM) is a promising extension to improve robustness under non-stationarity by favoring flatter optima. However, our current released training pipeline and the experiments reported in this paper use Adam; we leave SAM-based training as future work.
+}
 
 \begin{table}[t]
 \centering
