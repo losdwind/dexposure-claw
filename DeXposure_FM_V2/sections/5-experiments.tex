@@ -1,37 +1,17 @@
 \section{Empirical Evaluations on Machine Learning Benchmarks}
 \label{sec:evaluation}
 
-We evaluate DeXposure-FM on the DeXposure dataset through two machine learning benchmark tasks: (i) \textit{multi-step forecasting} of edge existence/weights and node TVL changes; and (ii) \textit{predictive contagion stress testing}, where we forecast future simulator-implied stress-test losses under fixed counterfactual shocks. Section~\ref{sec:econ} provides economic interpretation and applications of these predictive outputs.
+We evaluate DeXposure-FM on two machine learning benchmarks: (1) {multi-step forecasting} of edge existence, edge weights, and node TVL changes; and (2) {predictive contagion stress testing}, where we forecast future simulator-implied stress-test losses under fixed counterfactual shocks. The following Section~\ref{sec:econ} provides economic interpretation and applications of these predictive outputs.
 
-\subsection{Dataset and Experimental Setup}
-\label{subsec:dataset}
+%\subsection{Experimental Setup}
+%\label{subsec:dataset}
 
-\paragraph{Data source.}
-We use the DeXposure dataset constructed from DeFiLlama API data, spanning March 2020 to August 2025 (283 weekly snapshots). Each snapshot contains protocol nodes with TVL measurements and directed edges representing credit exposures between protocols.
+%This section introduces experimental setups. We use the DeXposure dataset for test. \fh{stage 1 and 2}
+%\paragraph{Data statistics.}
 
-\paragraph{Data statistics.}
-Table~\ref{tab:data-stats} summarizes the dataset characteristics. The network exhibits high edge persistence (mean overlap ratio 98.5\%), reflecting the stable nature of DeFi protocol interconnections.
-
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{lr}
-\hline
-\textbf{Statistic} & \textbf{Value} \\
-\hline
-Total snapshots & 283 weeks \\
-Time range & 2020-03-23 $\sim$ 2025-08-18 \\
-Mean nodes per week & 5,676 \\
-Mean edges per week & 30,424 \\
-Mean edge overlap ratio & 98.5\% \\
-Protocol categories & $\sim$15 classes \\
-\hline
-\end{tabular}
-\caption{DeXposure dataset statistics.}
-\label{tab:data-stats}
-\end{table}
-
-\paragraph{Temporal split.}
+\begin{comment}
+    
+\subsubsection{Temporal split}
 We use a two-stage evaluation protocol:
 
 \textit{Stage 1: Model selection via walk-forward cross-validation.}
@@ -46,27 +26,37 @@ Final performance is reported on a strict 2025 hold-out set, which is never seen
 \end{itemize}
 Stage 1 is used for hyperparameter tuning; all results reported in this paper are from Stage 2 hold-out evaluation.
 
-\paragraph{Forecast horizons vs. CV windows.}
+\subsubsection{Forecast horizons vs. CV windows.}
 The 8-week CV window controls how the temporal folds slide; within each window, the model predicts at multiple forecast horizons $h \in \{1, 4, 8, 12\}$ weeks ahead. These are orthogonal: the CV window determines sample collection, while $h$ determines how far into the future each prediction extends.
 
-\paragraph{Models compared.}
-We compare three approaches:
-\begin{enumerate}
-  \item \textbf{GraphPFN:} Pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are trained (linear probe).
-  \item \textbf{DeXposure-FM:} Pre-trained GraphPFN encoder with end-to-end fine-tuning using differential learning rates.
-\item \textbf{ROLAND:} Representative temporal GNN baseline with a 2-layer GCN encoder (hidden\_dim=64, out\_dim=32) and GRU temporal updates for recurrent state propagation, trained from scratch. Uses the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
-\end{enumerate}
+
+\end{comment}
+\subsection{Baseline and Competitors}
+
+We compare our model with two approaches:
+%\begin{enumerate}
+%  \item 
+(1) {GraphPFN:} pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are fine-tuned on DeXposure (linear probe). In contrast, {DeXposure-FM} uses GraphPFN weight as initialization of the encoder and then fine-tunes the whole networks with customized heads; and (2)
+{ROLAND:} a representative temporal graph neural network \citep{YouEtAl2022ROLAND}, trained from scratch. 
+
+They use the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
+%\end{enumerate}
+
+%\fh{define persistence} % Persistence baseline: copy last observed graph structure
 
 \subsection{Task I: Multi-step Forecasting}
 \label{subsec:forecast}
 
+We first evaluate DeXposure-FM on task of multi-step forecasting.
+
 \subsubsection{Implementation Details}
 \label{subsubsec:task1-impl}
-We evaluate multi-step forecasts at horizons $h \in \{1,4,8,12\}$ weeks on three targets: (i) \textbf{edge existence}, a binary prediction of whether an edge $(p,q)$ is present at $t+h$; (ii) \textbf{edge weight}, a regression on log-scaled exposure weight for edges that exist; and (iii) \textbf{node TVL change}, a regression on $\Delta_{p,t+h}=\log(1+\text{TVL}_{p,t+h})-\log(1+\text{TVL}_{p,t})$. We report AUROC/AUPRC for edge existence and MAE/RMSE for edge weights and $\Delta$TVL (all on the log scale).
+
+We evaluate multi-step forecasts at horizons $h \in \{1,4,8,12\}$ weeks on three targets: (1) \emph{edge existence}, a binary classification task of whether an edge $(p,q)$ is present at $t+h$, (2) \emph{edge weight}, a regression task on log-scaled exposure weight for edges that exist, and (3) \emph{node TVL change}, a regression task. %on $\Delta_{p,t+h}=\log(1+\text{TVL}_{p,t+h})-\log(1+\text{TVL}_{p,t})$. 
+We report AUROC and AUPRC for edge existence and MAE and RMSE for edge weights and $\Delta$TVL (all on the log scale).
 
 \subsubsection{Empirical Results}
 \label{subsubsec:task1-results}
-Table~\ref{tab:main-results} reports the forecasting results on the strict 2025 hold-out test set.
 %% [Updated to h={1,4,8,12} with complete DeXposure-FM results from GPU server experiments]
 
 \begin{table}[t]
@@ -107,23 +97,24 @@ Table~\ref{tab:main-results} reports the forecasting results on the strict 2025 
 \label{tab:main-results}
 \end{table}
 
-\paragraph{Key findings.}
-Despite the strong persistence of the exposure network (Table~\ref{tab:data-stats}), DeXposure-FM substantially improves \textbf{edge existence} prediction: it achieves AUROC 0.993--0.995 and AUPRC 0.967--0.973, compared to AUPRC 0.58--0.64 for the persistence baseline and 0.936--0.940 for GraphPFN. This indicates that the model captures systematic edge formation and decay patterns beyond copying last week's graph.
-
-For \textbf{edge weights}, performance is largely bounded by the persistence baseline: DeXposure-FM achieves MAE 2.47--2.65, comparable to persistence (2.37--2.62), while improving over the learned baselines (GraphPFN/ROLAND MAE $\approx$ 3.1--3.3). In this setting, accurately forecasting exposure magnitudes remains difficult, and last week's value is often a strong predictor.
-
-For \textbf{node TVL changes}, all methods degrade with horizon, as expected. DeXposure-FM's MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$) and remains comparable to persistence (0.057--0.272), suggesting that long-horizon TVL dynamics are challenging to forecast at weekly frequency.
+Table~\ref{tab:main-results} reports the forecasting results on the strict 2025 hold-out test set. 
+Despite the strong persistence of the exposure network (Table~\ref{tab:data-stats}), DeXposure-FM substantially outperforms other methods for {edge existence} prediction: it achieves AUROC 0.993-0.995 and AUPRC 0.967-0.973, compared to AUPRC 0.58-0.64 for the persistence baseline and 0.936-0.940 for GraphPFN. %This indicates that the model captures systematic edge formation and decay patterns beyond copying last week's graph.
+For {edge weights}, %performance is largely bounded by the persistence baseline: 
+DeXposure-FM achieves 2.47-2.65 for MAE, %comparable to persistence (2.37-2.62), 
+while other methods achieve approximately 3.1-3.3. %In this setting, accurately forecasting exposure magnitudes remains difficult, and last week's value is often a strong predictor.
+For {node TVL changes}, all methods degrade with horizon, as expected. DeXposure-FM's MAE increases from 0.056 ($h=1$) to 0.286 ($h=12$) and remains comparable to persistence (0.057-0.272), suggesting that long-horizon TVL dynamics are challenging to forecast at weekly frequency.
 
 \subsection{Task II: Predictive Contagion Stress Testing}
 \label{subsec:stability}
 
-This benchmark evaluates whether forward-looking network forecasts translate into accurate forecasts of \emph{stress-test losses} generated by a fixed contagion simulator. Specifically, we compare system losses computed on the model-predicted future network $\hat{G}_{t+h}$ with losses on the realized future network $G_{t+h}$, under fixed counterfactual shock definitions.
+We then evaluate our model on whether forward-looking network forecasts translate into accurate forecasts of \emph{stress-test losses} generated by a fixed contagion simulator. Specifically, we compare system losses computed on the model-predicted future network $\hat{G}_{t+h}$ with losses on the realized future network $G_{t+h}$, under fixed counterfactual shock definitions.
 
 \subsubsection{Implementation Details}
 \label{subsubsec:task2-impl}
-We use a fixed DeXposure-FM forecaster trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Stage 2 in Section~\ref{subsec:dataset}). We then evaluate on the strict 2025 hold-out set without re-estimation during the test period. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
 
-Stress-test losses are computed using a DebtRank-style contagion simulator \citep{EisenbergNoe2001,BattistonEtAl2012DebtRank} under three scenarios: (i) \textbf{Top protocol shock} (50\% TVL loss to the largest protocol), (ii) \textbf{Top-5 protocols shock} (30\% TVL loss to the top-5 protocols), and (iii) \textbf{Bridge sector shock} (100\% TVL loss to bridge protocols). For each $(t,t+h)$, we run the same simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
+We use DeXposure-FM trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Section~\ref{subsec:training-pipeline}). We then evaluate on the strict 2025 hold-out set without re-estimation during the test period. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
+
+Stress-test losses are computed using a DebtRank-style contagion simulator \citep{EisenbergNoe2001,BattistonEtAl2012DebtRank} under three scenarios: (1) \emph{top protocol shock}: 50\% TVL loss to the largest protocol, (2) \emph{top-5 protocols shock}: 30\% TVL loss to the top-5 protocols, and (3) \emph{bridge sector shock}: 100\% TVL loss to bridge protocols. For each $(t,t+h)$, we run the same simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
 
 Because the DeFi exposure network is highly persistent (Table~\ref{tab:data-stats}), the persistence baseline is difficult to beat on average. We therefore report both (i) overall performance and (ii) a \emph{post-hoc stratified evaluation} on the \textbf{worst 20\%} of test cases under persistence, defined by the largest baseline absolute errors within each horizon (pooled across shock scenarios). This stratification is computed on the held-out test set and is not used for model selection. We summarize improvement with $\Delta \mathrm{MAE}=\mathrm{MAE}(\text{baseline})-\mathrm{MAE}(\text{model})$, where positive values indicate lower error than persistence.
 

@@ -1,89 +1,156 @@
-\subsection{Training Pipeline}
-\label{sec:training}
+\subsection{Training Pipeline}\label{subsec:training-pipeline}
 
-This section describes the training pipeline for DeXposure-FM. All graph and flow notation follows Section~\ref{sec:formalisation}.
+This section describes how we construct supervised training pairs from weekly DeXposure snapshots, define the multi-task learning objective, and optimize DeXposure-FM.
 
-\subsubsection{Training Data Preparation}
-
-For each discrete interval $\tau$ we construct a weighted directed snapshot $G_{\tau}=(\mathcal P_{\tau},\mathcal E_{\tau})$ with node weights $w_{\tau}(p)$ and edge weights $w_{\tau}(e_{pq})$. We form training examples indexed by an anchor time $\tau$:
+\subsubsection{Data Preparation}\label{subsubsec:data-prep}
+DeXposure provides weekly snapshots of the inter-protocol exposure network. For each discrete time index $\tau$, we construct a weighted directed graph
+$G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau})$ with node weights $w_{\tau}(p)$ (protocol TVL) and edge weights $w_{\tau}(e_{pq})$ (exposure from $p$ to $q$).
+Training examples are formed by an \emph{anchor} snapshot and a forecast horizon:
 \begin{equation}
-G_{\tau} \;\longrightarrow\; G_{\tau+h}, \quad h \in \{1, 4, 8, 12\},
+G_{\tau} \;\longrightarrow\; G_{\tau+h},
+\qquad
+h\in\{1,4,8,12\},
+\label{eq:train-pairs}
 \end{equation}
-where the model predicts the graph state at horizon $h$ given the current snapshot.
+so that the model predicts the future graph state at horizon $h$ conditional on the current snapshot.
 
-For each protocol $p\in\mathcal P_{\tau}$ we provide tabular node features $\mathbf x^{\mathrm{tab}}_{p}$ (log-scaled TVL, token count, concentration measures, category) along with the graph structure $G_{\tau}$.
+For each protocol $p\in\mathcal{P}_{\tau}$ we provide tabular node features $x^{\text{tab}}_{p,\tau}$ (including log-scaled TVL, token counts, concentration measures, and sector/category indicators) together with the graph structure $G_{\tau}$.
 
-\paragraph{Time-based expanding window splits.}
-We use expanding window walk-forward validation to ensure that all test targets occur strictly after the training window, thereby avoiding look-ahead bias. The training window expands over time while validation and test windows remain fixed.
+Table~\ref{tab:data-stats} summarizes the dataset characteristics. The network exhibits high edge persistence (mean overlap ratio 98.5\%), reflecting the stable nature of DeFi protocol interconnections.
 
-\paragraph{Negative sampling.}
-For edge existence prediction, we sample negative edges uniformly from the complement of the positive edge set, with a negative-to-positive ratio of 5:1.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lr}
+\hline
+\textbf{Statistic} & \textbf{Value} \\
+\hline
+Total snapshots & 283 weeks \\
+Time range & 2020-03-23 $\sim$ 2025-08-18 \\
+Mean nodes per week & 5,676 \\
+Mean edges per week & 30,424 \\
+Mean edge overlap ratio & 98.5\% \\
+Protocol categories & $\sim$ \\
+\hline
+\end{tabular}
+\caption{DeXposure dataset statistics.}
+\label{tab:data-stats}
+\end{table}
 
-\subsubsection{Training Modes}
+\textbf{Time-based expanding window splits.}
+We adopt an expanding-window walk-forward evaluation protocol to prevent look-ahead bias: all validation and test targets occur strictly after the corresponding training window, and the training window expands over time while validation and test windows remain fixed.
 
-We support two training modes for the GraphPFN encoder:
+\textbf{Negative sampling.}
+Edge existence is highly imbalanced.  For each horizon $h$, we construct a labeled edge set $\mathcal{S}_{\tau+h}$ consisting of all positive edges in $\mathcal{E}_{\tau+h}$ plus uniformly sampled negative edges from the complement, using a negative-to-positive ratio of $5{:}1$.
+This sampled set is used for the edge existence loss, while the edge weight loss is computed only on positive edges.
 
-\paragraph{Frozen probing.}
-We freeze the pre-trained GraphPFN encoder and train only the task-specific heads (link scorer and node predictor). This setting measures the transferability of pre-trained representations to the DeFi exposure domain without modifying the backbone.
+\subsubsection{Loss Functions}\label{subsubsec:loss}
+DeXposure-FM is trained with a multi-task objective combining (1) edge existence classification, (2) edge weight regression, and (3) node-level TVL-change prediction.
 
-\paragraph{Fine-tuning.}
-We perform end-to-end training with differential learning rates:
-\begin{itemize}
-  \item Pre-trained backbone: $\eta_{\text{backbone}} = \eta / 10$ (lower rate to preserve pre-trained knowledge)
-  \item Task-specific heads: $\eta_{\text{heads}} = \eta$ (higher rate for new parameters)
-\end{itemize}
-
-\subsubsection{Loss Functions}
-\label{sec:training:loss}
-
-We train DeXposure-FM with a multi-task objective that combines three core prediction losses: edge existence, edge weight, and node TVL change prediction.
-
-\paragraph{Edge existence loss (link prediction).}
-We predict edge existence $\widehat{y}^{\mathrm{exist}}_{pq} \in (0,1)$ using binary cross-entropy with positive class weighting to handle class imbalance:
+\textbf{Edge existence (link prediction).}
+For each candidate pair $(p,q)\in\mathcal{S}_{\tau+h}$ we predict $\widehat{y}^{\text{exist}}_{pq}\in(0,1)$ and minimize a weighted binary cross-entropy loss:
 \begin{equation}
-\mathcal L_{\mathrm{exist}} = \sum_{(p,q) \in \mathcal S_{\tau+h}} \mathrm{BCE}\bigl(\widehat{y}^{\mathrm{exist}}_{pq}, y^{\mathrm{exist}}_{pq}; w_{\mathrm{pos}}\bigr),
+\mathcal{L}_{\text{exist}}
+=
+\sum_{(p,q)\in\mathcal{S}_{\tau+h}}
+\mathrm{BCE}\!\left(\widehat{y}^{\text{exist}}_{pq},\,y^{\text{exist}}_{pq};\,w_{\text{pos}}\right),
 \label{eq:loss-exist}
 \end{equation}
-where $\mathcal S_{\tau+h}$ includes both positive edges from $\mathcal E_{\tau+h}$ and sampled negative edges (5:1 ratio), and $w_{\mathrm{pos}}$ is the positive class weight matching the negative sampling ratio.
+where $w_{\text{pos}}$ upweights positives to match the negative sampling ratio. Here, binary cross-entropy is defined as below. 
 
-\paragraph{Edge weight loss.}
-For positive edges, we predict log-scaled edge weights using Smooth L1 loss:
+\begin{definition}[binary cross-entropy (BCE)]
+For a binary label $y\in\{0,1\}$ and a predicted probability $\hat{y}\in(0,1)$, the binary cross-entropy loss is
 \begin{equation}
-\mathcal L_{\mathrm{weight}} = \sum_{(p,q) \in \mathcal E_{\tau+h}} \mathrm{SmoothL1}\bigl(\log(1+\widehat{w}_{\tau+h}(e_{pq})) - \log(1+w_{\tau+h}(e_{pq}))\bigr).
+\mathrm{BCE}(\hat{y},y)
+= -\Big(y\log(\hat{y}) + (1-y)\log\big(1-\hat{y}\big)\Big).
+\label{eq:bce}
+\end{equation}
+Equivalently, if $\hat{y}=\sigma(z)$ is produced from a logit $z\in\mathbb{R}$ via the sigmoid $\sigma(z)=1/(1+e^{-z})$, then
+\begin{equation}
+\mathrm{BCE}(\sigma(z),y)
+= \log\!\big(1+e^{z}\big) - yz,
+\label{eq:bce-logit}
+\end{equation}
+which is numerically stable and is often referred to as the logistic loss.
+\end{definition}
+
+\textbf{Edge weights.}
+For positive edges $(p,q)\in\mathcal{E}_{\tau+h}$ we predict the log-scaled edge weight and apply a robust Smooth~L1 loss:
+\begin{equation}
+\mathcal{L}_{\text{weight}}
+=
+\sum_{(p,q)\in\mathcal{E}_{\tau+h}}
+\mathrm{SmoothL1}\!\Big(
+\log(1+\widehat{w}_{\tau+h}(e_{pq}))
+-
+\log(1+w_{\tau+h}(e_{pq}))
+\Big).
 \label{eq:loss-weight}
 \end{equation}
-The log transformation $\log(1+\cdot)$ compresses the heavy-tailed distribution of exposures.
-
-\paragraph{Node prediction loss.}
-We predict the log-change in protocol TVL:
+The $\log(1+\cdot)$ transform stabilizes training under the heavy-tailed exposure distribution. Here, smooth L1 (Huber) loss is defined as follows.
+\begin{definition}[smooth L1 (Huber) loss]
+For a scalar prediction $\hat{u}\in\mathbb{R}$ and target $u\in\mathbb{R}$, let the residual be $r=\hat{u}-u$.
+The Smooth~L1 (Huber) loss with threshold $\delta>0$ is defined as
 \begin{equation}
-\mathcal L_{\mathrm{node}} = \sum_{p \in \mathcal P_{\tau} \cap \mathcal P_{\tau+h}} \mathrm{SmoothL1}\bigl(\widehat{\Delta}_{p,\tau+h} - \Delta_{p,\tau+h}\bigr),
+\mathrm{SmoothL1}_\delta(r)=
+\begin{cases}
+\frac{1}{2}\frac{r^2}{\delta}, & \text{if } |r|<\delta,\\[6pt]
+|r|-\frac{1}{2}\delta, & \text{otherwise}.
+\end{cases}
+\label{eq:smoothl1}
+\end{equation}
+Equivalently, written directly in terms of $(\hat{u},u)$:
+\begin{equation}
+\mathrm{SmoothL1}_\delta(\hat{u},u)=
+\begin{cases}
+\frac{1}{2}\frac{(\hat{u}-u)^2}{\delta}, & \text{if } |\hat{u}-u|<\delta,\\[6pt]
+|\hat{u}-u|-\frac{1}{2}\delta, & \text{otherwise}.
+\end{cases}
+\end{equation}
+\end{definition}
+Smooth~L1 behaves like an $\ell_2$ loss near zero (encouraging small residuals) and like an $\ell_1$ loss for large residuals (reducing sensitivity to heavy tails and outliers). A common choice is $\delta=1$, when $\mathrm{SmoothL1}_\delta$ is briefly written as $\mathrm{SmoothL1}$.
+
+\textbf{Node-level TVL dynamics.}
+We also predict the log-change in protocol TVL,
+$\Delta_{p,\tau+h}=\log(1+w_{\tau+h}(p))-\log(1+w_{\tau}(p))$,
+using Smooth~L1:
+\begin{equation}
+\mathcal{L}_{\text{node}}
+=
+\sum_{p\in\mathcal{P}_{\tau}\cap \mathcal{P}_{\tau+h}}
+\mathrm{SmoothL1}\!\left(\widehat{\Delta}_{p,\tau+h}-\Delta_{p,\tau+h}\right),
 \label{eq:loss-node}
 \end{equation}
 where $\Delta_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))$ is the ground-truth log-change in TVL.
 
-\paragraph{Overall objective.}
-The training objective combines the three core losses:
+
+\textbf{Multi-task objective.}
+The total loss is a weighted sum:
 \begin{equation}
-\mathcal L = \lambda_{\mathrm{exist}} \mathcal L_{\mathrm{exist}} + \lambda_{\mathrm{weight}} \mathcal L_{\mathrm{weight}} + \lambda_{\mathrm{node}} \mathcal L_{\mathrm{node}},
+\mathcal{L}
+=
+\lambda_{\text{exist}}\mathcal{L}_{\text{exist}}
++
+\lambda_{\text{weight}}\mathcal{L}_{\text{weight}}
++
+\lambda_{\text{node}}\mathcal{L}_{\text{node}},
 \label{eq:loss-total}
 \end{equation}
-with weights $\lambda_{\mathrm{exist}} = 2.0$, $\lambda_{\mathrm{weight}} = 0.5$, $\lambda_{\mathrm{node}} = 20.0$. These weights are calibrated to balance the gradient contributions across tasks despite their different loss magnitudes: edge existence loss $\mathcal{L}_{\mathrm{exist}} \approx 0.22$, edge weight loss $\mathcal{L}_{\mathrm{weight}} \approx 2.4$, and node loss $\mathcal{L}_{\mathrm{node}} \approx 0.05$ on average. The resulting effective contribution ratio is approximately 45\%:17\%:38\% for weight:exist:node, ensuring that node TVL prediction---critical for systemic risk assessment---receives sufficient training signal.
+with $\lambda_{\text{exist}}=2.0$, $\lambda_{\text{weight}}=0.5$, and $\lambda_{\text{node}}=20.0$. These weights are calibrated to balance the gradient contributions across tasks despite their different loss magnitudes: edge existence loss $\mathcal{L}_{\mathrm{exist}} \approx 0.22$, edge weight loss $\mathcal{L}_{\mathrm{weight}} \approx 2.4$, and node loss $\mathcal{L}_{\mathrm{node}} \approx 0.05$ on average. They also reflect the primary importance of link prediction while using weight and node supervision to encourage economically meaningful representations. 
 
-\subsubsection{Optimizer and Schedule}
+\subsubsection{Optimization}\label{subsubsec:optim}
 
-\paragraph{Optimizer.}
-We use Adam with $\beta_1=0.9$, $\beta_2=0.999$, and learning rate $\eta = 5 \times 10^{-4}$.
+\textbf{Initialization.} We adopt the open-source weights of GraphPFN as initialization of the encoder. 
 
-\paragraph{Differential learning rates.}
-For fine-tuning, we apply differential learning rates across parameter groups:
-\begin{itemize}
-  \item GraphPFN encoder: $\eta \times 0.1 = 5 \times 10^{-5}$ (to preserve pre-trained knowledge)
-  \item Task-specific heads: $\eta = 5 \times 10^{-4}$
-\end{itemize}
+\textbf{Optimizer.}
+We use Adam \citep{KingmaBa2015Adam} with hyperparameters $\beta_1=0.9$, $\beta_2=0.999$ and learning rate $\eta = 5 \times 10^{-4}$.
 
-\paragraph{Training details.}
-We train for up to 20 epochs with early stopping (patience=3) based on validation AUPRC. Gradient clipping ($\|\nabla\|_2 \le 1.0$) is applied for stability.
+\textbf{Training details.}
+We train for up to 20 epochs with early stopping (patience = 3) based on validation AUPRC. Gradient clipping ($\|\nabla\|_2 \le 1.0$) is applied for stability.
+
+
+\textbf{Optional sharpness-aware training.}
+To further improve robustness under non-stationarity, an optional variant wraps the base optimizer with Sharpness-Aware Minimization (SAM), which seeks parameters with lower local sharpness by optimizing against adversarial weight perturbations. In our experiments, SAM can be applied as a drop-in replacement for the standard Adam update while keeping the same early-stopping and validation protocol.
 
 \begin{table}[t]
 \centering

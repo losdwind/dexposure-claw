@@ -1,137 +1,44 @@
-% DeXposure-FM architecture section (drop-in LaTeX).
-% Requires in the preamble:
-% \usepackage{tikz}
-% \usetikzlibrary{arrows.meta,positioning,fit}
-%
-% This section aligns notation with FormalisingCreditExposures-clean.tex:
-% exposure definition: Eq.~\eqref{eq:credit-exposure-definition}
-% node weight: Eq.~\eqref{eq:node-weight}
-% value flow: Eq.~\eqref{eq:value-flow}
-% edge weight: Eq.~\eqref{eq:edge-weight}
+\subsection{Model Architecture}\label{subsec:model-arch}
 
-\subsection{DeXposure-FM Architecture}
-\label{sec:dexposure-fm-architecture}
-
-DeXposure-FM is trained for multi-step forecasting of edge existence, edge weights, and node TVL changes. %; and (2) forward-looking financial stability assessment by applying risk metrics and stress tests to predicted exposure graphs, and macroprudential tools in Section~\ref{sec:econ}. We provide a reference implementation of these tools (observed and forecast-then-measure) in \texttt{run\_macroprudential\_tools.py}. Unlike traditional financial networks where data completeness is a concern, blockchain-based DeFi networks provide fully observable on-chain transaction data, eliminating the need for edge imputation tasks common in opaque interbank settings.
+DeXposure-FM is a time-series graph foundation model designed to forecast the evolution of inter-protocol credit exposures. The architecture follows an \emph{encoder-multi-head} design: a pretrained graph-tabular encoder produces protocol embeddings for each weekly snapshot, and then multiple heads map these embeddings to (1) edge existence and exposure changes, (2) node-level TVL dynamics, and (3) induced network statistics.
 
 \subsubsection{Input and Features}
 Let $t\in\mathcal{T}$ be discrete observation times and $\tau=(t_1,t_2)$ be a weekly interval. For each $\tau$, we construct a weighted directed exposure graph
 \begin{equation}
 G_\tau=(\mathcal{P}_\tau,\mathcal{E}_\tau),
 \end{equation}
-where nodes $p\in\mathcal{P}_\tau$ are protocols and edges $(p,q)\in\mathcal{E}_\tau$ represent token-mediated exposure from $p$ to issuing protocol $q$. Node weights encode protocol size (TVL) and edge weights encode the weekly change in exposure induced by token flows and valuation updates. Each node $p$ additionally has a tabular descriptor vector $\mathbf{x}^{\text{tab}}_{p,\tau}$ including log-scaled TVL and token-composition summaries (e.g., number of token types held, concentration measures, entropy) and a sector/category one-hot encoding.
-\begin{comment}
-Let $t\in\mathcal{T}$ denote discrete observation times and let $\tau = t_2-t_1$ be a discrete interval between consecutive times.
-For each interval $\tau$ we construct a weighted directed graph snapshot
-\begin{equation}
-G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau}),
-\end{equation}
-where $\mathcal{P}_{\tau}$ is the set of protocols and $\mathcal{E}_{\tau}$ is the set of directed exposure links.
-Node weights are given by $w_{\tau}(p)$ (the protocol's end-of-interval stock) as in Eq.~\eqref{eq:node-weight}, and edge weights are given by $w_{\tau}(e_{pq})$ (the change in credit exposure from $p$ to issuing protocol $q$ over $\tau$) as in Eq.~\eqref{eq:edge-weight}, where token-level value flows $F^{\sigma}_{pq,\tau}$ are defined by Eq.~\eqref{eq:value-flow}. Credit exposure exists when $X_p(t)\cap X_G(q)\neq\varnothing$ (Eq.~\eqref{eq:credit-exposure-definition}).
-
-
-%For each protocol $p$ we form the following inputs:
-Specifically, the models are using the following features.
-\begin{itemize}
-  \item \emph{graph snapshot:} $G_{\tau}$ with node features including $w_{\tau}(p)$ and edge features including $w_{\tau}(e_{pq})$ (and optional attributes such as token class or sector pair).
-  \item \emph{tabular node features:} $\mathbf{x}^{\mathrm{tab}}_{p}$ contains protocol descriptors including:
-  \begin{itemize}
-    \item Log-scaled TVL: $\log(1 + w_{\tau}(p))$
-    \item Number of token types held
-    \item Maximum token share (concentration measure)
-    \item Token composition entropy
-    \item Protocol category (one-hot encoded, $\sim$15 classes)
-    \item Previous week TVL change: $\log(1 + w_{\tau}(p)) - \log(1 + w_{\tau-1}(p))$ (temporal momentum)
-    \item Normalized in-degree: incoming edge count / max in-degree
-    \item Normalized out-degree: outgoing edge count / max out-degree
-  \end{itemize}
-\end{itemize}
-\end{comment}
+where nodes $p\in\mathcal{P}_\tau$ are protocols and edges $(p,q)\in\mathcal{E}_\tau$ represent token-mediated exposure from $p$ to issuing protocol $q$. Node weights encode protocol size (TVL) and edge weights encode the weekly change in exposure induced by token flows and valuation updates. Each node $p$ additionally has a tabular descriptor vector $ x^{\text{tab}}_{p,\tau}$ including log-scaled TVL and token-composition summaries (e.g., number of token types held, concentration measures, entropy) and a sector/category one-hot encoding.
 
 \subsubsection{Pretrained Graph-Tabular Encoder}
 
-We adopt {GraphPFN} as the encoder $E(\cdot)$ in our model, which is a transformer-based graph-tabular foundation model that fuses graph structure with tabular node features via multi-head self-attention augmented with structural information \citep{eremeev2025g2tfm}. Given $(G_\tau,\{x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau})$, the encoder produces
+We adopt {GraphPFN} as the encoder $E(\cdot)$ in our model, which is a transformer-based graph-tabular foundation model that fuses graph structure with tabular node features via multi-head self-attention augmented with structural information \citep{eremeev2025turningtabularfoundationmodels}. Given $(G_\tau,\{ x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau})$, the encoder produces
 $d$-dimensional node representations
 \begin{equation}
 \{h_{p,\tau}\}_{p\in\mathcal{P}_\tau}
-= E_{\text{GraphPFN}}\!\left(G_\tau,\{x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau}\right),
+= E_{\text{GraphPFN}}\!\left(G_\tau,\{ x^{\text{tab}}_{p,\tau}\}_{p\in\mathcal{P}_\tau}\right),
 \qquad h_{p,\tau}\in\mathbb{R}^d .
 \end{equation}
 
-\begin{comment}
-    
-The encoder can be operated in two modes:
-\begin{itemize}
-  \item \textbf{Frozen probing:} Encoder weights are frozen; only task heads are trained. This measures the transferability of pre-trained representations.
-  \item \textbf{Fine-tuned:} End-to-end training with differential learning rates---lower rate ($\eta/10$) for the pre-trained backbone and higher rate ($\eta$) for task-specific heads.
-\end{itemize}
-\end{comment}
+\subsubsection{Edge-Level Prediction Head}
 
-\subsubsection{Task Heads}
-\paragraph{(1) Multi-step forecasting.}
-For horizon $h\in\{1,4,8,12\}$ weeks, we predict future edge existence and weights. The link scorer uses a Hadamard-product MLP architecture:
-\begin{align}
-\mathbf{f}_{pq} &= [\mathbf{h}_{p,\tau}; \mathbf{h}_{q,\tau}; \mathbf{h}_{p,\tau}\odot\mathbf{h}_{q,\tau}; |\mathbf{h}_{p,\tau}-\mathbf{h}_{q,\tau}|],\\
-(\widehat{y}^{\mathrm{exist}}_{pq}, \widehat{w}_{\tau+h}(e_{pq})) &= \mathrm{MLP}_{\mathrm{link}}(\mathbf{f}_{pq}),
-\end{align}
+For each forecast horizon $h\in\{1, 4, 8, 12\}$ weeks, DeXposure-FM predicts both edge existence and edge weight (i.e., exposure change) for ordered protocol pairs $(p,q)$. We form a pairwise feature vector using a standard symmetric composition of embeddings:
+\begin{equation}
+ f_{pq,\tau}=\Big[ h_{p,\tau};\,  h_{q,\tau};\,  h_{p,\tau}\odot   h_{q,\tau};\,\lvert  h_{p,\tau}-  h_{q,\tau}\rvert\Big],
+\end{equation}
+and pass it through a multi-layer perceptron (MLP) head to obtain
+\begin{equation}
+(\widehat{y}^{\mathrm{exist}}_{pq}, \widehat{w}_{\tau+h}(e_{pq})) = \mathrm{MLP}_{\mathrm{link}}({f}_{pq}),
+\end{equation}
 where $\widehat{y}^{\mathrm{exist}}_{pq}\in(0,1)$ is the predicted probability of edge existence, and $\widehat{w}_{\tau+h}(e_{pq})$ is the predicted edge weight (log-scaled).
 
-For node-level prediction, we forecast the log-change in protocol TVL:
-\begin{equation}
-\widehat{\Delta}_{p,\tau+h} = \mathrm{MLP}_{\mathrm{node}}(\mathbf{h}_{p,\tau}),
-\end{equation}
-where $\widehat{\Delta}_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))$ for protocols $p\in\mathcal{P}_{\tau}\cap\mathcal{P}_{\tau+h}$.
+\subsubsection{Node-Level Prediction Head and Network Statistics}
 
-Network-level statistics (concentration, density, sector connectivity) are obtained by applying deterministic functionals to the predicted graph $\widehat{G}_{\tau+h}$.
+To capture protocol-level dynamics, we predict the log-change in protocol TVL using a node head:
+\begin{align*}
+    \widehat{\Delta}_{p,\tau+h} = &\mathrm{MLP}_{\mathrm{node}}({h}_{p,\tau}),\\
+\widehat{\Delta}_{p,\tau+h} =& \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p)),
+\end{align*}
+for protocols $p\in\mathcal{P}_{\tau}\cap\mathcal{P}_{\tau+h}$.
 
-\paragraph{(2) Shock analysis.}
-We evaluate model performance during extreme market events---specifically the Terra/Luna collapse (2022-05-09) and FTX collapse (2022-11-07). For each event, we examine a window around the shock date to assess:
-\begin{itemize}
-  \item Network structure changes (TVL, edge count, Gini, HHI)
-  \item Forward-looking risk trajectories on predicted graphs
-  \item Early warning signal detection capability
-\end{itemize}
+Network-level statistics (e.g., density, concentration measures, and sector connectivity) are computed as deterministic functionals of the predicted graph $\widehat{G}_{\tau+h}$, enabling evaluation of the model both at the edge level and at the level of aggregate stability indicators.
 
-
-\begin{comment}
-    
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-  font=\footnotesize,
-  scale=0.88, transform shape,
-  box/.style={draw, rounded corners, align=center, minimum width=3.0cm, minimum height=0.9cm},
-  sbox/.style={draw, rounded corners, align=center, minimum width=2.75cm, minimum height=0.82cm},
-  arrow/.style={-Latex, thick},
-  node distance=0.5cm and 0.85cm
-]
-  % Inputs
-  \node[box] (tabin) {Tabular node features\\ $\mathbf{x}^{\mathrm{tab}}_{p}$};
-  \node[box, below=of tabin] (graphin) {Exposure graph snapshot\\ $G_{\tau}=(\mathcal{P}_{\tau},\mathcal{E}_{\tau})$\\ Node: $w_{\tau}(p)$, Edge: $w_{\tau}(e_{pq})$};
-
-  % Encoder
-  \node[sbox, right=1.5cm of graphin] (egraph) {Pre-trained\\GraphPFN encoder\\ $E_{\mathrm{GraphPFN}}$};
-
-  % Node embeddings
-  \node[sbox, right=1.3cm of egraph] (embed) {Node embeddings\\ $\mathbf{h}_{p,\tau}$};
-
-  % Heads
-  \node[sbox, right=1.2cm of embed] (forecast) {Forecasting head\\ $\widehat{w}_{\tau+h}(e_{pq}),\,\widehat{\Delta}_{p,\tau+h}$};
-  \node[sbox, above=0.55cm of forecast] (shock) {Shock analysis\\ Terra/FTX events};
-  % Arrows
-  \draw[arrow] (tabin.east) -- ++(0.55,0) |- (egraph.west);
-  \draw[arrow] (graphin) -- (egraph);
-
-  \draw[arrow] (egraph) -- (embed);
-  \draw[arrow] (embed) -- (forecast);
-
-  \draw[arrow] (embed.east) -- ++(0.3,0) |- (shock.west);
-
-  % Grouping boxes
-  \node[draw, dashed, rounded corners, fit=(tabin)(graphin), inner sep=6pt, label={[align=center]above:Inputs}] {};
-\end{tikzpicture}
-\caption{DeXposure-FM architecture aligned with the DeXposure exposure-graph construction. The model uses a pre-trained GraphPFN encoder to jointly process graph structure and tabular node features, producing node embeddings $\mathbf{h}_{p,\tau}$ that support multi-step forecasting and shock analysis tasks.}
-\label{fig:dexposure-fm-architecture}
-\end{figure}
-
-\end{comment}

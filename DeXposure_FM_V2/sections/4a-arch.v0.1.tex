@@ -47,7 +47,7 @@ The inputs for the DeXposre-FM is as follow.s
 \end{itemize}
 
 \subsubsection{Graph-Tabular Encoder and Weight Prior}
-We employ GraphPFN \cite{eremeev2025g2tfm} %, a pre-trained graph-tabular foundation model based on Transformer architecture, 
+We employ GraphPFN \cite{eremeev2025turningtabularfoundationmodels} %, a pre-trained graph-tabular foundation model based on Transformer architecture, 
 as a graph-tabular encoder in our model. %GraphPFN jointly processes graph structure and tabular node features through multi-head self-attention with graph structure injection.
 A LiMiX transformer %\fh{\cite{xx}} %within GraphPFN 
 produces %\fh{per-feature embeddings} 
@@ -70,7 +70,7 @@ The encoder can be operated in two modes:
 \end{comment}
 
 \subsubsection{Task Heads}
-\paragraph{(1) Multi-step forecasting.}
+\textbf{(1) Multi-step forecasting.}
 For horizon $h\in\{1,4,8,12\}$ weeks, we predict future edge existence and weights. The link scorer uses a Hadamard-product MLP architecture:
 \begin{align}
 \mathbf{f}_{pq} &= [\mathbf{h}_{p,\tau}; \mathbf{h}_{q,\tau}; \mathbf{h}_{p,\tau}\odot\mathbf{h}_{q,\tau}; |\mathbf{h}_{p,\tau}-\mathbf{h}_{q,\tau}|],\\
@@ -86,7 +86,7 @@ where $\widehat{\Delta}_{p,\tau+h} = \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p))
 
 Network-level statistics (concentration, density, sector connectivity) are obtained by applying deterministic functionals to the predicted graph $\widehat{G}_{\tau+h}$.
 
-\paragraph{(2) Shock analysis.}
+\textbf{(2) Shock analysis.}
 We evaluate model performance during extreme market events---specifically the Terra/Luna collapse (2022-05-09) and FTX collapse (2022-11-07). For each event, we examine a window around the shock date to assess:
 \begin{itemize}
   \item Network structure changes (TVL, edge count, Gini, HHI)
