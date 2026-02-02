@@ -36,7 +36,7 @@ The 8-week CV window controls how the temporal folds slide; within each window, 
 We compare our model with two approaches:
 %\begin{enumerate}
 %  \item 
-(1) {GraphPFN:} pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are fine-tuned on DeXposure (linear probe). In contrast, {DeXposure-FM} uses GraphPFN weight as initialization of the encoder and then fine-tunes the whole networks with customized heads; and (2)
+(1) {GraphPFN:} pre-trained GraphPFN encoder with frozen weights; only lightweight task-specific prediction heads are trained on DeXposure (a small MLP probe). In contrast, {DeXposure-FM} uses GraphPFN weights as initialization and fine-tunes the encoder and task heads end-to-end; and (2)
 {ROLAND:} a representative temporal graph neural network \citep{YouEtAl2022ROLAND}, trained from scratch. 
 
 They use the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
@@ -112,7 +112,7 @@ We then evaluate our model on whether forward-looking network forecasts translat
 \subsubsection{Implementation Details}
 \label{subsubsec:task2-impl}
 
-We use DeXposure-FM trained on the pre-2025 training period and early-stopped on the pre-2025 validation period (Section~\ref{subsec:training-pipeline}). We then evaluate on the strict 2025 hold-out set without re-estimation during the test period. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
+We train DeXposure-FM on the pre-2025 training period (Section~\ref{subsec:training-pipeline}) and evaluate on the strict 2025 hold-out set. Each test week provides an origin $t$, yielding multiple out-of-sample pairs $(t,t+h)$ for horizons $h\in\{1,4,8,12\}$. To handle protocol entry/exit, all comparisons are computed on the common node set $V_t \cap V_{t+h}$.
 
 Stress-test losses are computed using a DebtRank-style contagion simulator \citep{EisenbergNoe2001,BattistonEtAl2012DebtRank} under three scenarios: (1) \emph{top protocol shock}: 50\% TVL loss to the largest protocol, (2) \emph{top-5 protocols shock}: 30\% TVL loss to the top-5 protocols, and (3) \emph{bridge sector shock}: 100\% TVL loss to bridge protocols. For each $(t,t+h)$, we run the same simulator on three graphs: the observed network at $t$ (persistence baseline), the predicted network $\hat{G}_{t+h}$, and the realized network $G_{t+h}$.
 

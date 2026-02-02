@@ -1,6 +1,6 @@
 \subsection{Model Architecture}\label{subsec:model-arch}
 
-DeXposure-FM is a time-series graph foundation model designed to forecast the evolution of inter-protocol credit exposures. The architecture follows an \emph{encoder-multi-head} design: a pretrained graph-tabular encoder produces protocol embeddings for each weekly snapshot, and then multiple heads map these embeddings to (1) edge existence and exposure changes, (2) node-level TVL dynamics, and (3) induced network statistics.
+DeXposure-FM is a time-series graph foundation model designed to forecast the evolution of inter-protocol credit exposures. The architecture follows an \emph{encoder-multi-head} design: a pretrained graph-tabular encoder produces protocol embeddings for each weekly snapshot, and task heads map these embeddings to (1) edge existence and edge-weight residuals and (2) node-level TVL changes. Network-level statistics are then obtained by applying deterministic functionals to the predicted graph.
 
 \subsubsection{Input and Features}
 Let $t\in\mathcal{T}$ be discrete observation times and $\tau=(t_1,t_2)$ be a weekly interval. For each $\tau$, we construct a weighted directed exposure graph
@@ -27,18 +27,22 @@ For each forecast horizon $h\in\{1, 4, 8, 12\}$ weeks, DeXposure-FM predicts bot
 \end{equation}
 and pass it through a multi-layer perceptron (MLP) head to obtain
 \begin{equation}
-(\widehat{y}^{\mathrm{exist}}_{pq}, \widehat{w}_{\tau+h}(e_{pq})) = \mathrm{MLP}_{\mathrm{link}}({f}_{pq}),
+(\widehat{y}^{\mathrm{exist}}_{pq}, \widehat{r}_{pq,\tau,h}) = \mathrm{MLP}_{\mathrm{link}}({f}_{pq,\tau}),
 \end{equation}
-where $\widehat{y}^{\mathrm{exist}}_{pq}\in(0,1)$ is the predicted probability of edge existence, and $\widehat{w}_{\tau+h}(e_{pq})$ is the predicted edge weight (log-scaled).
+where $\widehat{y}^{\mathrm{exist}}_{pq}\in(0,1)$ is the predicted probability of edge existence and $\widehat{r}_{pq,\tau,h}\in\mathbb{R}$ is a residual in log space. In our implementation we adopt residual learning for edge weights: letting $\tilde{w}_{\tau}(e_{pq})=\log(1+w_{\tau}(e_{pq}))$, we reconstruct the predicted log-weight as
+\begin{equation}
+\widehat{\tilde{w}}_{\tau+h}(e_{pq})=\tilde{w}_{\tau}(e_{pq})+\widehat{r}_{pq,\tau,h},
+\end{equation}
+with $\tilde{w}_{\tau}(e_{pq})=0$ when the edge is absent at time $\tau$.
 
 \subsubsection{Node-Level Prediction Head and Network Statistics}
 
 To capture protocol-level dynamics, we predict the log-change in protocol TVL using a node head:
 \begin{align*}
-    \widehat{\Delta}_{p,\tau+h} = &\mathrm{MLP}_{\mathrm{node}}({h}_{p,\tau}),\\
+    \widehat{\Delta}_{p,\tau+h} = &\mathrm{MLP}_{\mathrm{node}}\!\Big([h_{p,\tau};\,h^{\mathrm{in}}_{p,\tau};\,h^{\mathrm{out}}_{p,\tau}]\Big),\\
 \widehat{\Delta}_{p,\tau+h} =& \log(1+w_{\tau+h}(p)) - \log(1+w_{\tau}(p)),
 \end{align*}
 for protocols $p\in\mathcal{P}_{\tau}\cap\mathcal{P}_{\tau+h}$.
+Here $h^{\mathrm{in}}_{p,\tau}$ and $h^{\mathrm{out}}_{p,\tau}$ denote simple weighted aggregations of incoming/outgoing neighbor embeddings at time $\tau$ (using the current-week edge weights), which inject local flow context into the TVL-change prediction.
 
 Network-level statistics (e.g., density, concentration measures, and sector connectivity) are computed as deterministic functionals of the predicted graph $\widehat{G}_{\tau+h}$, enabling evaluation of the model both at the edge level and at the level of aggregate stability indicators.
-
