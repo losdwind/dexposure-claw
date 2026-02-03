@@ -163,3 +163,19 @@ local/
 dev/docker/uv.lock
 dev/docker/pyproject.toml
 dev/images
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.fff
+*.ttt
