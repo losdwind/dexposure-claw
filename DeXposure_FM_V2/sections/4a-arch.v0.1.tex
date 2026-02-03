@@ -49,11 +49,11 @@ The inputs for the DeXposre-FM is as follow.s
 \subsubsection{Graph-Tabular Encoder and Weight Prior}
 We employ GraphPFN \cite{eremeev2025turningtabularfoundationmodels} %, a pre-trained graph-tabular foundation model based on Transformer architecture, 
 as a graph-tabular encoder in our model. %GraphPFN jointly processes graph structure and tabular node features through multi-head self-attention with graph structure injection.
-A LiMiX transformer %\fh{\cite{xx}} %within GraphPFN 
+A LiMiX transformer %\fh{\cite{eremeev2025turningtabularfoundationmodels}} %within GraphPFN 
 produces %\fh{per-feature embeddings} 
-for each node. For link prediction, we extract node representations by mean-pooling %\fh{\cite{xx}} 
-over the \textit{feature column embeddings} %\fh{\cite{xx}} 
-rather than using the label column embedding %\fh{\cite{xx}} 
+for each node. For link prediction, we extract node representations by mean-pooling %\fh{\cite{eremeev2025turningtabularfoundationmodels}} 
+over the \textit{feature column embeddings} %\fh{\cite{eremeev2025turningtabularfoundationmodels}} 
+rather than using the label column embedding %\fh{\cite{eremeev2025turningtabularfoundationmodels}} 
 (which is designed for node classification):
 \begin{equation}
 \mathbf{h}_{p,\tau} = \frac{1}{F}\sum_{f=1}^{F} \mathbf{e}_{p,\tau}^{(f)},

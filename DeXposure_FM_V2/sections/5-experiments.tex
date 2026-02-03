@@ -34,19 +34,12 @@ The 8-week CV window controls how the temporal folds slide; within each window, 
 
 \subsection{Baseline and Competitors}
 
-We compare our model with two approaches:
-%\begin{enumerate}
-%  \item 
-\aj{delete -> {GraphPFN:} pre-trained GraphPFN encoder with frozen weights; only task-specific prediction heads are fine-tuned on DeXposure (linear probe). In contrast, {DeXposure-FM} uses GraphPFN weight as initialization of the encoder and then fine-tunes the whole networks with customized heads; and (2)
-{ROLAND:} a representative temporal graph neural network \citep{YouEtAl2022ROLAND}, trained from scratch. }
+We compare our model with three baselines:
+(1) \textbf{GraphPFN}: a pre-trained GraphPFN encoder with frozen weights; only lightweight task-specific prediction heads are trained on DeXposure (a small MLP probe). In contrast, DeXposure-FM uses GraphPFN weights as initialization and fine-tunes the encoder and task heads end-to-end.
+(2) \textbf{ROLAND}: a representative temporal graph neural network \citep{YouEtAl2022ROLAND}, trained from scratch.
+(3) \textbf{Persistence}: a naive baseline that carries forward the last observed graph and edge weights ($\hat{A}_{t+h}=A_t$, $\hat{W}_{t+h}=W_t$).
 
-\aj{{GraphPFN:} pre-trained GraphPFN encoder with frozen weights; only lightweight task-specific prediction heads are trained on DeXposure (a small MLP probe). In contrast, {DeXposure-FM} uses GraphPFN weights as initialization and fine-tunes the encoder and task heads end-to-end; and (2)
-{ROLAND:} a representative temporal graph neural network \citep{YouEtAl2022ROLAND}, trained from scratch. }
-
-They use the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
-%\end{enumerate}
-
-%\fh{define persistence} % Persistence baseline: copy last observed graph structure
+For the trained baselines (GraphPFN and ROLAND), we use the same optimizer (Adam), learning rate ($5 \times 10^{-4}$), and training schedule as DeXposure-FM.
 
 \subsection{Task I: Multi-step Forecasting}
 \label{subsec:forecast}
@@ -57,7 +50,7 @@ We first evaluate DeXposure-FM on task of multi-step forecasting.
 \label{subsubsec:task1-impl}
 
 We evaluate multi-step forecasts at horizons $h \in \{1,4,8,12\}$ weeks on three targets: (1) \emph{edge existence}, a binary classification task of whether an edge $(p,q)$ is present at $t+h$, (2) \emph{edge weight}, a regression task on log-scaled exposure weight for edges that exist, and (3) \emph{node TVL change}, a regression task. %on $\Delta_{p,t+h}=\log(1+\text{TVL}_{p,t+h})-\log(1+\text{TVL}_{p,t})$. 
-We report AUROC and AUPRC for edge existence and MAE and RMSE for edge weights and $\Delta$TVL (all on the log scale).
+We report AUROC \citep{Fawcett2006ROC} and AUPRC \citep{DavisGoadrich2006PR} for edge existence and MAE and RMSE for edge weights and $\Delta$TVL (all on the log scale).
 
 \subsubsection{Empirical Results}
 \label{subsubsec:task1-results}
@@ -124,9 +117,9 @@ Because the DeFi exposure network is highly persistent (Table~\ref{tab:data-stat
 
 \subsubsection{Empirical Results}
 \label{subsubsec:task2-results}
-Figure~\ref{fig:contagion-comparison} shows the three-way comparison (baseline vs.\ model vs.\ realized) and Figure~\ref{fig:contagion-advantage} visualizes $\Delta\mathrm{MAE}$ in both the overall population and the worst-20\% tail. Table~\ref{tab:contagion-advantage} reports horizon-level summary statistics.
+Figure~\ref{fig:contagion-comparison} shows the three-way comparison (baseline vs.\ model vs.\ realized) and Figure~\ref{fig:contagion-advantage} visualizes $\Delta\mathrm{MAE}$ in both the overall population and the worst 20\% tail. Table~\ref{tab:contagion-advantage} reports horizon-level summary statistics.
 
-Across horizons, persistence remains strong on average ($\Delta\mathrm{MAE}(\text{all})<0$). In the worst20\% stratum---cases where persistence deviates most from realized losses---DeXposure-FM yields positive $\Delta\mathrm{MAE}(\text{worst20\%})$ with win rates of 83--100\%. Improvements are largest in bridge-sector shocks (Figure~\ref{fig:contagion-advantage}). Section~\ref{sec:econ} provides economic interpretation and downstream applications of these forecasts.
+On average, persistence remains a strong baseline ($\Delta\mathrm{MAE}(\text{all})<0$, i.e., persistence achieves lower error than the model), reflecting the high week-to-week stability of the DeFi exposure network. The value of a learned forecaster emerges in the tail: among the 20\% of test cases where persistence errors are largest, DeXposure-FM achieves positive $\Delta\mathrm{MAE}$ with win rates of 83--100\%. This tail regime, where network structure shifts most from the previous week, is precisely where forward-looking stress tests matter for macroprudential monitoring. The improvement is most pronounced under bridge-sector shocks (Figure~\ref{fig:contagion-advantage}), consistent with the sensitivity of cross-chain contagion to evolving network topology.
 
 \begin{figure}[t]
 \centering

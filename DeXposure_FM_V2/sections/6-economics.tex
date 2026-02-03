@@ -31,10 +31,17 @@ We compute protocol-level and network-level indicators on each weekly exposure s
 \text{SIS}_p = \alpha \cdot \widetilde{\text{PageRank}}_p + \beta \cdot \text{TailExposure}_p + \gamma \cdot \widetilde{\log(1+\text{TVL}_p)},
 \label{eq:sis}
 \end{equation}
-where $\text{TailExposure}_p$ is the share of $p$'s top-$k$ outgoing exposures (we use $k=5$), and $\alpha,\beta,\gamma$ are non-negative weights that sum to 1 (default $\alpha=\beta=\gamma=1/3$). We normalize PageRank and $\log(1+\text{TVL})$ to comparable scales (denoted by tildes). In parallel, we aggregate edge weights into a sector-to-sector spillover matrix $\mathbf{S}\in\mathbb{R}^{K\times K}$ where $S_{ij}$ is total exposure from sector $i$ to $j$, and compute a scale-invariant spillover concentration index as the \fh{HHI} of off-diagonal entries:
+where $\text{TailExposure}_p$ is the share of $p$'s top-$k$ outgoing exposures (we use $k=5$), and $\alpha,\beta,\gamma$ are non-negative weights that sum to 1 (default $\alpha=\beta=\gamma=1/3$). We normalize PageRank \citep{BrinPage1998PageRank} and $\log(1+\text{TVL})$ to comparable scales (denoted by tildes). In parallel, we aggregate edge weights into a sector-to-sector spillover matrix $\mathbf{S}\in\mathbb{R}^{K\times K}$ where $S_{ij}$ is total exposure from sector $i$ to $j$, and compute a scale-invariant spillover concentration index as the Herfindahl-Hirschman Index (HHI) \citep{Rhoades1993HHI} of off-diagonal entries:
 \begin{equation}
 \text{SpilloverIndex} = \text{HHI}\left(\{S_{ij} : i \neq j\}\right).
 \end{equation}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig_spillover_matrix_example.pdf}
+\caption{Example visualization of the sector-to-sector cross-exposure matrix $\mathbf{S}$ computed on an observed snapshot $G_t$ (here $t=\text{2025-06-30}$). Cell colors show $\log_{10}(1+S_{ij})$, where $S_{ij}$ aggregates total exposure from sector $i$ to sector $j$.}
+\label{fig:spillover-matrix}
+\end{figure}
 
 %\subsubsection{Use cases} 
 

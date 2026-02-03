@@ -6,11 +6,12 @@
 
 @techreport{BIS2025TVL,
   title       = {Towards Verifiability of Total Value Locked ({TVL}) in Decentralized Finance},
-  author      = {Auer, Raphael and Farag{\`o}, Marco and Turi, Davide},
+  author      = {Saggese, Pietro and Fr{\"o}wis, Michael and Kitzler, Stefan and Haslhofer, Bernhard and Auer, Raphael},
   institution = {Bank for International Settlements},
   type        = {BIS Working Papers},
   number      = {1268},
   year        = {2025},
+  month       = may,
   url         = {https://www.bis.org/publ/work1268.htm}
 }
 
@@ -68,7 +69,6 @@ NUMBER = {8},
 ARTICLE-NUMBER = {713},
 URL = {https://www.mdpi.com/2227-7390/7/8/713},
 ISSN = {2227-7390},
-ABSTRACT = {This paper proposes a model of the dynamics of credit contagion through non-performing loans on financial networks. Credit risk contagion is modeled in the context of the classical SIS (Susceptibles-Infected-Susceptibles) epidemic processes on networks but with a fundamental novelty. In fact, we assume the presence of two different classes of infected agents, and then we differentiate the dynamics of assets subject to idiosyncratic risk from those affected by systemic risk by adopting a SIIS (Susceptible-Infected1-Infected2-Susceptible) model. In the recent literature in this field, the effect of systemic credit risk on the performance of the financial network is a hot topic. We perform numerical simulations intended to explore the roles played by two different network structures on the long-term behavior of assets affected by systemic risk in order to analyze the effect of the topology of the underlying network structure on the spreading of systemic risk on the structure. Random graphs, i.e., the Erdös–Rényi model, are considered “benchmark” network structures while core-periphery structures are often indicated in the literature as idealized structures, although they are able to capture interesting, specific features of real-world financial networks. Moreover, as a matter of comparison, we also perform numerical experiments on small-world networks.},
 DOI = {10.3390/math7080713}
 }
 
@@ -82,7 +82,7 @@ year = {2023},
 issn = {2667-3053},
 doi = {https://doi.org/10.1016/j.iswa.2023.200240},
 url = {https://www.sciencedirect.com/science/article/pii/S2667305323000650},
-author = {Vicente Balmaseda and María Coronado and Gonzalo {de Cadenas-Santiago}},
+author = {Vicente Balmaseda and Mar{\'i}a Coronado and Gonzalo {de Cadenas-Santiago}},
 keywords = {Graph neural networks (GNN), Financial networks modeling, Model selection, Neural networks, Label regression, Network simulation},
 abstract = {Systemic risk is the risk of infection from an individual financial entity to the financial system due to existing interconnections. Having powerful tools to analyze and predict systemic risk in large financial networks is essential to ensure the stability of the financial system, avoiding the negative externalities derived from the failure of a systemically important financial institution. In this context, Machine Learning (ML) has proved to be a useful tool thanks to its ability to deal with complex relations. However, traditional techniques are limited in their use of the interactions between entities and the network structure, which has been shown to be of great importance for systemic risk. Thus, this work proposes Graph Neural Networks (GNNs) for systemic risk analysis. GNNs use the network structure and feature information to deal with large-scale financial networks, providing the benefits of ML while using all the available information (node inter-relations and node, edge, and graph features). We also present C2R, an approach to reduce the pre-labeling effort for costly systemic risk metrics by pre-labeling into a small number of classes while predicting continuous risk scores. We have tested GNNs against traditional ML in classifying entities by systemic risk importance in two different networks, comparing their generalization capabilities with different amounts of available data. GNNs achieve a 94% and 15% Matthew's Correlation Coefficient (MCC) average percentage increase compared to ML, achieving statistically significant MCC improvements in most scenarios. When combining C2R with GNNs to predict the systemic risk quantile from the class labels, the models achieve statistically significant improvements in the quantile RMSE. From our experiments, we can confirm that GNN models are better suited for systemic risk prediction on financial networks and should be preferred over traditional Machine Learning. The results obtained also confirm the fact that the network structure and the features of the relations (edge features) hold useful information for our task.}
 }
@@ -133,7 +133,7 @@ abstract = {Systemic risk is the risk of infection from an individual financial 
 
 @article{Schar2021DeFi,
   title   = {Decentralized Finance: On Blockchain- and Smart Contract-Based Financial Markets},
-  author  = {Fabian Schär},
+  author  = {Fabian Sch{\"a}r},
   journal = {Federal Reserve Bank of St. Louis Review},
   volume  = {103},
   number  = {2},
@@ -199,7 +199,7 @@ Volume = {105},
 Number = {2},
 Year = {2015},
 Month = {February},
-Pages = {564–608},
+Pages = {564--608},
 DOI = {10.1257/aer.20130456},
 URL = {https://www.aeaweb.org/articles?id=10.1257/aer.20130456}}
 
@@ -212,7 +212,7 @@ Volume = {54},
 Number = {3},
 Year = {2016},
 Month = {September},
-Pages = {779–831},
+Pages = {779--831},
 DOI = {10.1257/jel.20151228},
 URL = {https://www.aeaweb.org/articles?id=10.1257/jel.20151228}}
 
@@ -224,12 +224,12 @@ Volume = {31},
 Number = {2},
 Year = {2017},
 Month = {May},
-Pages = {87–106},
+Pages = {87--106},
 DOI = {10.1257/jep.31.2.87},
 URL = {https://www.aeaweb.org/articles?id=10.1257/jep.31.2.87}}
 
 
-@article{ Qaiser2018,
+@article{Qaiser2018,
 author = { Shahzad Qaiser, Ramsha Ali },
 title = { Text Mining: Use of TF-IDF to Examine the Relevance of Words to Documents },
 journal = { International Journal of Computer Applications },
@@ -288,9 +288,8 @@ publisher = {Springer-Verlag},
 address = {Berlin, Heidelberg},
 url = {https://doi.org/10.1007/978-3-662-64322-8_1},
 doi = {10.1007/978-3-662-64322-8_1},
-abstract = {Credit allows a lender to loan out surplus capital to a borrower. In the traditional economy, credit bears the risk that the borrower may default on its debt, the lender hence requires upfront collateral from the borrower, plus interest fee payments. Due to the atomicity of blockchain transactions, lenders can offer flash loans, i.e., loans that are only valid within one transaction and must be repaid by the end of that transaction. This concept has lead to a number of interesting attack possibilities, some of which were exploited in February&nbsp;2020.This paper is the first to explore the implication of transaction atomicity and flash loans for the nascent decentralized finance&nbsp;(DeFi) ecosystem. We show quantitatively how transaction atomicity increases the arbitrage revenue. We moreover analyze two existing attacks with ROIs beyond 500k\%. We formulate finding the attack parameters as an optimization problem over the state of the underlying Ethereum blockchain and the state of the DeFi ecosystem. We show how malicious adversaries can efficiently maximize an attack profit and hence damage the DeFi ecosystem further. Specifically, we present how two previously executed attacks can be “boosted” to result in a profit of &nbsp;829.5k&nbsp;USD and&nbsp;1.1M&nbsp;USD, respectively, which is a boost of&nbsp;2.37\texttimes{} and&nbsp;1.73\texttimes{}, respectively.},
-booktitle = {Financial Cryptography and Data Security: 25th International Conference, FC 2021, Virtual Event, March 1–5, 2021, Revised Selected Papers, Part I},
-pages = {3–32},
+booktitle = {Financial Cryptography and Data Security: 25th International Conference, FC 2021, Virtual Event, March 1--5, 2021, Revised Selected Papers, Part I},
+pages = {3--32},
 numpages = {30}
 }
 
@@ -316,9 +315,9 @@ numpages = {30}
 }
 
 
-@misc{veličković2018graphattentionnetworks,
+@misc{VelickovicEtAl2018,
       title={Graph Attention Networks}, 
-      author={Petar Veličković and Guillem Cucurull and Arantxa Casanova and Adriana Romero and Pietro Liò and Yoshua Bengio},
+      author={Petar Veli\v{c}kovi\'{c} and Guillem Cucurull and Arantxa Casanova and Adriana Romero and Pietro Li\`o and Yoshua Bengio},
       year={2018},
       eprint={1710.10903},
       archivePrefix={arXiv},
@@ -378,7 +377,7 @@ abstract = {Using a generalized vector autoregressive framework in which forecas
 
 @misc{RasulEtAl2023LagLlama,
       title={Lag-Llama: Towards Foundation Models for Probabilistic Time Series Forecasting}, 
-      author={Kashif Rasul and Arjun Ashok and Andrew Robert Williams and Hena Ghonia and Rishika Bhagwatkar and Arian Khorasani and Mohammad Javad Darvishi Bayazi and George Adamopoulos and Roland Riachi and Nadhir Hassen and Marin Biloš and Sahil Garg and Anderson Schneider and Nicolas Chapados and Alexandre Drouin and Valentina Zantedeschi and Yuriy Nevmyvaka and Irina Rish},
+      author={Kashif Rasul and Arjun Ashok and Andrew Robert Williams and Hena Ghonia and Rishika Bhagwatkar and Arian Khorasani and Mohammad Javad Darvishi Bayazi and George Adamopoulos and Roland Riachi and Nadhir Hassen and Marin Bilo{\v{s}} and Sahil Garg and Anderson Schneider and Nicolas Chapados and Alexandre Drouin and Valentina Zantedeschi and Yuriy Nevmyvaka and Irina Rish},
       year={2024},
       eprint={2310.08278},
       archivePrefix={arXiv},
@@ -451,7 +450,7 @@ abstract = {Using a generalized vector autoregressive framework in which forecas
 }
 
 @article{VidalTomasEtAl2023FTX,
-title = {FTX’s downfall and Binance’s consolidation: The fragility of centralised digital finance},
+title = {FTX's downfall and Binance's consolidation: The fragility of centralised digital finance},
 journal = {Physica A: Statistical Mechanics and its Applications},
 volume = {625},
 pages = {129044},
@@ -459,9 +458,8 @@ year = {2023},
 issn = {0378-4371},
 doi = {10.1016/j.physa.2023.129044},
 url = {https://www.sciencedirect.com/science/article/pii/S037843712300599X},
-author = {David Vidal-Tomás and Antonio Briola and Tomaso Aste},
+author = {David Vidal-Tom{\'a}s and Antonio Briola and Tomaso Aste},
 keywords = {Cryptocurrency, FTX, Terra-Luna, Binance, Network science},
-abstract = {This paper investigates the causes and the consequences of the FTX digital currency exchange’s failure in November 2022. Analysing on-chain data, we report that FTX heavily relied on leveraging and misusing its native token, FTT, and we show how this behaviour exacerbated the company’s fragile financial situation. To gain further insights into the downfall, we employ state-of-the-art network science instruments to model the evolutionary dependency structures of 199 cryptocurrencies on an hourly basis, and we investigate tick-by-tick public trades at the time of the events. We identify the collapse of the Terra-Luna ecosystem as the pivotal event that triggered a significant decrease in the exchange’s liquidity. Results suggest that the crash was actively accelerated by Binance tweets causing a systemic reaction in the cryptocurrency market. Finally, identifying the actors who mostly benefited from the FTX’s collapse and highlighting a generalised trend toward centralisation in the crypto space, we emphasise the importance of genuinely decentralised finance for a transparent, future digital economy.}
 }
 
 % ========================================
@@ -480,12 +478,14 @@ abstract = {This paper investigates the causes and the consequences of the FTX d
 }
 
 % Adam Optimizer
-@inproceedings{KingmaBa2015Adam,
-  title     = {Adam: A Method for Stochastic Optimization},
-  author    = {Kingma, Diederik P. and Ba, Jimmy},
-  booktitle = {Proceedings of the 3rd International Conference on Learning Representations (ICLR)},
-  year      = {2015},
-  url       = {https://arxiv.org/abs/1412.6980}
+@misc{KingmaBa2015Adam,
+  title         = {Adam: A Method for Stochastic Optimization},
+  author        = {Kingma, Diederik P. and Ba, Jimmy},
+  year          = {2015},
+  eprint        = {1412.6980},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/1412.6980}
 }
 
 
@@ -511,7 +511,6 @@ ARTICLE-NUMBER = {60},
 URL = {https://www.mdpi.com/1099-4300/25/1/60},
 PubMedID = {36673200},
 ISSN = {1099-4300},
-ABSTRACT = {Decentralized finance (DeFi) is by far the most popular application of blockchain technology. Despite the wide acceptance of new financial instruments and services, there are still many unexplored areas in the field. We dedicate this research to the understanding of one of the most crucial limitations of decentralized finance—oracles. DeFi protocols, as well as other blockchain applications, function in a closed environment and regularly need to fetch real-world information (e.g., assets’ prices)—the tool used for this purpose is called an oracle. We review the existing oracle types in DeFi applications and focus our research on the least explored one: when another protocol, typically a decentralized exchange, serves as a price oracle. After explaining the mechanisms behind the decentralized exchanges, we introduce an algorithmic model that allows one to safely design a decentralized oracle and adjust crucial parameters. We believe that understanding and implementing the logic presented in the model can help to reduce the chances of price manipulations attacks, which are the most frequent incident types in DeFi.},
 DOI = {10.3390/e25010060}
 }
 
@@ -535,4 +534,126 @@ DOI = {10.3390/e25010060}
   pages     = {4328--4343},
   year      = {2022},
   url       = {https://arxiv.org/abs/2205.14217}
+}
+
+
+% ========================================
+% Added references - 2026-02-02 (auto)
+% ========================================
+
+% Transformer
+@inproceedings{VaswaniEtAl2017Attention,
+  title     = {Attention Is All You Need},
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {30},
+  pages     = {5998--6008},
+  year      = {2017},
+  url       = {https://proceedings.neurips.cc/paper/2017/hash/3f5ee243547dee91fbd053c1c4a845aa-Abstract.html}
+}
+
+
+% Foundation models
+@misc{BommasaniEtAl2021FoundationModels,
+  title         = {On the Opportunities and Risks of Foundation Models},
+  author        = {Rishi Bommasani and Drew A. Hudson and Ehsan Adeli and Russ Altman and Simran Arora and Sydney von Arx and Michael S. Bernstein and Jeannette Bohg and Antoine Bosselut and Emma Brunskill and Erik Brynjolfsson and Shyamal Buch and Dallas Card and Rodrigo Castellon and Niladri Chatterji and Annie Chen and Kathleen Creel and Jared Quincy Davis and Dora Demszky and Chris Donahue and Moussa Doumbouya and Esin Durmus and Stefano Ermon and John Etchemendy and Kawin Ethayarajh and Li Fei-Fei and Chelsea Finn and Trevor Gale and Lauren Gillespie and Karan Goel and Noah Goodman and Shelby Grossman and Neel Guha and Tatsunori Hashimoto and Peter Henderson and John Hewitt and Daniel E. Ho and Jenny Hong and Kyle Hsu and Jing Huang and Thomas Icard and Saahil Jain and Dan Jurafsky and Pratyusha Kalluri and Siddharth Karamcheti and Geoff Keeling and Fereshte Khani and Omar Khattab and Pang Wei Koh and Mark Krass and Ranjay Krishna and Rohith Kuditipudi and Ananya Kumar and Faisal Ladhak and Mina Lee and Tony Lee and Jure Leskovec and Isabelle Levent and Xiang Lisa Li and Xuechen Li and Tengyu Ma and Ali Malik and Christopher D. Manning and Suvir Mirchandani and Eric Mitchell and Zanele Munyikwa and Suraj Nair and Avanika Narayan and Deepak Narayanan and Ben Newman and Allen Nie and Juan Carlos Niebles and Hamed Nilforoshan and Julian Nyarko and Giray Ogut and Laurel Orr and Isabel Papadimitriou and Joon Sung Park and Chris Piech and Eva Portelance and Christopher Potts and Aditi Raghunathan and Rob Reich and Hongyu Ren and Frieda Rong and Yusuf Roohani and Camilo Ruiz and Jack Ryan and Christopher R{\'e} and Dorsa Sadigh and Shiori Sagawa and Keshav Santhanam and Andy Shih and Krishnan Srinivasan and Alex Tamkin and Rohan Taori and Armin W. Thomas and Florian Tram{\`e}r and Rose E. Wang and William Wang and Bohan Wu and Jiajun Wu and Yuhuai Wu and Sang Michael Xie and Michihiro Yasunaga and Jiaxuan You and Matei Zaharia and Michael Zhang and Tianyi Zhang and Xikun Zhang and Yuhui Zhang and Lucia Zheng and Kaitlyn Zhou and Percy Liang},
+  year          = {2021},
+  eprint        = {2108.07258},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/2108.07258}
+}
+
+
+% Time-series cross-validation / walk-forward evaluation
+@article{BergmeirBenitez2012CVTS,
+  title   = {On the use of cross-validation for time series predictor evaluation},
+  author  = {Bergmeir, Christoph and Ben{\'i}tez, Jos{\'e} M.},
+  journal = {Information Sciences},
+  volume  = {191},
+  pages   = {192--213},
+  year    = {2012},
+  month   = may,
+  doi     = {10.1016/j.ins.2011.12.028},
+  url     = {https://doi.org/10.1016/j.ins.2011.12.028}
+}
+
+
+% Early stopping
+@incollection{Prechelt1998EarlyStopping,
+  title     = {Early Stopping - But When?},
+  author    = {Prechelt, Lutz},
+  booktitle = {Neural Networks: Tricks of the Trade},
+  editor    = {Orr, Genevieve B. and M{\"u}ller, Klaus-Robert},
+  publisher = {Springer Berlin Heidelberg},
+  pages     = {55--69},
+  year      = {1998},
+  doi       = {10.1007/3-540-49430-8_3},
+  url       = {https://doi.org/10.1007/3-540-49430-8_3}
+}
+
+
+% Gradient clipping / exploding gradients
+@inproceedings{PascanuEtAl2013RNNTraining,
+  title     = {On the difficulty of training recurrent neural networks},
+  author    = {Pascanu, Razvan and Mikolov, Tom{\'a}\v{s} and Bengio, Yoshua},
+  booktitle = {Proceedings of the 30th International Conference on Machine Learning},
+  series    = {{JMLR} Workshop and Conference Proceedings},
+  volume    = {28},
+  pages     = {1310--1318},
+  year      = {2013},
+  publisher = {JMLR.org},
+  url       = {https://proceedings.mlr.press/v28/pascanu13.html}
+}
+
+
+% ========================================
+% 金融/经济学标准术语引用 - 2026-02-03
+% ========================================
+
+% Herfindahl-Hirschman Index (HHI) - 市场集中度指数
+@article{Rhoades1993HHI,
+  title   = {The {Herfindahl-Hirschman Index}},
+  author  = {Rhoades, Stephen A.},
+  journal = {Federal Reserve Bulletin},
+  volume  = {79},
+  pages   = {188--189},
+  year    = {1993},
+  month   = mar,
+  url     = {https://fraser.stlouisfed.org/files/docs/publications/FRB/pages/1990-1994/33101_1990-1994.pdf}
+}
+
+
+% PageRank - 网络中心性算法
+@inproceedings{BrinPage1998PageRank,
+  title     = {The Anatomy of a Large-Scale Hypertextual Web Search Engine},
+  author    = {Brin, Sergey and Page, Lawrence},
+  booktitle = {Proceedings of the 7th International Conference on World Wide Web},
+  pages     = {107--117},
+  year      = {1998},
+  doi       = {10.1016/S0169-7552(98)00110-X},
+  url       = {http://infolab.stanford.edu/pub/papers/google.pdf}
+}
+
+
+% AUROC / ROC曲线分析
+@article{Fawcett2006ROC,
+  title   = {An Introduction to {ROC} Analysis},
+  author  = {Fawcett, Tom},
+  journal = {Pattern Recognition Letters},
+  volume  = {27},
+  number  = {8},
+  pages   = {861--874},
+  year    = {2006},
+  doi     = {10.1016/j.patrec.2005.10.010}
+}
+
+% AUPRC / Precision-Recall曲线分析
+@inproceedings{DavisGoadrich2006PR,
+  title     = {The Relationship Between {Precision-Recall} and {ROC} Curves},
+  author    = {Davis, Jesse and Goadrich, Mark},
+  booktitle = {Proceedings of the 23rd International Conference on Machine Learning (ICML)},
+  pages     = {233--240},
+  year      = {2006},
+  doi       = {10.1145/1143844.1143874}
 }

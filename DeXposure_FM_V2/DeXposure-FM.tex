@@ -46,15 +46,12 @@
 \usepackage{comment}
 \usepackage{url}
 \usepackage{hyperref}
-\usepackage[nomarkers,figuresfirst]{endfloat}
+\usepackage[nomarkers,figuresfirst,nofiglist,notablist]{endfloat}
 \renewcommand{\efloatseparator}{\clearpage}
 %% The lineno packages adds line numbers. Start line numbering with
 %% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
 %% for the whole article with \linenumbers.
 %% \usepackage{lineno}
-\newcommand{\fhc}[1]{{\tiny{\color{purple}{[FH: #1]}}}}
-\newcommand{\fh}[1]{{\color{purple}{[FH: #1]}}}
-\newcommand{\aj}[1]{{\color{pink}{[AJ: #1]}}}
 \usepackage{tikz}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{multirow}
@@ -107,7 +104,8 @@
 \author[label2]{Wenbin Wu}
 %\author[label2]{Bryan Zhang}
 \author[label4]{Gbenga Ibikunle}%\ead{gbenga.Ibikunle@ed.ac.uk}
-\author[label3,label1]{Fengxiang He}\ead{F.He@ed.ac.uk}
+\author[label3,label1]{Fengxiang He\corref{cor1}}\ead{F.He@ed.ac.uk}
+\cortext[cor1]{Corresponding author}
 
 \affiliation[label3]{organization={School of Informatics, University of Edinburgh},
 %%             addressline={},
@@ -170,13 +168,13 @@
 
 %% Abstract
 \begin{abstract}
-Credit exposure in Decentralized Finance (DeFi) is often implicit and token-mediated, creating a dense web of inter-protocol dependencies. Thus, a shock to one token may result in significant and uncontrolled contagion effects. As the DeFi ecosystem becomes increasingly linked with traditional financial infrastructure through instruments, such as stablecoins, the risk posed by this dynamic demands more powerful quantification tools. We introduce DeXposure-FM, as the first time-series, graph foundation model for measuring and forecasting inter-protocol credit exposure on DeFi networks. Employing a graph-tabular encoder, with pre-trained weight initialization, and multiple task-specific heads, DeXposure-FM is trained on the DeXposure dataset that has 43.7 million data entries, across 4,300+ protocols on 602 blockchains, covering 24,300+ unique tokens. The training is operationalized for credit-exposure forecasting, predicting the joint dynamics of protocol-level flows, the topology and weights of credit-exposure links. \aj{delete -> , and sector structure (lending, exchanges, asset management, bridges, and stablecoins, etc.).} The DeXposure-FM is empirically validated on two machine learning benchmarks; it consistently outperforms the state-of-the-art approaches, including a graph foundation model and temporal graph neural networks. \aj{delete -> We further show how DeXposure-FM can support macroprudential monitoring, DeFi stress testing, and counterfactual policy evaluation, by constructing dynamic measures of protocol-level systemic importance. sector-to-sector spillover indices, and early-warning indicators based on shifts in network concentration and dependence on fragile collateral. Empirical verification fully supports our financial economics tools. The model and code have been publicly available.} \aj{We further demonstrate how DeXposure-FM can support macroprudential monitoring and scenario-based DeFi stress testing by producing forward-looking forecasts of exposure networks and deriving interpretable indicators—such as protocol-level systemic-importance scores, sector-to-sector spillover indices, and concentration measures—via a forecast-then-measure pipeline. Our experiments provide empirical evidence that these model-based measurements track realized outcomes in held-out evaluations}
+Credit exposure in Decentralized Finance (DeFi) is often implicit and token-mediated, creating a dense web of inter-protocol dependencies. Thus, a shock to one token may result in significant and uncontrolled contagion effects. As the DeFi ecosystem becomes increasingly linked with traditional financial infrastructure through instruments such as stablecoins, the risk posed by this dynamic demands more powerful quantification tools. We introduce DeXposure-FM, the first time-series, graph foundation model for measuring and forecasting inter-protocol credit exposure on DeFi networks. Employing a graph-tabular encoder with pre-trained weight initialization and multiple task-specific heads, DeXposure-FM is trained on the DeXposure dataset, which has 43.7 million data entries across 4,300+ protocols on 602 blockchains and covers 24,300+ unique tokens. The training is operationalized for credit-exposure forecasting, predicting the joint dynamics of protocol-level flows and the topology and weights of credit-exposure links. DeXposure-FM is empirically validated on two machine learning benchmarks; it consistently outperforms the state-of-the-art approaches, including a graph foundation model and temporal graph neural networks. We further demonstrate how DeXposure-FM can support macroprudential monitoring and scenario-based DeFi stress testing by producing forward-looking forecasts of exposure networks and deriving interpretable indicators---such as protocol-level systemic-importance scores, sector-to-sector spillover measures (spillover matrix and spillover concentration index), and concentration measures---via a forecast-then-measure pipeline. Our experiments provide empirical evidence that these model-based measurements track realized outcomes in held-out evaluations.
 
 %We introduce DeXposure-FM, to our best knowledge the first time-series, graph foundation model for measuring and forecasting inter-protocol credit exposures on decentralised financial networks. The model uses a pre-trained GraphPFN encoder with task-specific prediction heads. The model is built over a large-scale dataset DeXposure, which reconstructs value-linked credit exposures (measured by Total Value Locked, TVL) and token flows across 4,300+ protocols on 602 blockchains, covering 24,300+ unique tokens over 2020--2025, totally over 43.7 million snapshots. DeXposure-FM is trained for the task of edge-level credit-exposure forecasting by an advanced optimiser, Sharpness-Aware Minimization (SAM), predicting the joint dynamics of (1) protocol-level TVL and flows, (2) the topology and weights of credit-exposure links, and (3) sector structure (lending, exchanges, asset management, bridges, stablecoins, etc.).
 
 %We evaluate DeXposure-FM on a suite of machine-learning benchmarks: (1) multi-step forecasting of edge-level exposures and network-level statistics, including concentration, density, and sector connectivity; (2) policy-relevant scenario analysis, where the model generates shock-consistent paths of losses and contagion during major stress events; and (3) imputation and denoising of missing or noisy exposures and TVL histories, with TVL-weighted error metrics and downstream performance on forecasting and link-prediction tasks. We compare DeXposure-FM to graph-based baselines including frozen graph encoders and temporal graph neural networks.
 
-%On the financial economics front, we use the foundation model to construct dynamic measures of (1) protocol-level systemic importance, (2) sector-to-sector spillover indices, and (3) early-warning indicators based on shifts in network concentration and dependence on fragile collateral. We show how these AI-generated statistics can support macroprudential monitoring, DeFi-specific stress testing, and counterfactual policy evaluation (e.g., caps on bridges or leverage and alternative collateral rules), while also highlighting conditions under which foundation-model-based measures of digital financial infrastructure are robust, and where they call for cautious interpretation by regulators and central banks.
+%On the financial economics front, we use the foundation model to construct dynamic measures of (1) protocol-level systemic importance, (2) sector-to-sector spillover measures (spillover matrix and spillover concentration index), and (3) early-warning indicators based on shifts in network concentration and dependence on fragile collateral. We show how these AI-generated statistics can support macroprudential monitoring, DeFi-specific stress testing, and counterfactual policy evaluation (e.g., caps on bridges or leverage and alternative collateral rules), while also highlighting conditions under which foundation-model-based measures of digital financial infrastructure are robust, and where they call for cautious interpretation by regulators and central banks.
 
 \noindent\textit{Model:} \url{https://huggingface.co/EVIEHub/DeXposure-FM}.
 
@@ -195,7 +193,7 @@ Credit exposure in Decentralized Finance (DeFi) is often implicit and token-medi
 
 \item Empirical verification on machine learning benchmarks: DeXposure-FM significantly outperforms strong competitors in machine learning benchmarks of multi-step forecasts of edge-level exposures and network-level statistics, such as concentration, density, and sector-to-sector links.
 
-\item Financial economics tools: DeXposure-FM supports macroprudential monitoring, DeFi stress testing, and counterfactual policy evaluation, by enabling dynamic measurements of protocol-level systemic importance, sector-to-sector spillover indices, and early-warning indicators based on shifts in network concentration and dependence on fragile collateral. Empirical verification fully supports the financial economics tools.
+\item Financial economics tools: DeXposure-FM supports macroprudential monitoring, DeFi stress testing, and counterfactual policy evaluation, by enabling dynamic measurements of protocol-level systemic importance, sector-to-sector spillover measures (spillover matrix and spillover concentration index), and early-warning indicators based on shifts in network concentration and dependence on fragile collateral. Empirical verification fully supports the financial economics tools.
 
 \item Open-source efforts and reproducibility: Both model and code have been publicly available. We will continue our open-source efforts in future developments.
 
