@@ -13,10 +13,12 @@ Metrics:
 - Sector connectivity (if sector labels available)
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 import numpy as np
 import networkx as nx
-from typing import Dict, List, Optional, Tuple
-from collections import defaultdict
 
 
 def gini_coefficient(values: np.ndarray) -> float:
@@ -32,7 +34,9 @@ def gini_coefficient(values: np.ndarray) -> float:
     sorted_values = np.sort(values)
     n = len(sorted_values)
     cumsum = np.cumsum(sorted_values)
-    return (2 * np.sum((np.arange(1, n + 1) * sorted_values)) - (n + 1) * cumsum[-1]) / (n * cumsum[-1] + 1e-12)
+    numerator = 2 * np.sum(np.arange(1, n + 1) * sorted_values) - (n + 1) * cumsum[-1]
+    denominator = n * cumsum[-1] + 1e-12
+    return float(numerator / denominator)
 
 
 def herfindahl_hirschman_index(values: np.ndarray) -> float:
@@ -46,7 +50,7 @@ def herfindahl_hirschman_index(values: np.ndarray) -> float:
     if len(values) == 0 or np.sum(values) == 0:
         return 0.0
     shares = values / (np.sum(values) + 1e-12)
-    return float(np.sum(shares ** 2))
+    return float(np.sum(shares**2))
 
 
 def network_density(num_nodes: int, num_edges: int, directed: bool = True) -> float:
@@ -122,20 +126,23 @@ def degree_assortativity(edge_index: np.ndarray, num_nodes: int) -> float:
     # Build NetworkX graph
     G = nx.DiGraph()
     G.add_nodes_from(range(num_nodes))
-    edges = [(int(edge_index[0, i]), int(edge_index[1, i])) for i in range(edge_index.shape[1])]
+    edges = [
+        (int(edge_index[0, i]), int(edge_index[1, i]))
+        for i in range(edge_index.shape[1])
+    ]
     G.add_edges_from(edges)
 
     try:
         return float(nx.degree_assortativity_coefficient(G))
-    except:
+    except Exception:
         return 0.0
 
 
 def sector_connectivity_matrix(
     edge_index: np.ndarray,
     edge_weights: np.ndarray,
-    node_sectors: List[str],
-    sector_list: List[str]
+    node_sectors: list[str],
+    sector_list: list[str],
 ) -> np.ndarray:
     """
     Compute sector-to-sector exposure matrix.
@@ -171,11 +178,11 @@ def sector_connectivity_matrix(
 def compute_all_network_statistics(
     edge_index: np.ndarray,
     num_nodes: int,
-    edge_weights: Optional[np.ndarray] = None,
-    node_sizes: Optional[np.ndarray] = None,
-    node_sectors: Optional[List[str]] = None,
-    sector_list: Optional[List[str]] = None
-) -> Dict[str, float]:
+    edge_weights: np.ndarray | None = None,
+    node_sizes: np.ndarray | None = None,
+    node_sectors: list[str] | None = None,
+    sector_list: list[str] | None = None,
+) -> dict[str, float]:
     """
     Compute all network-level statistics for a single snapshot.
 
@@ -205,8 +212,8 @@ def compute_all_network_statistics(
 
     # Basic statistics
     stats = {
-        "num_nodes": num_nodes,
-        "num_edges": num_edges,
+        "num_nodes": float(num_nodes),
+        "num_edges": float(num_edges),
         "density": network_density(num_nodes, num_edges, directed=True),
         "degree_gini": gini_coefficient(total_degrees),
         "degree_entropy": degree_entropy(total_degrees.astype(int)),
@@ -237,19 +244,28 @@ def compute_all_network_statistics(
             stats["tvl_top_10_concentration"] = top_k_concentration(ns, 0.1)
 
     # Sector connectivity (if available)
-    if node_sectors is not None and sector_list is not None and edge_weights is not None:
+    if (
+        node_sectors is not None
+        and sector_list is not None
+        and edge_weights is not None
+    ):
         sector_matrix = sector_connectivity_matrix(
             edge_index, edge_weights, node_sectors, sector_list
         )
-        stats["sector_connectivity_density"] = float(np.count_nonzero(sector_matrix) / (sector_matrix.size + 1e-12))
+        stats["sector_connectivity_density"] = float(
+            np.count_nonzero(sector_matrix) / (sector_matrix.size + 1e-12)
+        )
         stats["cross_sector_exposure_ratio"] = float(
-            (np.sum(sector_matrix) - np.trace(sector_matrix)) / (np.sum(sector_matrix) + 1e-12)
+            (np.sum(sector_matrix) - np.trace(sector_matrix))
+            / (np.sum(sector_matrix) + 1e-12)
         )
 
     return stats
 
 
-def compute_statistics_delta(stats_t: Dict[str, float], stats_t1: Dict[str, float]) -> Dict[str, float]:
+def compute_statistics_delta(
+    stats_t: dict[str, float], stats_t1: dict[str, float]
+) -> dict[str, float]:
     """
     Compute change in statistics between two time periods.
 
@@ -265,10 +281,11 @@ def compute_statistics_delta(stats_t: Dict[str, float], stats_t1: Dict[str, floa
 
 # ============== Batch computation for temporal analysis ==============
 
+
 def compute_rolling_statistics(
-    snapshots: List[Dict],
-    sector_list: Optional[List[str]] = None
-) -> List[Dict[str, float]]:
+    snapshots: list[dict[str, Any]],
+    sector_list: list[str] | None = None,
+) -> list[dict[str, float | str]]:
     """
     Compute network statistics for a sequence of snapshots.
 
@@ -293,7 +310,7 @@ def compute_rolling_statistics(
             edge_weights=snap.get("edge_weights"),
             node_sizes=snap.get("node_sizes"),
             node_sectors=snap.get("node_sectors"),
-            sector_list=sector_list
+            sector_list=sector_list,
         )
         stats["date"] = snap.get("date", "unknown")
         all_stats.append(stats)
@@ -303,14 +320,14 @@ def compute_rolling_statistics(
 
 if __name__ == "__main__":
     # Simple test
-    import torch
-
     # Create dummy graph
     num_nodes = 100
-    edge_index = np.array([
-        [0, 1, 2, 3, 4, 0, 1, 2],
-        [1, 2, 3, 4, 0, 2, 3, 4]
-    ])
+    edge_index = np.array(
+        [
+            [0, 1, 2, 3, 4, 0, 1, 2],
+            [1, 2, 3, 4, 0, 2, 3, 4],
+        ]
+    )
     edge_weights = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 1.5, 2.5, 3.5])
     node_sizes = np.random.exponential(100, num_nodes)
 
@@ -318,7 +335,7 @@ if __name__ == "__main__":
         edge_index=edge_index,
         num_nodes=num_nodes,
         edge_weights=edge_weights,
-        node_sizes=node_sizes
+        node_sizes=node_sizes,
     )
 
     print("Network Statistics:")

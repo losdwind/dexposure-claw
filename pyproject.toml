@@ -36,6 +36,8 @@ dependencies = [
     "nvitop>=1.5.1",
     "einops==0.8.1",
     "loralib==0.1.2",
+    "networkx>=3.0",
+    "ijson>=3.2.3",
 ]
 
 [dependency-groups]
@@ -103,8 +105,10 @@ extend-select = ["RUF", "UP", "E501", "E731"]
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.setuptools]
-packages = ["lib", "bin"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib*", "dexposure_fm*"]
+namespaces = true
 
 [tool.uv]
 default-groups = ["dev"]

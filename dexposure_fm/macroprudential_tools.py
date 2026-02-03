@@ -14,16 +14,17 @@ same tools to the predicted snapshot.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import numpy as np
 
 
 def array_snap_to_dict_snap(
-    snap: Dict[str, Any],
+    snap: dict[str, Any],
     *,
     edge_weight_is_log: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Convert an array-format snapshot into a dict-format snapshot.
 
@@ -42,20 +43,20 @@ def array_snap_to_dict_snap(
     if "nodes" in snap and isinstance(snap.get("nodes"), dict):
         return snap
 
-    node_ids: List[str] = list(snap.get("node_ids", []) or [])
+    node_ids: list[str] = list(snap.get("node_ids", []) or [])
     sizes = np.asarray(snap.get("sizes", []), dtype=float)
-    categories: List[str] = list(snap.get("categories", []) or [])
+    categories: list[str] = list(snap.get("categories", []) or [])
     edge_src = np.asarray(snap.get("edge_src", []), dtype=int)
     edge_dst = np.asarray(snap.get("edge_dst", []), dtype=int)
     edge_weight = np.asarray(snap.get("edge_weight", []), dtype=float)
 
-    nodes: Dict[str, Dict[str, Any]] = {}
+    nodes: dict[str, dict[str, Any]] = {}
     for i, nid in enumerate(node_ids):
         tvl = float(sizes[i]) if i < sizes.size else 0.0
         cat = categories[i] if i < len(categories) else "Unknown"
         nodes[str(nid)] = {"tvlUsd": tvl, "category": cat}
 
-    edges: List[Dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
     m = int(min(edge_src.size, edge_dst.size))
     for i in range(m):
         src_idx = int(edge_src[i])
@@ -69,7 +70,9 @@ def array_snap_to_dict_snap(
             w = float(np.expm1(w))
         if w <= 0.0:
             continue
-        edges.append({"source": node_ids[src_idx], "target": node_ids[dst_idx], "weight": w})
+        edges.append(
+            {"source": node_ids[src_idx], "target": node_ids[dst_idx], "weight": w}
+        )
 
     return {"nodes": nodes, "edges": edges, "date": snap.get("date", "")}
 
@@ -95,7 +98,7 @@ def compute_sis_components(
     *,
     tail_k: int = 5,
     pagerank_max_iter: int = 100,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
     Compute normalized SIS components for a dict-format snapshot:
       - pagerank: weighted PageRank normalized to [0,1] by dividing by max
@@ -132,14 +135,14 @@ def compute_sis_components(
     else:
         pagerank = {n: 0.0 for n in nodes}
 
-    outgoing_weights: Dict[str, List[float]] = {n: [] for n in nodes}
+    outgoing_weights: dict[str, list[float]] = {n: [] for n in nodes}
     for e in edges:
         src = (e or {}).get("source")
         w = float((e or {}).get("weight", 0.0) or 0.0)
         if src in outgoing_weights and w > 0:
             outgoing_weights[str(src)].append(w)
 
-    tail_exposure: Dict[str, float] = {}
+    tail_exposure: dict[str, float] = {}
     k = int(max(1, tail_k))
     for n, ws in outgoing_weights.items():
         if not ws:
@@ -152,7 +155,9 @@ def compute_sis_components(
         top_k_sum = float(np.sum(sorted(ws, reverse=True)[:k]))
         tail_exposure[n] = top_k_sum / total
 
-    tvl_values = {n: float((data or {}).get("tvlUsd", 0.0) or 0.0) for n, data in nodes.items()}
+    tvl_values = {
+        n: float((data or {}).get("tvlUsd", 0.0) or 0.0) for n, data in nodes.items()
+    }
     log_tvl = {n: float(np.log1p(max(v, 0.0))) for n, v in tvl_values.items()}
     log_tvl_max = float(max(log_tvl.values())) if log_tvl else 0.0
     if log_tvl_max > 0:
@@ -160,7 +165,11 @@ def compute_sis_components(
     else:
         log_tvl_norm = {n: 0.0 for n in nodes}
 
-    return {"pagerank": pagerank, "tail_exposure": tail_exposure, "log_tvl_norm": log_tvl_norm}
+    return {
+        "pagerank": pagerank,
+        "tail_exposure": tail_exposure,
+        "log_tvl_norm": log_tvl_norm,
+    }
 
 
 def compute_systemic_importance_score(
@@ -171,13 +180,14 @@ def compute_systemic_importance_score(
     gamma: float = 1 / 3,
     tail_k: int = 5,
     pagerank_max_iter: int = 100,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Systemic Importance Score (SIS) per node:
 
         SIS_i = alpha * PageRank_i + beta * TailExposure_i + gamma * log(1 + TVL_i)
 
-    Each component is normalized to a comparable [0,1] scale in `compute_sis_components`.
+    Each component is normalized to a comparable [0,1] scale in
+    `compute_sis_components`.
     """
     nodes = snap.get("nodes", {}) or {}
     if not isinstance(nodes, dict) or not nodes:
@@ -190,18 +200,20 @@ def compute_systemic_importance_score(
     tail = components["tail_exposure"]
     log_tvl = components["log_tvl_norm"]
 
-    scores: Dict[str, float] = {}
+    scores: dict[str, float] = {}
     for n in nodes:
-        scores[n] = float(alpha) * float(pagerank.get(n, 0.0)) + float(beta) * float(
-            tail.get(n, 0.0)
-        ) + float(gamma) * float(log_tvl.get(n, 0.0))
+        scores[n] = (
+            float(alpha) * float(pagerank.get(n, 0.0))
+            + float(beta) * float(tail.get(n, 0.0))
+            + float(gamma) * float(log_tvl.get(n, 0.0))
+        )
     return scores
 
 
 def compute_sector_spillover_index(
     snap: Mapping[str, Any],
-    sector_map: Optional[Mapping[str, str]] = None,
-) -> Dict[str, Dict[str, float]]:
+    sector_map: Mapping[str, str] | None = None,
+) -> dict[str, dict[str, float]]:
     """
     Sector-to-sector spillover exposures based on cross-sector edge weights.
 
@@ -219,7 +231,7 @@ def compute_sector_spillover_index(
             for node_id, data in nodes.items()
         }
 
-    sector_exposure: Dict[str, Dict[str, float]] = {}
+    sector_exposure: dict[str, dict[str, float]] = {}
     for e in edges:
         src = (e or {}).get("source")
         dst = (e or {}).get("target")
@@ -231,12 +243,16 @@ def compute_sector_spillover_index(
         if src_sector == dst_sector:
             continue
         sector_exposure.setdefault(src_sector, {})
-        sector_exposure[src_sector][dst_sector] = sector_exposure[src_sector].get(dst_sector, 0.0) + w
+        sector_exposure[src_sector][dst_sector] = (
+            sector_exposure[src_sector].get(dst_sector, 0.0) + w
+        )
 
     return sector_exposure
 
 
-def spillover_hhi(sector_exposure: Mapping[str, Mapping[str, float]]) -> Tuple[float, float]:
+def spillover_hhi(
+    sector_exposure: Mapping[str, Mapping[str, float]],
+) -> tuple[float, float]:
     """
     Compute spillover_total and spillover_index (HHI) from a sector_exposure dict.
 
@@ -263,7 +279,7 @@ def simulate_contagion(
     shock_fraction: float = 1.0,
     distress_threshold: float = 0.1,
     max_rounds: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     DebtRank-style contagion:
     interpret edge (creditor -> debtor) as creditor exposure to debtor.
@@ -271,10 +287,12 @@ def simulate_contagion(
     nodes = snap.get("nodes", {}) or {}
     edges = snap.get("edges", []) or []
 
-    tvl = {n: float((data or {}).get("tvlUsd", 0.0) or 0.0) for n, data in nodes.items()}
+    tvl = {
+        n: float((data or {}).get("tvlUsd", 0.0) or 0.0) for n, data in nodes.items()
+    }
     losses = {n: 0.0 for n in nodes}
 
-    exposures_in: Dict[str, Dict[str, float]] = {}
+    exposures_in: dict[str, dict[str, float]] = {}
     for e in edges:
         src = (e or {}).get("source")
         dst = (e or {}).get("target")
@@ -329,7 +347,10 @@ def simulate_contagion(
                 tvl_c = float(tvl.get(creditor, 0.0))
                 if tvl_c > 0:
                     losses[creditor] = min(losses[creditor], tvl_c)
-                    if creditor not in distressed and losses[creditor] > float(distress_threshold) * tvl_c:
+                    if (
+                        creditor not in distressed
+                        and losses[creditor] > float(distress_threshold) * tvl_c
+                    ):
                         distressed.add(creditor)
                         new_active.add(creditor)
 
@@ -346,8 +367,8 @@ def simulate_contagion(
         "total_loss": float(total_loss),
         "total_loss_pct": 100.0 * total_loss / total_tvl if total_tvl > 0 else 0.0,
         "loss_fraction": total_loss / total_tvl if total_tvl > 0 else 0.0,
-        "affected_count": int(len(distressed)),
-        "distressed_count": int(len(distressed)),
+        "affected_count": len(distressed),
+        "distressed_count": len(distressed),
         "distressed_nodes": sorted(distressed),
         "propagation_rounds": int(len(affected_history) - 1),
         "affected_history": affected_history,
@@ -357,9 +378,9 @@ def simulate_contagion(
 def compute_network_risk_metrics(
     snap: Mapping[str, Any],
     *,
-    meta_category: Optional[Mapping[str, str]] = None,
+    meta_category: Mapping[str, str] | None = None,
     edge_weight_is_log: bool = True,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Compute a compact set of risk metrics on an array-format snapshot.
 
@@ -370,16 +391,16 @@ def compute_network_risk_metrics(
         - Mean SIS (if computable)
         - Spillover concentration (if meta_category provided)
     """
-    node_ids: List[str] = list(snap.get("node_ids", []) or [])
+    node_ids: list[str] = list(snap.get("node_ids", []) or [])
     sizes = np.asarray(snap.get("sizes", []), dtype=np.float64)
     edge_src = np.asarray(snap.get("edge_src", []), dtype=int)
     edge_dst = np.asarray(snap.get("edge_dst", []), dtype=int)
     edge_weight = np.asarray(snap.get("edge_weight", []), dtype=np.float64)
 
-    n_nodes = int(len(node_ids))
-    n_edges = int(edge_src.size)
+    n_nodes = len(node_ids)
+    n_edges = edge_src.size
 
-    metrics: Dict[str, float] = {
+    metrics: dict[str, float] = {
         "n_nodes": float(n_nodes),
         "n_edges": float(n_edges),
         "total_tvl": float(np.sum(sizes)) if sizes.size else 0.0,
@@ -433,7 +454,9 @@ def compute_network_risk_metrics(
 
     # SIS on dict-format snapshot (always needs linear weights)
     try:
-        dict_snap = array_snap_to_dict_snap(dict(snap), edge_weight_is_log=edge_weight_is_log)
+        dict_snap = array_snap_to_dict_snap(
+            dict(snap), edge_weight_is_log=edge_weight_is_log
+        )
         sis = compute_systemic_importance_score(dict_snap)
         if sis:
             vals = list(sis.values())
@@ -445,7 +468,9 @@ def compute_network_risk_metrics(
 
     if meta_category is not None:
         try:
-            dict_snap = array_snap_to_dict_snap(dict(snap), edge_weight_is_log=edge_weight_is_log)
+            dict_snap = array_snap_to_dict_snap(
+                dict(snap), edge_weight_is_log=edge_weight_is_log
+            )
             sector_exposure = compute_sector_spillover_index(dict_snap, meta_category)
             total, idx = spillover_hhi(sector_exposure)
             metrics["spillover_total"] = float(total)
@@ -455,4 +480,3 @@ def compute_network_risk_metrics(
             metrics.setdefault("spillover_index", 0.0)
 
     return metrics
-

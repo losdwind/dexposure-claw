@@ -68,7 +68,6 @@ logger = logging.getLogger(__name__)
 # Add project paths
 GRAPHPFN_ROOT = Path(__file__).parent
 sys.path.insert(0, str(GRAPHPFN_ROOT))
-sys.path.insert(0, str(GRAPHPFN_ROOT / "src"))
 
 GRAPHPFN_AVAILABLE = None
 ExperimentConfig = None

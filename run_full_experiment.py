@@ -80,7 +80,6 @@ from sklearn.metrics import (
 # Add project paths
 GRAPHPFN_ROOT = Path(__file__).parent
 sys.path.insert(0, str(GRAPHPFN_ROOT))
-sys.path.insert(0, str(GRAPHPFN_ROOT / "src"))
 
 # Early logger handle + log_info so import-time warnings don't crash before logger init.
 _logger = None
@@ -106,7 +105,7 @@ except ImportError:
     log_info("Warning: GraphPFN not available, will skip GraphPFN experiments")
 
 # Import network statistics
-from src.network_statistics import (
+from dexposure_fm.network_statistics import (
     compute_rolling_statistics,
 )
 

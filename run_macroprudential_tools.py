@@ -30,12 +30,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-# Add project paths (so we can import from src/)
-ROOT = Path(__file__).parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "src"))
-
-from macroprudential_tools import (  # noqa: E402
+from dexposure_fm.macroprudential_tools import (  # noqa: E402
     array_snap_to_dict_snap,
     compute_network_risk_metrics,
     compute_sector_spillover_index,
