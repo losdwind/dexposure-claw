@@ -1,6 +1,42 @@
-# GraphPFN
+# GraphPFN (+ DeXposure-FM)
 
 This is the official repository of "GraphPFN: A Prior-Data Fitted Graph Foundation Model" paper ([arXiv](https://arxiv.org/abs/2509.21489v1)). In this repository, we provide code for reproducing our experiments with GraphPFN, both pretraining and evaluation.
+
+## Quickstart (DeXposure-FM)
+
+**Prerequisites**
+
+1. [Install uv](https://github.com/astral-sh/uv?tab=readme-ov-file#installation)
+2. (Recommended) Install Git LFS and fetch large files:
+   - `git lfs install`
+   - `git lfs pull`
+3. Install dependencies:
+
+```
+uv sync
+```
+
+You can also use the provided `Makefile` shortcuts (see `make help`).
+
+**Dataset**
+
+- If you did not pull via Git LFS, download the released dataset into `data/`:
+
+```
+uv run python bin/download_dataset.py
+```
+
+**Macroprudential tools (observed mode)**
+
+```
+uv run python run_macroprudential_tools.py observed \
+  --date 2025-06-30 \
+  --data-path data/historical-network_week_2025-07-01.json \
+  --contagion \
+  --output-dir output/macro-tools
+```
+
+More DeXposure-FM experiment commands: `docs/dexposure_fm_experiments.md`.
 
 ## Licenses
 
@@ -38,9 +74,12 @@ DGLBACKEND=pytorch uv run -m torch.distributed.run --nproc-per-node 8 bin/graphp
 ## Project Structure
 
 - `bin/` - Training and evaluation scripts
+- `dexposure_fm/` - DeXposure-FM utilities (macroprudential tools, network statistics)
 - `exp/` - Experiment configurations and results
 - `data/` - Dataset directory (created after download)
 - `lib/` - Common utilities and tools
+- `run_full_experiment.py` - DeXposure-FM Task I (multi-step forecasting) suite
+- `run_task2_model_based.py` - DeXposure-FM Task II (forward-looking risk analysis)
 
 ## Configuration
 

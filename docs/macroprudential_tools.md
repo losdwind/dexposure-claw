@@ -14,12 +14,8 @@ Crucially, it supports **two modes**:
 
 ## Setup notes
 
-- Large network files can be heavy to load. `run_full_experiment.py` will use `ijson` for streaming if available.
-- If you hit memory issues when loading `data/historical-network_week_2020-03-30.json`, install `ijson`:
-
-```
-pip install ijson
-```
+- Large network files can be heavy to load. `run_full_experiment.py` uses `ijson` for
+  streaming JSON parsing to reduce memory usage.
 
 
 ## Observed mode
