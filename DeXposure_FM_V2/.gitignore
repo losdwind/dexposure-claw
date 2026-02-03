@@ -6,6 +6,8 @@
 *.out
 *.pdf
 !diff.pdf
+!figures/*.pdf
+!figures/**/*.pdf
 *.spl
 *.toc
 *.fls
