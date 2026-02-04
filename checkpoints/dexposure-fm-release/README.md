@@ -39,7 +39,7 @@ model-index:
 
 # DeXposure-FM
 
-**DeXposure-FM** is a graph-tabular foundation model for forecasting credit exposure networks in Decentralized Finance (DeFi). Built on [GraphPFN](https://arxiv.org/abs/2501.xxxxx) and fine-tuned on weekly DeFi exposure snapshots, it predicts:
+**DeXposure-FM** is a graph-tabular foundation model for forecasting credit exposure networks in Decentralized Finance (DeFi). Built on GraphPFN and fine-tuned on weekly DeFi exposure snapshots, it predicts:
 
 - 🔗 **Edge existence**: Will a credit exposure link form between two protocols?
 - ⚖️ **Edge weight**: What will be the magnitude of the exposure?
@@ -60,8 +60,8 @@ model-index:
 
 ```bash
 # Clone the repository
-git clone https://github.com/EVIEHub/graph-dexposure.git
-cd graph-dexposure
+git clone https://github.com/EVIEHub/DeXposure-FM.git
+cd DeXposure-FM
 
 # Install dependencies
 pip install -r requirements.txt
@@ -251,28 +251,16 @@ with torch.no_grad():
 - **Category distribution**: ~58% of protocols lack category labels
 - **Market regime**: Trained primarily on 2020-2025 market conditions
 
-## Citation
-
-```bibtex
-@article{huang2026dexposurefm,
-  title={DeXposure-FM: A Graph-Tabular Foundation Model for DeFi Credit Exposure Forecasting},
-  author={Huang, Fangzhou and others},
-  journal={arXiv preprint},
-  year={2026}
-}
-```
-
 ## License
 
 This model is released under the [Apache 2.0 License](LICENSE).
 
 ## Acknowledgments
 
-- [GraphPFN](https://github.com/graph-pfn/graphpfn) for the pre-trained graph-tabular encoder
-- [LiMiX](https://github.com/limix/limix) for the tabular transformer backbone
+- GraphPFN for the pre-trained graph-tabular encoder
+- LiMiX for the tabular transformer backbone
 - DefiLlama for DeFi protocol data
 
 ## Contact
 
-- **GitHub**: [EVIEHub/graph-dexposure](https://github.com/EVIEHub/graph-dexposure)
-- **Paper**: [arXiv:2026.xxxxx](https://arxiv.org/abs/2026.xxxxx)
+- **GitHub**: [EVIEHub/DeXposure-FM](https://github.com/EVIEHub/DeXposure-FM)
