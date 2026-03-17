@@ -124,12 +124,10 @@ def compute_metrics(graph: GraphSnapshot) -> dict[str, float]:
     degree_values = list(weighted_degree.values())
     total_weighted_degree = sum(degree_values)
 
-    # M1: SIS approximation — mean weighted degree normalized by (n * max_degree)
-    max_degree = max(degree_values) if degree_values else 0.0
-    if max_degree > 0 and n > 0:
-        m1 = total_weighted_degree / (n * max_degree)
-    else:
-        m1 = 0.0
+    # M1: SIS — max PageRank (systemic importance of the most important node)
+    pr = _pagerank(nodes, adjacency)
+    pr_values = list(pr.values())
+    m1 = max(pr_values) if pr_values else 0.0
     m1 = max(0.0, min(1.0, m1))
 
     # M3: HHI on weighted degrees
@@ -143,9 +141,7 @@ def compute_metrics(graph: GraphSnapshot) -> dict[str, float]:
     m4 = num_edges / max_possible_edges if max_possible_edges > 0 else 0.0
     m4 = max(0.0, min(1.0, m4))
 
-    # M6: Gini of PageRank scores
-    pr = _pagerank(nodes, adjacency)
-    pr_values = list(pr.values())
+    # M6: PageRank Concentration — Gini of PageRank distribution (pr already computed above)
     m6 = _gini(pr_values)
     m6 = max(0.0, min(1.0, m6))
 
@@ -223,13 +219,17 @@ def compute_confidence(
     horizon: int,
     config: AgentConfig,  # noqa: ARG001
 ) -> float:
-    """Compute alert confidence score.
+    """Compute alert confidence score (Eq. 6 in DeXposure-Agent paper).
 
-    confidence = dh_score * (1 - dispersion) * (1 / (1 + 0.1 * horizon))
+    C = dh_score * (1 / (1 + dispersion)) * (1 / (1 + log(1 + horizon)))
 
     Clamped to [0, 1].
     """
-    raw = dh_score * (1.0 - dispersion) * (1.0 / (1.0 + 0.1 * horizon))
+    raw = (
+        float(dh_score)
+        * (1.0 / (1.0 + float(dispersion)))
+        * (1.0 / (1.0 + math.log(1.0 + float(horizon))))
+    )
     return max(0.0, min(1.0, raw))
 
 
