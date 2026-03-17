@@ -1,0 +1,122 @@
+\documentclass[lettersize,journal]{IEEEtran}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{mathtools}
+\usepackage{algorithm}
+\usepackage{array}
+\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage[dvipsnames]{xcolor}
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+% updated with editorial comments 8/9/2021
+
+\begin{document}
+
+\title{DeXposure-Agent: An Agentic System for DeFi Risk Monitor and Decision based on Graph Times-Series Foundation Model}
+
+\author{Aijie Shu and Fengxiang He%~\IEEEmembership{Staff,~IEEE,}
+        % <-this % stops a space
+\thanks{AJ is an independent scholar, in Edinburgh, Scotland. 
+%W. Wu is with the Cambridge Centre for Alternative Finance, Judge Business School, University of Cambridge, Cambridge, England. 
+F. He is with the School of Informatics, University of Edinburgh, Edinburgh EH8 9AB, Scotland.}
+\thanks{Correspondence to F. He, email: F.He@ed.ac.uk.}}% <-this % stops a space
+%\thanks{Manuscript received April 19, 2021; revised August 16, 2021.}}
+
+% The paper headers
+%\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2021}%{Shell \MakeLowercase{\textit{et al.}}: A Sample Article Using IEEEtran.cls for IEEE Journals}
+
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2021 IEEE}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark.
+
+\maketitle
+
+\begin{abstract}
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. While recent “agentic” pipelines promise automated surveillance and intervention planning, this direction remains premature in practice, in part because of the lack of a reliable \emph{foundation model backbone} that can forecast the evolving exposure network with calibrated uncertainty and sufficient data efficiency. Building on DeXposure-FM, a recent graph time-series foundation model trained on over 43.7 million data entries, we develop \emph{DeXposure-Agent}, the first agentic system for DeFi risk monitoring and decision recommendation, to our best knowledge. The system continuously ingests exposure snapshots, employs DeXposure-FM to predict future credit-exposure graphs, computes systemic risk indicators and standardised stress scenarios, and emits auditable alerts and conservative playbook-based recommendations under explicit data-health and uncertainty gates. We evaluate DeXposure-Agent across xx benchmarks and stress-test settings, including low-data and weakly supervised regimes, and show that it (1) produces earlier and more stable early-warning signals of systemic fragility, (2) improves risk metric forecasting and uncertainty calibration, and (3) yields higher-quality recommendation tickets, all significantly outperforming the state-of-the-art methods. 
+
+Code: \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}
+
+Demo: \href{https://www.youtube.com/}{https://www.youtube.com/}
+\end{abstract}
+
+\begin{IEEEkeywords}
+Agentic system, graph, time series, foundation model, decentralised finance, financial network, risk modelling.
+\end{IEEEkeywords}
+
+\input{sections/Intro}
+\input{sections/RelatedWorks}
+\input{sections/Pre}
+\input{sections/Alg}
+\input{sections/Exp}
+
+\section{Conclusion}
+
+DeFi has grown into a tightly coupled financial ecosystem where tokenised liabilities link protocols into a dynamic web of credit exposures, so fast and reliable \emph{risk monitoring} and \emph{decision recommendation} are increasingly critical for investors, protocol teams, and regulators. Although recent ``agentic’’ workflows aim to automate surveillance and intervention planning, they are often not yet dependable in real deployments, largely because they lack a trustworthy \emph{foundation model backbone} capable of forecasting the evolving exposure network with strong data efficiency and well-calibrated uncertainty. Leveraging {DeXposure-FM}, a graph time-series foundation model trained on more than $43.7$ million data entries, we introduce \emph{DeXposure-Agent}, which to the best of our knowledge is the first agentic system tailored to DeFi risk monitoring and decision recommendation. DeXposure-Agent continuously ingests exposure snapshots, uses {DeXposure-FM} to predict future credit-exposure graphs, derives systemic risk indicators and standardised stress-test scenarios, and produces auditable alerts together with conservative, playbook-driven recommendations governed by explicit data-health and uncertainty gates. Across $\mathrm{XX}$ benchmarks and stress-test settings, including low-data and weakly supervised regimes, DeXposure-Agent (1) delivers earlier and more stable early-warning signals of systemic fragility, (2) improves risk-metric forecasting and uncertainty calibration, and (3) generates higher-quality recommendation tickets, substantially outperforming state-of-the-art methods.
+
+%\section*{Acknowledgments}
+
+
+
+%\appendix[Proof of the Zonklar Equations]
+
+
+
+
+%{\appendices
+%\section*{Proof of the First Zonklar Equation}
+%Appendix one text goes here.
+% You can choose not to have a title for an appendix if you want by leaving the argument blank
+%\section*{Proof of the Second Zonklar Equation}
+%Appendix two text goes here.}
+
+
+
+
+ 
+ % argument is your BibTeX string definitions and bibliography database(s)
+\bibliography{reference}
+%
+
+%\begin{thebibliography}{1}
+\bibliographystyle{IEEEtran}
+
+%\newpage
+
+%\section{Biography Section}
+
+
+%\bf{If you include a photo:}\vspace{-33pt}
+
+\begin{IEEEbiography}%[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{fig1}}]
+{Aijie Shu}
+
+\end{IEEEbiography}
+
+\begin{IEEEbiography}%[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{fig1}}]
+{Fengxiang He} is a lecturer with the School of Informatics, University of Edinburgh. His research interest is in trustworthy AI, particularly deep learning theory, decentralised learning, privacy and fairness in machine learning, symmetry in machine learning, machine learning for game-theoretical problems, and their applications in economics and finance. He is an area chair of ICML, NeurIPS, ICLR, UAI, AISTATS, and ACML, and an associate editor of IEEE Transactions on Technology and Society.
+
+\end{IEEEbiography}
+
+
+\vfill
+
+\newpage
+\onecolumn
+
+\appendices
+
+
+\end{document}
+
+

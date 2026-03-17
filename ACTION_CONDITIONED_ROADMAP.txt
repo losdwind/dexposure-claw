@@ -1,0 +1,367 @@
+================================================================================
+  Action-Conditioned Decision Making for DeXposure-FM
+  Roadmap: Graph World Model + Counterfactual Financial Stability Analysis
+================================================================================
+
+Date: 2026-03-09
+Status: Planning
+
+
+1. MOTIVATION
+================================================================================
+
+Core idea: extend DeXposure-FM from unconditional forecasting to
+action-conditioned prediction, enabling counterfactual decision making
+for DeFi systemic risk management.
+
+Analogy to autonomous driving (JEPA + Action paradigm):
+
+  Autonomous Driving          DeXposure
+  -------------------------   -----------------------------------------
+  World model predicts        DeXposure-FM predicts future graph
+  future trajectories         snapshots G_{t+h}
+
+  Action = steering/          Action = regulatory intervention /
+  throttle / brake            exposure adjustment
+
+  State = vehicle pose        State = graph snapshot G_t +
+  + environment               node features X_t
+
+  Learn from many driving     Learn from many historical graph
+  trajectories                evolution trajectories
+
+The Agent paper (Alg.tex) already formulates this theoretically:
+  - Eq (6): T(u): (G_t, X_t) -> (G_t^u, X_t^u)    intervention operator
+  - Eq (7): P^u_{t,h} := p(G_{t+h} | G^u_{<=t})    action-conditioned forecast
+  - Eq (8): u* = argmin R_t(u) + eta * cost(u)       decision optimization
+
+Gap: the Agent paper defines T(u) as hand-crafted playbooks, not learned from
+data. The FM is used as a black-box oracle, not explicitly conditioned on
+actions.
+
+
+2. DECISION TASK DEFINITION
+================================================================================
+
+Counterfactual Exposure Optimization:
+
+  Given the current DeFi credit-exposure network G_t, find a minimum-cost
+  set of protocol-level exposure adjustments a* that minimizes the predicted
+  systemic contagion loss over the next h weeks.
+
+  Formally:
+    a* = argmin_{a in A}  ContagionLoss(FM.forecast(T(a, G_t), h))
+                          + eta * cost(a)
+    s.t.  DataHealth(G_t) >= tau_data
+
+Why this formulation:
+  - Directly uses existing contagion simulation as reward
+  - Action space has clear financial meaning (reduce exposure to protocol X)
+  - Can be backtested on Terra/Luna, FTX events
+  - Natural extension of macroprudential tools (forward-looking stress test)
+
+
+3. ACTION SPACE DEFINITION
+================================================================================
+
+Option A (recommended, start here): Node-level TVL shock
+
+  a = {(p_i, delta_i)}  where delta_i in [-1, 0] is fractional TVL reduction
+
+  This is exactly what the contagion simulator already uses as input.
+  Examples:
+    - "Reduce exposure to Terra by 50%":  a = {(Terra, -0.5)}
+    - "De-risk top-3 bridge protocols":   a = {(Multichain, -0.3),
+                                                (Wormhole, -0.3),
+                                                (Ronin, -0.3)}
+
+Option B (future): Edge-level action
+
+  a = {(p_i, p_j, delta_ij)}  modify specific exposure relationships
+  More granular but larger action space.
+
+Option C (future): Macro-level action
+
+  a in {raise_collateral_ratio, limit_leverage, restrict_sector, ...}
+  Requires modeling how macro policy transmits to graph structure.
+
+
+4. PHASE 1: COUNTERFACTUAL FORECASTING PIPELINE (~2-3 weeks)
+================================================================================
+
+Goal: Zero new model training. Wire existing components together.
+
+Pipeline:
+
+  1. Define action a = {(p_i, delta_i)}
+  2. Apply intervention operator T(a) to current graph:
+       G_t^a = modify_graph(G_t, a)
+       - Adjust node TVL: TVL_p^a = TVL_p * (1 + delta_p)
+       - Adjust connected edges proportionally:
+         w_{pq}^a = w_{pq} * (1 + delta_p)  for outgoing edges of p
+         w_{qp}^a = w_{qp} * (1 + delta_p)  for incoming edges to p
+       - Update node features (log-TVL, concentration measures)
+  3. Run existing FM forecast:
+       G_hat^a_{t+h} = DeXposure_FM.forecast(G_t^a, h)
+  4. Evaluate systemic risk with existing tools:
+       risk_a = contagion_sim(G_hat^a_{t+h}, scenario)
+       sis_a  = SIS(G_hat^a_{t+h})
+       spill_a = SpilloverIndex(G_hat^a_{t+h})
+  5. Search over candidate actions:
+       For each candidate action a_k:
+         compute risk(a_k)
+       Select a* = argmin risk(a_k)
+
+Components reused:
+  - DeXposure-FM forecast         (run_full_experiment.py)
+  - Contagion simulation          (dexposure_fm/macroprudential_tools.py)
+  - SIS scoring                   (dexposure_fm/macroprudential_tools.py)
+  - Spillover monitoring          (dexposure_fm/macroprudential_tools.py)
+  - Event study framework         (sections/6-economics.tex methodology)
+
+Validation: Terra/Luna counterfactual backtest
+
+  t = 2022-04-25  (two weeks before collapse on May 9)
+  Enumerate actions:
+    a1 = {(Terra, -0.3)}
+    a2 = {(Terra, -0.5)}
+    a3 = {(Terra, -0.8)}
+    a4 = {(Terra, -0.5), (Anchor, -0.5)}
+    a5 = no intervention (baseline)
+
+  For each action a_k:
+    G_t^{a_k}        = apply_shock(G_t, a_k)
+    G_hat^{a_k}_{t+2} = FM.forecast(G_t^{a_k}, h=2)
+    risk_{a_k}       = contagion_sim(G_hat^{a_k}_{t+2})
+
+  Report:
+    - risk(no intervention) vs risk(a*) vs risk(realized)
+    - "If regulators had reduced Terra exposure by X% two weeks early,
+       system loss would have been Y% lower"
+
+  Repeat for FTX event (t = 2022-10-24, actions targeting FTX-linked protocols)
+
+Expected deliverable:
+  - counterfactual_forecast.py: pipeline script
+  - Results table: action -> predicted risk reduction
+  - Figures: counterfactual vs baseline vs realized trajectories
+
+
+5. PHASE 2: LEARNED ACTION-EFFECT MODEL (~1-2 months)
+================================================================================
+
+Problem with Phase 1: each candidate action requires a full FM forward pass.
+For N candidates, that is N * |H| forward passes. Slow for large action spaces.
+
+Solution: train a lightweight action-effect network.
+
+Training data construction (Hindsight Relabeling):
+
+  For each pair of consecutive weeks (G_t, G_{t+1}):
+    Implicit action a_t = diff(G_t, G_{t+1})
+      = vector of per-node TVL changes + per-edge weight changes
+    Input:  (h_t, a_t)   where h_t = FM.encoder(G_t)
+    Target: h_{t+1}      where h_{t+1} = FM.encoder(G_{t+1})
+
+  This gives 282 graph-level samples, but each graph has ~5600 nodes,
+  so node-level samples are abundant.
+
+Model architecture:
+
+  ActionEncoder: MLP(action_dim -> d)
+    Input: action vector a_t (per-node TVL changes, optionally edge changes)
+    Output: conditioning vector c_t
+
+  Conditioned prediction:
+    h_{t+1}^pred = FM.encoder(G_t) + ActionEncoder(a_t)
+                   ^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^
+                   frozen backbone      trainable (small)
+
+  Loss: MSE(h_{t+1}^pred, h_{t+1})  on encoder embeddings
+        + downstream task losses (edge existence, weight, TVL change)
+
+Training details:
+  - Freeze FM backbone entirely
+  - Train only ActionEncoder (2-3 layer MLP, ~100K params)
+  - Epochs: ~50 with early stopping
+  - Validation: temporal split (last 20% of weeks)
+
+Advantages over Phase 1:
+  - Single encoder pass + cheap MLP for each candidate action
+  - Enables searching over continuous action space
+  - Learns non-linear action effects from data
+
+
+6. PHASE 3: PLANNING / POLICY LEARNING (~2-3 months, optional)
+================================================================================
+
+With a fast action-conditioned predictor from Phase 2, two options:
+
+Option A: Model-Based Planning (simpler, recommended)
+
+  Use Cross-Entropy Method (CEM) to search for optimal action:
+
+  def plan(G_t, h, n_iterations=5, n_samples=100, elite_frac=0.1):
+      # Initialize action distribution
+      mu = zeros(n_protocols)      # mean of action vector
+      sigma = 0.3 * ones(n_protocols)  # std
+
+      for i in range(n_iterations):
+          # Sample candidate actions
+          actions = sample_normal(mu, sigma, n_samples)
+          actions = clip(actions, -1, 0)  # only reductions
+
+          # Evaluate each action (fast with Phase 2 model)
+          risks = [evaluate_risk(G_t, a, h) for a in actions]
+
+          # Select elite samples
+          elite_idx = argsort(risks)[:int(n_samples * elite_frac)]
+          elite_actions = actions[elite_idx]
+
+          # Update distribution
+          mu = mean(elite_actions)
+          sigma = std(elite_actions)
+
+      return mu  # optimal action
+
+  Reward function:
+    reward(a) = -ContagionLoss(predict(G_t, a, h))
+                - eta * ||a||_1    (sparsity: prefer fewer interventions)
+                - gamma * ||a||_2  (smoothness: prefer gradual adjustments)
+
+Option B: Offline RL (more ambitious, for top venue submission)
+
+  Algorithm: Conservative Q-Learning (CQL) or Implicit Q-Learning (IQL)
+
+  State:   s_t = FM.encoder(G_t)           (graph embedding)
+  Action:  a_t = TVL adjustment vector     (continuous)
+  Reward:  r_t = -DeltaSystemicRisk(G_t, G_{t+1})
+  Dataset: {(s_t, a_t, r_t, s_{t+1})} from hindsight relabeling
+
+  Challenges:
+    - Small dataset (282 transitions) -- need careful regularization
+    - Distribution shift (offline RL problem)
+    - Action space is high-dimensional (one dim per protocol)
+
+  Mitigations:
+    - Use IQL (avoids explicit policy constraint)
+    - Reduce action dim via PCA or top-K protocol selection
+    - Augment with synthetic perturbations
+
+
+7. FEASIBILITY ASSESSMENT
+================================================================================
+
+Dimension          Phase 1         Phase 2         Phase 3
+-----------------  --------------  --------------  ----------------
+New model training None            Small MLP only  CEM: none
+                                                   RL: policy net
+New data needed    None            None            None
+Code reuse         FM + contagion  + encoder       + planning loop
+                   + SIS + spill   embeddings
+Engineering effort Low (~2 weeks)  Medium (~1 mo)  Medium-High
+Paper contribution Counterfactual  Learned action  Full decision
+                   case studies    conditioning    pipeline
+Novelty            Moderate        High            Very high
+Risk               Very low        Low             Medium
+
+
+8. EVALUATION FRAMEWORK
+================================================================================
+
+All phases share a common evaluation framework:
+
+A. Counterfactual Backtest on Historical Stress Events
+
+  Events: Terra/Luna (May 2022), FTX (Nov 2022)
+
+  Protocol:
+    1. At time t (pre-event), generate action recommendations
+    2. Simulate counterfactual trajectories under recommended actions
+    3. Compare:
+       - Baseline: no intervention (persistence forecast)
+       - Model: FM forecast without action
+       - Counterfactual: FM forecast with recommended action
+       - Oracle: hindsight-optimal action (upper bound)
+       - Realized: what actually happened
+
+  Metrics:
+    - System loss reduction (% of total TVL saved)
+    - Contagion depth reduction (fewer propagation rounds)
+    - Lead time (how early can the system recommend effective actions)
+
+B. Rolling Window Evaluation
+
+  For each week in test set:
+    1. Run decision pipeline
+    2. Compare predicted risk under recommended action vs no action
+    3. Track: how often does the recommended action improve outcomes?
+
+C. Action Quality Metrics
+
+  - Sparsity: how many protocols need adjustment? (fewer = more practical)
+  - Stability: do recommendations change drastically week-to-week?
+  - Magnitude: are recommended adjustments realistic? (not "reduce everything by 99%")
+  - Cost-effectiveness: risk reduction per unit of action cost
+
+
+9. RELATED WORK AND POSITIONING
+================================================================================
+
+This work sits at the intersection of:
+
+  1. World Models for Decision Making
+     - Dreamer (Hafner et al., 2020): learned world model + actor-critic
+     - JEPA (LeCun, 2022): joint embedding predictive architecture
+     - UniSim (Yang et al., 2023): universal simulator for real-world interaction
+     - Ours: graph world model for financial network dynamics
+
+  2. Graph Neural Networks for Finance
+     - Portfolio optimization with GNNs (e.g., FinGAT)
+     - Credit risk with graph networks
+     - Ours: first action-conditioned graph world model for systemic risk
+
+  3. Counterfactual Analysis in Finance
+     - Stress testing frameworks (Basel III, CCAR)
+     - Network-based contagion models (DebtRank, Eisenberg-Noe)
+     - Ours: learned counterfactual predictions (not hand-crafted propagation)
+
+Key differentiator:
+  Existing graph-based financial models predict passively.
+  We are the first to combine a graph foundation model with action-conditioned
+  prediction for forward-looking macroprudential decision support.
+
+
+10. OPEN QUESTIONS
+================================================================================
+
+Q1: How to handle the "no ground truth for counterfactuals" problem?
+    - We only observe what happened, not what would have happened
+    - Partial answer: validate on events where we know the shock source
+      (Terra collapse = exogenous shock, good for counterfactual analysis)
+    - Partial answer: synthetic interventions on stable periods as sanity check
+
+Q2: How large should the action space be?
+    - Start with top-20 SIS-ranked protocols x 5 shock levels = 100 candidates
+    - Phase 2 enables continuous action space
+    - Phase 3 enables combinatorial actions (multiple protocols simultaneously)
+
+Q3: How to define "cost" of an action?
+    - Simple: L1 norm of TVL adjustments (total capital reallocation needed)
+    - Better: weighted by protocol liquidity (harder to reduce illiquid positions)
+    - Best: market impact model (large reductions cause price impact)
+
+Q4: Weekly granularity sufficient for decision making?
+    - For macroprudential monitoring: yes (policy cycles are weeks/months)
+    - For active portfolio management: may need daily data
+    - Start with weekly (matches existing FM), extend later if needed
+
+Q5: How to present this to regulators/practitioners?
+    - Frame as "forward-looking stress test with intervention analysis"
+    - Not "AI makes decisions" but "AI evaluates hypothetical scenarios"
+    - Emphasize auditability and safety gating (already in Agent framework)
+
+
+================================================================================
+  END OF DOCUMENT
+================================================================================

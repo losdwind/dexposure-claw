@@ -1,0 +1,324 @@
+DeXposure-Agent Experiment Plan
+================================
+Version: v0.1 | Date: 2026-03-09
+
+
+========================================================================
+1. DATA
+========================================================================
+
+1.1 Primary Dataset: DeXposure
+----------------------------------------------------------------------
+| Item               | Value                                         |
+|--------------------|-----------------------------------------------|
+| Source             | DeFiLlama API (on-chain TVL + token comp.)    |
+| Time range         | 2020-03 ~ 2025-08 (283 weeks)                 |
+| Granularity        | Weekly directed weighted graph snapshots       |
+| Total data entries | 43.7M+ (inherited from DeXposure-FM)           |
+| Nodes/snapshot     | 50-500 protocols                               |
+| Edges/snapshot     | 100-2000 exposure links                        |
+| Node features      | log_size, num_tokens, max_share, entropy, cat  |
+| Edge weight        | log1p(USD value), range $1K-$10B               |
+
+1.2 Temporal Split (strict no-leakage)
+----------------------------------------------------------------------
+| Split       | Period              | Weeks | Usage                   |
+|-------------|---------------------|-------|-------------------------|
+| Train       | 2020-03 ~ 2024-06   | ~222  | FM backbone training     |
+| Val         | 2024-07 ~ 2024-12   | ~26   | Hyperparam + threshold   |
+| Test        | 2025-01 ~ 2025-08   | ~33   | Final evaluation         |
+
+  Additional: Expanding-window walk-forward (15 folds) for robustness.
+
+1.3 Stress Event Windows (for early-warning evaluation)
+----------------------------------------------------------------------
+| Event       | Date       | Pre-shock (4w)    | Event (3w)        | Post (4w)         |
+|-------------|------------|-------------------|-------------------|-------------------|
+| Terra/Luna  | 2022-05-09 | 03-28 ~ 05-02     | 05-02 ~ 05-23     | 05-23 ~ 06-20     |
+| FTX         | 2022-11-07 | 09-26 ~ 10-31     | 10-31 ~ 11-21     | 11-21 ~ 12-19     |
+| SVB/USDC    | 2023-03-10 | 02-06 ~ 03-06     | 03-06 ~ 03-27     | 03-27 ~ 04-24     |
+
+1.4 Low-data & Weakly-supervised Regimes
+----------------------------------------------------------------------
+| Regime            | Setup                                          |
+|-------------------|------------------------------------------------|
+| Low-data (10%)    | Train on 10% random subsampled snapshots       |
+| Low-data (25%)    | Train on 25% random subsampled snapshots       |
+| Partial-graph     | Randomly mask 30% edges at inference time      |
+| Noisy-features    | Add Gaussian noise (sigma=0.1) to node feats   |
+| Missing-features  | Drop 20% node features (set to 0)              |
+
+  Purpose: test data-health gating + robustness of alerts/decisions.
+
+
+========================================================================
+2. MODEL
+========================================================================
+
+2.1 DeXposure-Agent Architecture
+----------------------------------------------------------------------
+End-to-end pipeline (Algorithm 1 in paper):
+
+  Raw Data --> DataHealth Gate --> DeXposure-FM Forecast --> Monitor --> Scenario Engine --> Decision
+                 |                    |                       |              |                |
+                DH_t             P_{t,h}                 A_t, C_t       R_t           D_t (tickets)
+
+Components:
+
+| Component         | Input                    | Output                    | Key params              |
+|-------------------|--------------------------|---------------------------|-------------------------|
+| DataHealth Gate   | G_t, X_t                 | DH_t in [0,1], SAFE_MODE  | tau_data=0.7            |
+| FM Backbone       | G_t, X_t, h              | P_{t,h} (distribution)    | horizons H={1,4,8,12}   |
+| PredGraph Builder | P_{t,h}                  | G_hat_{t+h}               | pi_min=0.2              |
+| MC Sampler        | P_{t,h}                  | {G_tilde^m}_{m=1..M}      | M=50 samples            |
+| Monitor           | G_hat, baselines         | A_t (alerts), C_t (conf)  | z=2, L=26w rolling      |
+| Scenario Engine   | G_hat, S_0 (shocks)      | R_t (ranked losses)       | lambda=0.5 (tail)       |
+| Decision v1       | A_t, R_t, DH_t           | D_t (tickets, ranked)     | tau_conf=0.6, N=10      |
+
+2.2 Monitoring Metrics (Phi)
+----------------------------------------------------------------------
+| Metric ID | Name                        | Type         |
+|-----------|-----------------------------|--------------|
+| M1        | Systemic Importance Score   | node-level   |
+| M2        | Cross-sector Spillover      | sector-level |
+| M3        | HHI Concentration           | network-level|
+| M4        | Network Density             | network-level|
+| M5        | Stress-test Loss            | scenario     |
+| M6        | PageRank Concentration      | node-level   |
+| M7        | Gini (degree distribution)  | network-level|
+
+2.3 Stress Scenario Library (S_0)
+----------------------------------------------------------------------
+| Scenario ID | Type                     | Shock specification           |
+|-------------|--------------------------|-------------------------------|
+| S1          | Single protocol failure   | 100% TVL loss on top-1 node   |
+| S2          | Bridge cluster failure    | 100% TVL loss on bridge nodes |
+| S3          | Stablecoin de-peg         | 50% value drop on stablecoin  |
+| S4          | Sector-wide shock         | 30% TVL drop on lending sector|
+| S5          | Correlated stress         | 20% drop on top-10 by TVL     |
+
+2.4 Decision Playbook Actions (U)
+----------------------------------------------------------------------
+| Action            | Severity | Requires SAFE_MODE=0? | Min alerts |
+|-------------------|----------|----------------------|------------|
+| Monitor           | Low      | No                   | 1          |
+| Investigate       | Medium   | No                   | 1          |
+| Recommend-Reduce  | High     | Yes                  | 2          |
+| Contingency       | Critical | Yes                  | 3          |
+
+2.5 Hyperparameters to Tune (on val split)
+----------------------------------------------------------------------
+| Param       | Search range   | Default | Description              |
+|-------------|----------------|---------|--------------------------|
+| pi_min      | {0.1,0.2,0.3}  | 0.2     | Edge existence threshold |
+| z           | {1.5,2.0,2.5}  | 2.0     | Alert z-score threshold  |
+| L           | {13,26,52}     | 26      | Rolling baseline window  |
+| tau_data    | {0.5,0.6,0.7}  | 0.7     | Data-health safe mode    |
+| tau_conf    | {0.4,0.5,0.6}  | 0.6     | Confidence gate          |
+| lambda      | {0.0,0.25,0.5} | 0.5     | CVaR tail weight         |
+| M           | {20,50,100}    | 50      | MC samples               |
+| K           | {5,10,20}      | 10      | Top-K attribution        |
+
+
+========================================================================
+3. BENCHMARKS
+========================================================================
+
+3.1 Benchmark Overview
+----------------------------------------------------------------------
+| Bench ID | Task             | Evaluation focus                      |
+|----------|------------------|---------------------------------------|
+| B1       | Risk Forecasting | Risk metric prediction accuracy       |
+| B2       | Early Warning    | Alert lead time, precision/recall     |
+| B3       | Uncertainty Cal. | Calibration, coverage of PI           |
+| B4       | Stress Testing   | Contagion prediction accuracy         |
+| B5       | Decision Quality | Ticket precision, stability, audit    |
+| B6       | Robustness       | Performance under low-data/noise      |
+
+3.2 B1: Risk Metric Forecasting
+----------------------------------------------------------------------
+  For each h in {1,4,8,12}, predict risk metrics on G_hat vs actual G_{t+h}.
+
+| Metric             | Evaluation                              |
+|--------------------|-----------------------------------------|
+| PageRank MAE       | |predicted_PR - actual_PR| averaged     |
+| HHI MAE            | |predicted_HHI - actual_HHI|            |
+| Density MAE        | |predicted_density - actual_density|     |
+| Gini MAE           | |predicted_gini - actual_gini|           |
+| Rank Correlation   | Spearman rho of node importance ranking |
+| Trend Consistency  | sign(delta_predicted) == sign(delta_actual) rate |
+
+3.3 B2: Early Warning Quality
+----------------------------------------------------------------------
+  Evaluate alerts against known stress events + realised risk spikes.
+
+| Metric             | Definition                                        |
+|--------------------|---------------------------------------------------|
+| Lead Time          | Weeks before event that alert first fires         |
+| Precision@budget   | Fraction of alerts that precede real stress        |
+| Recall@budget      | Fraction of real stress events detected            |
+| Alert Stability    | 1 - (alert flip rate across adjacent epochs)       |
+| F1-warning         | Harmonic mean of precision and recall              |
+
+  Alert budgets: {5, 10, 20} alerts per epoch.
+
+3.4 B3: Uncertainty Calibration
+----------------------------------------------------------------------
+| Metric             | Definition                                        |
+|--------------------|---------------------------------------------------|
+| ECE                | Expected Calibration Error of alert probabilities |
+| PI Coverage        | Prediction interval coverage (target 90%)         |
+| PI Width           | Average PI width (narrower = better at same cov.) |
+| CRPS               | Continuous Ranked Probability Score for metrics   |
+
+3.5 B4: Stress-test / Contagion Prediction
+----------------------------------------------------------------------
+  Run contagion simulation on predicted vs actual networks.
+
+| Metric                  | Definition                                |
+|-------------------------|-------------------------------------------|
+| Loss MAE                | |predicted_loss - actual_loss|             |
+| Distressed Count MAE    | |predicted_#distressed - actual_#|         |
+| Propagation Depth MAE   | |predicted_rounds - actual_rounds|         |
+| Target Overlap@K        | Jaccard(predicted_top_K, actual_top_K)    |
+
+  Scenarios: S1-S5 from Section 2.3.
+
+3.6 B5: Decision / Recommendation Quality
+----------------------------------------------------------------------
+| Metric                  | Definition                                    |
+|-------------------------|-----------------------------------------------|
+| Ticket Precision        | Fraction of tickets followed by real stress    |
+| Risk Reduction          | Delta worst-case loss after applying action    |
+| Target Stability        | Jaccard(targets_t, targets_{t+1}) smoothness   |
+| Audit Completeness      | Fraction of tickets with full evidence bundle  |
+| Suppression Rate        | Fraction of epochs where safe-mode triggers    |
+| False Intervention Rate | Interventions without subsequent stress event  |
+
+3.7 B6: Robustness Regimes
+----------------------------------------------------------------------
+  Re-run B1-B5 under each regime from Section 1.4:
+
+| Regime         | Expected impact        | Key metric to watch       |
+|----------------|------------------------|---------------------------|
+| Low-data 10%   | Accuracy drop          | AUPRC, risk metric MAE    |
+| Low-data 25%   | Moderate drop          | AUPRC, risk metric MAE    |
+| Partial-graph  | Alert instability      | Alert stability, PI width |
+| Noisy-features | Confidence degradation | ECE, false intervention   |
+| Missing-feat.  | Safe-mode activation   | Suppression rate, recall  |
+
+
+========================================================================
+4. COMPETITORS
+========================================================================
+
+4.1 Competitor Methods
+----------------------------------------------------------------------
+| ID  | Method                | Type                 | Backbone            | Agent? |
+|-----|-----------------------|----------------------|---------------------|--------|
+| C0  | DeXposure-Agent (ours)| Agentic + Graph TSFM | DeXposure-FM        | Yes    |
+| C1  | ROLAND-Agent          | Agentic + Temporal GNN| ROLAND (GCN+GRU)   | Yes*   |
+| C2  | Persistence-Agent     | Agentic + Naive      | G_{t+h} = G_t       | Yes*   |
+| C3  | LLM-Agent             | Agentic + LLM        | GPT-4 / Claude      | Yes    |
+| C4  | DeXposure-FM (no agent)| FM only             | DeXposure-FM        | No     |
+| C5  | ROLAND (no agent)     | Temporal GNN only    | ROLAND              | No     |
+| C6  | GraphPFN-Frozen       | Frozen FM            | GraphPFN pretrained | No     |
+| C7  | EvolveGCN             | Temporal GNN         | EvolveGCN (Pareja)  | No     |
+| C8  | DyRep                 | Continuous-time GNN  | DyRep (Trivedi)     | No     |
+| C9  | TGN                   | Temporal Graph Net   | TGN (Rossi)         | No     |
+| C10 | Static GCN            | Static snapshot GNN  | GCN per snapshot    | No     |
+
+  *C1, C2: wrap the same agent pipeline around a different backbone.
+  C3: replaces FM backbone with LLM-based reasoning on tabular risk data.
+
+4.2 Ablation Studies
+----------------------------------------------------------------------
+| Ablation ID | What is removed/changed          | Tests hypothesis          |
+|-------------|----------------------------------|---------------------------|
+| A1          | Remove data-health gating        | Safety gating value       |
+| A2          | Remove confidence scoring        | Uncertainty gates matter  |
+| A3          | Remove scenario engine           | Stress-test adds value    |
+| A4          | Remove attribution               | Interpretability needed?  |
+| A5          | Fixed baselines (no rolling)     | Adaptive baselines help   |
+| A6          | Single horizon only (h=1)        | Multi-horizon diversity   |
+| A7          | Deterministic only (no MC)       | MC sampling justification |
+| A8          | Remove playbook constraints      | Conservative design value |
+
+4.3 Competitor Comparison Matrix
+----------------------------------------------------------------------
+Which benchmarks apply to which competitors:
+
+| Competitor       | B1 Risk | B2 EarlyWarn | B3 Uncert | B4 Stress | B5 Decision | B6 Robust |
+|------------------|---------|--------------|-----------|-----------|-------------|-----------|
+| DeXposure-Agent  |    Y    |      Y       |     Y     |     Y     |      Y      |     Y     |
+| ROLAND-Agent     |    Y    |      Y       |     Y     |     Y     |      Y      |     Y     |
+| Persistence-Agent|    Y    |      Y       |     -     |     Y     |      Y      |     -     |
+| LLM-Agent        |    -    |      Y       |     -     |     -     |      Y      |     Y     |
+| DeXposure-FM     |    Y    |      -       |     Y     |     Y     |      -      |     Y     |
+| ROLAND           |    Y    |      -       |     -     |     Y     |      -      |     Y     |
+| GraphPFN-Frozen  |    Y    |      -       |     -     |     Y     |      -      |     Y     |
+| EvolveGCN        |    Y    |      -       |     -     |     Y     |      -      |     Y     |
+| DyRep            |    Y    |      -       |     -     |     Y     |      -      |     Y     |
+| TGN              |    Y    |      -       |     -     |     Y     |      -      |     Y     |
+| Static GCN       |    Y    |      -       |     -     |     Y     |      -      |     -     |
+
+  Y = applicable, - = not applicable (no agent loop / no uncertainty).
+
+4.4 Expected Result Tables (for paper)
+----------------------------------------------------------------------
+
+Table 1: Risk Metric Forecasting (B1) -- all methods, h in {1,4,8,12}
+  Rows: methods, Cols: PageRank MAE, HHI MAE, Density MAE, Rank Corr
+
+Table 2: Early Warning (B2) -- agent methods only
+  Rows: methods x events, Cols: Lead Time, Precision, Recall, Stability
+
+Table 3: Uncertainty Calibration (B3) -- methods with uncertainty
+  Rows: methods, Cols: ECE, PI Coverage, PI Width, CRPS
+
+Table 4: Stress-test Contagion (B4) -- all methods, scenarios S1-S5
+  Rows: methods x scenarios, Cols: Loss MAE, Distressed MAE, Depth MAE
+
+Table 5: Decision Quality (B5) -- agent methods only
+  Rows: methods, Cols: Ticket Prec, Risk Reduction, Stability, Audit
+
+Table 6: Robustness (B6) -- DeXposure-Agent vs top competitors
+  Rows: regimes, Cols: delta AUPRC, delta Alert F1, delta Ticket Prec
+
+Table 7: Ablation Study
+  Rows: ablation variants A1-A8, Cols: B1-B5 key metrics
+
+
+========================================================================
+5. EXECUTION SEQUENCE
+========================================================================
+
+Phase 1: Backbone preparation
+  - Ensure DeXposure-FM checkpoint ready (from FM paper)
+  - Train ROLAND, EvolveGCN, DyRep, TGN, Static GCN baselines
+  - Save all model checkpoints
+
+Phase 2: Agent pipeline implementation
+  - Implement DataHealth, Monitor, Scenario Engine, Decision modules
+  - Wrap each backbone (FM, ROLAND, Persistence, LLM) in agent pipeline
+  - Validate on val split, fix hyperparams
+
+Phase 3: Main evaluation (B1-B5)
+  - Run all methods on test split
+  - Compute all metrics, generate Tables 1-5
+
+Phase 4: Robustness (B6) + Ablations
+  - Run B6 regimes on DeXposure-Agent + top-3 competitors
+  - Run ablation A1-A8 on DeXposure-Agent
+  - Generate Tables 6-7
+
+Phase 5: Analysis + Figures
+  - Timeline plots of alerts vs actual events
+  - Confidence calibration reliability diagrams
+  - Scenario loss heatmaps
+  - Decision ticket examples (qualitative)
+
+
+========================================================================
+END
+========================================================================

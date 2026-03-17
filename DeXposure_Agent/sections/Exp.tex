@@ -1,0 +1,106 @@
+\section{Experiments}
+
+\subsection{Task I: Network Risk Monitoring}
+
+\subsubsection{Implementation Details}
+\label{sssec:impl_task1}
+
+\paragraph{Data and temporal granularity}
+We implement Task~I on a discrete-time sequence of exposure-network snapshots $\{(G_t,X_t)\}_{t=1}^T$, where each $G_t=(V,E_t,W_t)$ is a directed weighted exposure graph and $X_t$ contains node-level covariates (e.g., log-TVL and auxiliary features). Unless otherwise stated, we follow the dataset granularity used by \textsc{DeXposure-FM} and evaluate multi-horizon forecasting on $\mathcal{H}=\{1,4,8,12\}$ weeks.
+
+\paragraph{Forecast interface and predicted-graph construction}
+For each epoch $t$ and horizon $h\in\mathcal{H}$, we query the backbone model to obtain a predictive distribution $\mathcal{P}_{t,h}$. To compute monitoring metrics on a single representative forecast, we construct an expected-weight predicted graph $\widehat{G}_{t+h}$ by thresholding edge existence probabilities at $\pi_{\min}$ and setting
+\begin{align*}
+&\widehat{w}_{pq,t+h}
+:=
+\Pr(e_{pq,t+h}=1)\cdot \mathbb{E}[w_{pq,t+h}\mid e_{pq,t+h}=1],\\
+&(p,q)\in \widehat{E}_{t+h}.
+\end{align*}
+We set $\pi_{\min}$ on the validation split (default $\pi_{\min}=0.2$) to balance sparsity and coverage. For uncertainty quantification, we optionally draw $M$ Monte Carlo samples $\widetilde{G}^{(m)}_{t+h}\sim \mathcal{P}_{t,h}$ and report median and inter-quantile ranges of the downstream metrics.
+
+\paragraph{Monitoring metrics and alert triggers}
+At each horizon, we compute a vector of monitoring functionals $\mathbf{M}_{t,h}=\Phi(\widehat{G}_{t+h},X_t)$ consisting of (i) systemic-importance ranking scores, (ii) cross-sector spillover concentration, (iii) concentration/stability indices (HHI-based), and (iv) stress-test losses under the standardised scenario library used in our system. We derive baseline bands $\mathcal{B}_t^{(j)}$ for each metric using a rolling historical window of length $L$ (default $L=26$ weeks), computing $(\mu_{t}^{(j)},\sigma_{t}^{(j)})$. An alert is triggered when a metric exceeds its baseline by a $z$-score threshold $z$ (default $z=2$), i.e.,
+\[
+g(M^{(j)}_{t,h},\mathcal{B}_t^{(j)})=\mathbb{I}\{M^{(j)}_{t,h}>\mu_{t}^{(j)}+z\sigma_{t}^{(j)}\},
+\]
+and we use analogous rules for changes $\Delta M^{(j)}_{t,h}$ when trend shifts are more informative than absolute levels.
+
+\paragraph{Attribution for interpretability}
+For each triggered alert, we compute a ranked list of contributing protocols/edges/sectors. Concretely, for a scalar metric $\Phi^{(j)}(\cdot)$ defined on $\widehat{G}_{t+h}$, we approximate the marginal contribution of an edge $e$ via a one-step removal (or down-weighting) operator:
+\[
+\mathrm{Contrib}(e)
+\;:=\;
+\Phi^{(j)}(\widehat{G}_{t+h})-\Phi^{(j)}(\widehat{G}_{t+h}\setminus e),
+\]
+and return the top-$K$ contributors (default $K=10$). For sector-level attribution, we aggregate edge contributions by source/target sector pairs.
+
+\paragraph{Data-health gating and safe mode}
+Prior to alerting, we compute a data-health score $DH_t\in[0,1]$ based on (i) snapshot freshness, (ii) missingness of key covariates, (iii) discontinuities/outliers in TVL and total exposure, and (iv) topology sanity checks (e.g., abnormal density jumps). If $DH_t<\tau_{\mathrm{data}}$ (default $\tau_{\mathrm{data}}=0.7$), the system enters \texttt{SAFE\_MODE}: it still reports monitoring metrics and alerts, but marks all alerts as low confidence and suppresses any downstream decision recommendations in Task~II.
+
+\paragraph{Evaluation protocol and reporting}
+We evaluate Task~I along three axes. First, we assess \emph{risk-metric forecasting} by comparing predicted metrics $\mathbf{M}_{t,h}$ to realised metrics computed on $G_{t+h}$ using MAE/RMSE and rank correlations (for watchlists). Second, we evaluate \emph{early-warning quality} using event-based measures: lead time to major stress periods, precision/recall of alert triggers under fixed alert budgets, and alert stability across adjacent epochs. Third, we report \emph{uncertainty calibration} by reliability analysis for probabilistic triggers (when available) and by coverage of prediction intervals for metric forecasts derived from Monte Carlo samples.
+
+\paragraph{Reproducibility}
+All hyperparameters (including $\pi_{\min}$, $L$, $z$, $K$, $M$, and $\tau_{\mathrm{data}}$) are selected on a validation split and fixed for test evaluation. We fix random seeds for Monte Carlo sampling and report the mean and standard deviation over $R$ independent runs (default $R=3$) when stochastic components are used.
+
+\subsubsection{Empirical Results}
+
+\subsection{Task II: Decision-Making}
+
+\subsubsection{Implementation Details}
+\label{sssec:impl_task2}
+
+\paragraph{Decision timeline and inputs}
+Task~II operates at the same decision epochs $t$ as Task~I. At each epoch, the decision agent receives: (i) the current state $(G_t,X_t)$, (ii) the multi-horizon forecast products $\{\widehat{G}_{t+h}\}_{h\in\mathcal{H}}$ (and optional samples $\{\widetilde{G}^{(m)}_{t+h}\}$), (iii) the monitoring outputs $\mathcal{A}_t$ with evidence and confidence scores $\{(\mathrm{Ev}_t(a),C_t(a))\}_{a\in\mathcal{A}_t}$, and (iv) the scenario summary $\mathcal{R}_t$ from the standardised stress-test library. The agent outputs a ranked list of recommendation tickets $\mathcal{D}_t$.
+
+\paragraph{Action space and conservative playbooks}
+We implement a minimal and auditable action space $\mathcal{U}$ as a small set of playbook templates:
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+    \item \textbf{{Monitor}}: update watchlists and increase monitoring frequency for implicated protocols/sectors.
+    \item \textbf{{Investigate}}: trigger manual review requests with an evidence bundle (e.g., governance changes, oracle feeds, liquidity conditions).
+    \item \textbf{{Recommend-Reduce}}: recommend reducing exposure to a set of protocols/edges/sectors identified as primary drivers.
+    \item \textbf{{Contingency}}: produce a scenario-specific response plan with measurable trigger conditions.
+\end{enumerate}
+Each playbook $u\in\mathcal{U}$ specifies required trigger alerts $\mathrm{Trig}(u)\subseteq\mathcal{A}_t$, target-selection rules (from attribution lists), and guardrails.
+
+\paragraph{Safety gating and feasibility constraints}
+To prevent overconfident recommendations under unreliable conditions, we enforce two explicit gates. First, a data-health gate: when $DH_t<\tau_{\mathrm{data}}$, the feasible action set collapses to non-interventional actions $\{\texttt{Monitor},\texttt{Investigate}\}$. Second, a confidence gate: an intervention-type recommendation (e.g., \texttt{Recommend-Reduce}) is feasible only if all required alerts meet a minimum confidence threshold $\tau_{\mathrm{conf}}$:
+\[
+u \in \mathcal{C}_t
+\quad \Longleftrightarrow \quad
+\bigl(\mathrm{SAFE\_MODE}_t=0\bigr)\ \wedge\
+\Bigl(\min_{a\in \mathrm{Trig}(u)} C_t(a) \ge \tau_{\mathrm{conf}}\Bigr).
+\]
+We set $(\tau_{\mathrm{data}},\tau_{\mathrm{conf}})$ on the validation split and keep them fixed for test evaluation.
+
+\paragraph{Scenario-conditioned impact estimation}
+For decision support, we estimate the prospective impact of recommended actions using the scenario engine. Let $L_{t,h}(s)$ denote the forecasted systemic loss at horizon $h$ under scenario $s\in\mathcal{S}_0$, computed on $\widehat{G}_{t+h}$ (and optionally via Monte Carlo samples). For each ticket $u$, we define an impact score $\mathrm{Imp}_t(u)$ based on the worst-case (or weighted) scenario losses over horizons:
+\[
+\mathrm{Imp}_t(u) :=
+\max_{h\in\mathcal{H}} \max_{s\in\mathcal{S}_0}
+\left(\mathrm{Med}\left[L_{t,h}(s)\right] + \lambda \cdot \mathrm{P90}\left[L_{t,h}(s)\right]\right),
+\]
+where $\mathrm{Med}$ and $\mathrm{P90}$ are computed from Monte Carlo samples when available; otherwise we use deterministic losses. The parameter $\lambda\ge 0$ controls tail sensitivity (default $\lambda=0.5$).
+
+\paragraph{Target selection from attribution}
+For playbooks that produce targeted recommendations, we select targets using the attribution lists produced in Task~I and the scenario engine. Concretely, for a triggered alert $a$ we obtain a ranked list of drivers $\mathrm{Attr}_t(a)=\{d_1,\dots,d_K\}$ (edges/nodes/sectors). For intervention-type tickets, we take the union of the top-$K$ drivers across required alerts and across the highest-impact scenarios, and choose the final target set $\mathcal{T}_t(u)$ by a simple frequency-weighted vote:
+\[
+\mathcal{T}_t(u) := \mathrm{TopK}\left(\sum_{a\in \mathrm{Trig}(u)} \mathbf{1}\{d\in \mathrm{Attr}_t(a)\} \;+\;
+\sum_{(h,s)\in \mathrm{Worst}(\mathcal{R}_t)} \mathbf{1}\{d\in \mathrm{Attr}_{t,h}(s)\}\right).
+\]
+This yields stable and interpretable recommendations while remaining deterministic.
+
+\paragraph{Ticket scoring and ranking}
+We rank tickets using a multiplicative score that combines severity, confidence, and scenario impact:
+\[
+\mathrm{Score}_t(u) := \mathrm{Sev}_t(u)\cdot \mathrm{Conf}_t(u)\cdot \mathrm{Imp}_t(u),
+\]
+where $\mathrm{Sev}_t(u)$ is derived from the magnitude of triggered metric deviations (e.g., $z$-scores), $\mathrm{Conf}_t(u)$ aggregates the alert confidences (e.g., minimum or geometric mean of $C_t(a)$ over $a\in \mathrm{Trig}(u)$), and $\mathrm{Imp}_t(u)$ is the scenario-conditioned impact estimate above. We output the top-$N$ tickets (default $N=10$).
+
+\paragraph{Evaluation protocol}
+We evaluate Task~II using both \emph{offline} and \emph{scenario-based} criteria. Offline, we measure whether tickets issued at time $t$ predict elevated realised risk at $t+h$ (for relevant horizons), using precision/recall at fixed alert budgets and lead time to stress periods. Scenario-based, we evaluate recommendation quality by comparing (i) the reduction in forecasted worst-case loss when applying a simple action proxy (e.g., edge down-weighting or node exposure capping for targets $\mathcal{T}_t(u)$) and (ii) the stability of recommended targets under noisy or partially missing inputs. We also report \emph{auditability} metrics: fraction of tickets with complete evidence bundles, attribution coverage, and suppression rate under safe mode.
+
+\paragraph{Reproducibilitys}
+All decision hyperparameters (including top-$K$ attribution size, ticket budget $N$, $(\tau_{\mathrm{data}},\tau_{\mathrm{conf}})$, and tail weight $\lambda$) are tuned on validation and fixed for testing. Stochastic components (Monte Carlo sampling) use fixed seeds; we report mean and standard deviation over $R$ runs (default $R=3$) where randomness is present.
+
+\subsubsection{Empirical Results}
