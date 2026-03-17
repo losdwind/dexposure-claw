@@ -87,17 +87,21 @@ def _aggregate_scenarios(all_scenario_losses: list[ScenarioLoss]) -> ScenarioSum
     )
 
 
+ForecastFn = Any  # Callable[[GraphSnapshot, int, AgentConfig], Awaitable[dict]]
+
+
 async def run_epoch(
     graph: GraphSnapshot,
     baseline_history: list[dict[str, float]],
     config: AgentConfig,
+    forecast_fn: ForecastFn | None = None,
 ) -> AgentOutput:
     """Algorithm 1: full agent loop for one epoch.
 
     Steps:
         1. DataHealth gate — compute DH_t and safe_mode flag.
         2. For each horizon h in config.horizons:
-            a. Forecast via GPU server API (or mock).
+            a. Forecast via GPU server API (or injected forecast_fn).
             b. Build predicted graph G_hat.
             c. Draw MC samples for uncertainty quantification.
             d. Monitor — compare G_hat metrics to rolling baseline.
@@ -109,10 +113,15 @@ async def run_epoch(
         graph:            Current DeFi credit-exposure GraphSnapshot.
         baseline_history: Past metric dicts for rolling baseline comparison.
         config:           AgentConfig with all hyperparameters.
+        forecast_fn:      Optional async callable(graph, horizon, config) -> dict.
+                          Defaults to call_forecast_api (HTTP to GPU server).
 
     Returns:
         AgentOutput containing data health, alerts, scenario summary, and tickets.
     """
+    if forecast_fn is None:
+        forecast_fn = call_forecast_api
+
     logger.info("run_epoch | date=%s horizons=%s", graph.date, config.horizons)
 
     # Step 1: DataHealth gate
@@ -126,7 +135,7 @@ async def run_epoch(
         logger.debug("Horizon h=%d: calling forecast API", h)
 
         # Step 2a: Forecast
-        prediction = await call_forecast_api(graph, h, config)
+        prediction = await forecast_fn(graph, h, config)
 
         # Step 2b: Build predicted graph G_hat
         g_hat = build_pred_graph(prediction, config, date=graph.date)

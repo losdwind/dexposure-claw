@@ -31,6 +31,27 @@ class RunEpochRequest(BaseModel):
 MOCK_PROTOCOLS = ["aave-v3", "lido", "uniswap-v3", "compound", "maker", "curve", "wbtc-bridge"]
 
 
+def _build_mock_graph(date: str):
+    """Build a realistic mock GraphSnapshot for the given date."""
+    from lib.agent.types import GraphSnapshot, NodeFeatures, Edge
+
+    rng = random.Random(hash(date))
+    categories = ["lending", "dex", "liquid-staking", "bridge", "lending", "dex", "bridge"]
+    nodes = {p: NodeFeatures(
+        log_size=round(rng.uniform(6.0, 10.0), 1),
+        num_tokens=rng.randint(1, 5),
+        max_share=round(rng.random(), 2),
+        entropy=round(rng.uniform(0.1, 2.5), 1),
+        category=categories[i % len(categories)],
+    ) for i, p in enumerate(MOCK_PROTOCOLS)}
+    edges = []
+    for i, src in enumerate(MOCK_PROTOCOLS):
+        for j, tgt in enumerate(MOCK_PROTOCOLS):
+            if i != j and rng.random() > 0.4:
+                edges.append(Edge(source=src, target=tgt, weight=round(rng.uniform(4.0, 9.0), 1)))
+    return GraphSnapshot(date=date, nodes=nodes, edges=edges)
+
+
 def _mock_forecast(date: str, horizon: int) -> dict[str, Any]:
     """Return a plausible mock prediction."""
     rng = random.Random(hash((date, horizon)))
@@ -92,29 +113,25 @@ def create_app(mock_mode: bool = False) -> FastAPI:
         """Run the full agent loop for one epoch."""
         from lib.agent.agent_loop import run_epoch
         from lib.agent.config import AgentConfig
-        from lib.agent.types import GraphSnapshot, NodeFeatures, Edge
 
         if mock_mode:
             # Build a mock graph from mock protocols
-            rng = random.Random(hash(req.date))
-            nodes = {p: NodeFeatures(
-                log_size=round(rng.uniform(6.0, 10.0), 1),
-                num_tokens=rng.randint(1, 5),
-                max_share=round(rng.random(), 2),
-                entropy=round(rng.uniform(0.1, 2.5), 1),
-                category=rng.choice(["lending", "dex", "liquid-staking", "bridge"]),
-            ) for p in MOCK_PROTOCOLS}
-            edges = []
-            for i, src in enumerate(MOCK_PROTOCOLS):
-                for j, tgt in enumerate(MOCK_PROTOCOLS):
-                    if i != j and rng.random() > 0.5:
-                        edges.append(Edge(source=src, target=tgt, weight=round(rng.uniform(4.0, 9.0), 1)))
-            graph = GraphSnapshot(date=req.date, nodes=nodes, edges=edges)
+            graph = _build_mock_graph(req.date)
+
+            # Inject mock forecast directly — avoids HTTP self-call
+            async def mock_forecast_fn(g, horizon, cfg):
+                return _mock_forecast(g.date, horizon)
+
+            config = AgentConfig(mc_samples=10)  # Fewer samples for speed
+            output = await run_epoch(
+                graph=graph,
+                baseline_history=[],
+                config=config,
+                forecast_fn=mock_forecast_fn,
+            )
         else:
             raise NotImplementedError("Real data loading not yet implemented")
 
-        config = AgentConfig()
-        output = await run_epoch(graph=graph, baseline_history=[], config=config)
         return output.model_dump()
 
     return app

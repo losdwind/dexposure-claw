@@ -28,6 +28,20 @@ def _stub_node_features() -> NodeFeatures:
     )
 
 
+def _parse_edge_key(key) -> tuple[str, str]:
+    """Parse an edge key that may be a tuple or a pipe-delimited string.
+
+    The GPU server returns JSON with string keys like "src|tgt", while
+    in-process callers may pass tuple keys ("src", "tgt").
+    """
+    if isinstance(key, (list, tuple)):
+        return (str(key[0]), str(key[1]))
+    if isinstance(key, str) and "|" in key:
+        parts = key.split("|", 1)
+        return (parts[0], parts[1])
+    raise ValueError(f"Cannot parse edge key: {key!r}")
+
+
 def build_pred_graph(
     prediction: dict,
     config: AgentConfig,
@@ -40,10 +54,11 @@ def build_pred_graph(
 
     Args:
         prediction: Dict with keys:
-            - edge_probs: dict[(src, tgt) -> float]  existence probability
-            - edge_weights: dict[(src, tgt) -> float]  predicted mean weight
-            - weight_stds: dict[(src, tgt) -> float]   predicted std of weight
+            - edge_probs: dict[key -> float]  existence probability
+            - edge_weights: dict[key -> float]  predicted mean weight
+            - weight_stds: dict[key -> float]   predicted std of weight
             - node_ids: list[str]  all node identifiers in the prediction
+            Keys can be tuples ("src", "tgt") or pipe-delimited strings "src|tgt".
         config: AgentConfig with pi_min threshold.
         date: Optional date string for the snapshot.
 
@@ -54,19 +69,22 @@ def build_pred_graph(
     edge_weights: dict = prediction.get("edge_weights", {})
     node_ids: list[str] = prediction.get("node_ids", [])
 
+    # Normalize all keys to tuples for consistent lookup
+    norm_weights: dict[tuple[str, str], float] = {}
+    for k, v in edge_weights.items():
+        norm_weights[_parse_edge_key(k)] = v
+
     edges: list[Edge] = []
     included_nodes: set[str] = set()
 
-    for (src, tgt), prob in edge_probs.items():
+    for key, prob in edge_probs.items():
+        src, tgt = _parse_edge_key(key)
         if prob >= config.pi_min:
-            weight = edge_weights.get((src, tgt), 0.0)
+            weight = norm_weights.get((src, tgt), 0.0)
             edges.append(Edge(source=src, target=tgt, weight=weight))
             included_nodes.add(src)
             included_nodes.add(tgt)
 
-    # Only include nodes that appear in at least one accepted edge.
-    # node_ids from the prediction is used as the universe, but we only
-    # materialise stubs for nodes actually connected in G_hat.
     nodes: dict[str, NodeFeatures] = {
         nid: _stub_node_features() for nid in node_ids if nid in included_nodes
     }
@@ -96,15 +114,20 @@ def mc_sample(
     Returns:
         List of `config.mc_samples` GraphSnapshot objects.
     """
-    edge_probs: dict = prediction.get("edge_probs", {})
-    edge_weights: dict = prediction.get("edge_weights", {})
-    weight_stds: dict = prediction.get("weight_stds", {})
+    raw_probs: dict = prediction.get("edge_probs", {})
+    raw_weights: dict = prediction.get("edge_weights", {})
+    raw_stds: dict = prediction.get("weight_stds", {})
     node_ids: list[str] = prediction.get("node_ids", [])
 
-    edge_list = list(edge_probs.keys())
-    probs = np.array([edge_probs[e] for e in edge_list], dtype=float)
-    means = np.array([edge_weights.get(e, 0.0) for e in edge_list], dtype=float)
-    stds = np.array([weight_stds.get(e, 0.0) for e in edge_list], dtype=float)
+    # Normalize keys to tuples
+    edge_probs_norm = {_parse_edge_key(k): v for k, v in raw_probs.items()}
+    edge_weights_norm = {_parse_edge_key(k): v for k, v in raw_weights.items()}
+    weight_stds_norm = {_parse_edge_key(k): v for k, v in raw_stds.items()}
+
+    edge_list = list(edge_probs_norm.keys())
+    probs = np.array([edge_probs_norm[e] for e in edge_list], dtype=float)
+    means = np.array([edge_weights_norm.get(e, 0.0) for e in edge_list], dtype=float)
+    stds = np.array([weight_stds_norm.get(e, 0.0) for e in edge_list], dtype=float)
 
     samples: list[GraphSnapshot] = []
 
