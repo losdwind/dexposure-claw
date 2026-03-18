@@ -33,7 +33,7 @@ MOCK_PROTOCOLS = ["aave-v3", "lido", "uniswap-v3", "compound", "maker", "curve",
 
 def _build_mock_graph(date: str):
     """Build a realistic mock GraphSnapshot for the given date."""
-    from lib.agent.types import GraphSnapshot, NodeFeatures, Edge
+    from dexposure_agent.types import GraphSnapshot, NodeFeatures, Edge
 
     rng = random.Random(hash(date))
     categories = ["lending", "dex", "liquid-staking", "bridge", "lending", "dex", "bridge"]
@@ -111,8 +111,8 @@ def create_app(mock_mode: bool = False) -> FastAPI:
     @app.post("/run-epoch")
     async def run_epoch_endpoint(req: RunEpochRequest):
         """Run the full agent loop for one epoch."""
-        from lib.agent.agent_loop import run_epoch
-        from lib.agent.config import AgentConfig
+        from dexposure_agent.agent_loop import run_epoch
+        from dexposure_agent.config import AgentConfig
 
         if mock_mode:
             # Build a mock graph from mock protocols

@@ -1,5 +1,5 @@
 import pytest
-from lib.agent.types import (
+from dexposure_agent.types import (
     GraphSnapshot, NodeFeatures, Edge,
     Alert, AlertEvidence, MonitorResult,
     ScenarioLoss, ScenarioSummary,

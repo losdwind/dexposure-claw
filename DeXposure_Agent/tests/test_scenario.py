@@ -1,7 +1,7 @@
 import pytest
-from lib.agent.scenario import SCENARIO_LIBRARY, apply_shock, compute_contagion_loss, run_scenarios
-from lib.agent.config import AgentConfig
-from lib.agent.types import GraphSnapshot, NodeFeatures, Edge, ScenarioSummary
+from dexposure_agent.scenario import SCENARIO_LIBRARY, apply_shock, compute_contagion_loss, run_scenarios
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import GraphSnapshot, NodeFeatures, Edge, ScenarioSummary
 
 
 @pytest.fixture

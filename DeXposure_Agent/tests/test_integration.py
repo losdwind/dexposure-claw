@@ -2,8 +2,8 @@
 """End-to-end integration test: full agent pipeline with mock server."""
 import pytest
 from httpx import AsyncClient, ASGITransport
-from lib.agent.serve import create_app
-from lib.agent.types import AgentOutput
+from dexposure_agent.serve import create_app
+from dexposure_agent.types import AgentOutput
 
 
 @pytest.fixture

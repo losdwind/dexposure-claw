@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from statistics import mean
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import (
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import (
     Alert,
     DataHealthResult,
     DecisionResult,

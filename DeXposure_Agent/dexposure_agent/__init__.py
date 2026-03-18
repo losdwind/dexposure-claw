@@ -1,6 +1,6 @@
 """DeXposure-Agent: Agentic DeFi risk monitoring system."""
-from lib.agent.config import AgentConfig
-from lib.agent.types import (
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import (
     NodeFeatures,
     Edge,
     GraphSnapshot,

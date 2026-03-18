@@ -9,8 +9,8 @@ import math
 from collections import defaultdict
 from typing import Any
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import GraphSnapshot, Edge, ScenarioLoss, ScenarioSummary
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import GraphSnapshot, Edge, ScenarioLoss, ScenarioSummary
 
 # ---------------------------------------------------------------------------
 # Scenario definitions (S1-S5)

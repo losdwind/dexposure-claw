@@ -1,6 +1,6 @@
 import pytest
-from lib.agent.monitor import compute_metrics, detect_alerts, compute_confidence, run_monitor
-from lib.agent.config import AgentConfig
+from dexposure_agent.monitor import compute_metrics, detect_alerts, compute_confidence, run_monitor
+from dexposure_agent.config import AgentConfig
 
 
 def test_compute_metrics_returns_all_ids(sample_graph):

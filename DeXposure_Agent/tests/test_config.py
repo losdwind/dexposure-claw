@@ -1,5 +1,5 @@
 import pytest
-from lib.agent.config import AgentConfig
+from dexposure_agent.config import AgentConfig
 
 
 def test_default_config():

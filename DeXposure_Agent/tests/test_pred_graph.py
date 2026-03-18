@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
-from lib.agent.pred_graph import build_pred_graph, mc_sample
-from lib.agent.config import AgentConfig
-from lib.agent.types import GraphSnapshot
+from dexposure_agent.pred_graph import build_pred_graph, mc_sample
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import GraphSnapshot
 
 
 @pytest.fixture

@@ -9,10 +9,10 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from lib.agent.agent_loop import run_epoch
-from lib.agent.config import AgentConfig
-from lib.agent.serve import create_app, _mock_forecast, _build_mock_graph
-from lib.agent.types import AgentOutput, GraphSnapshot, NodeFeatures, Edge
+from dexposure_agent.agent_loop import run_epoch
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.serve import create_app, _mock_forecast, _build_mock_graph
+from dexposure_agent.types import AgentOutput, GraphSnapshot, NodeFeatures, Edge
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ def realistic_graph():
 @pytest.fixture
 def baseline_history():
     """Several epochs of past metric dicts for rolling baseline comparison."""
-    from lib.agent.monitor import compute_metrics
+    from dexposure_agent.monitor import compute_metrics
 
     history = []
     for week in range(26):

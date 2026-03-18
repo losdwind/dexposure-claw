@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from loguru import logger
 
-from lib.agent.config import AgentConfig
+from dexposure_agent.config import AgentConfig
 
 
 SEARCH_GRID = {

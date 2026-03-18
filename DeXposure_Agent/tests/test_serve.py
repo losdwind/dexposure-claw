@@ -4,7 +4,7 @@ from httpx import AsyncClient, ASGITransport
 
 @pytest.fixture
 def app():
-    from lib.agent.serve import create_app
+    from dexposure_agent.serve import create_app
     return create_app(mock_mode=True)
 
 

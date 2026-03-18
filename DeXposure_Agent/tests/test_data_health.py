@@ -1,6 +1,6 @@
 import pytest
-from lib.agent.data_health import compute_data_health
-from lib.agent.config import AgentConfig
+from dexposure_agent.data_health import compute_data_health
+from dexposure_agent.config import AgentConfig
 
 
 def test_healthy_graph(sample_graph, sample_config):
@@ -10,7 +10,7 @@ def test_healthy_graph(sample_graph, sample_config):
 
 
 def test_empty_graph_triggers_safe_mode(sample_config):
-    from lib.agent.types import GraphSnapshot
+    from dexposure_agent.types import GraphSnapshot
     empty = GraphSnapshot(date="2025-01-01", nodes={}, edges=[])
     result = compute_data_health(empty, sample_config)
     assert result.score < sample_config.tau_data
@@ -26,7 +26,7 @@ def test_missing_features_lowers_score(sample_graph, sample_config):
 
 
 def test_single_node_graph(sample_config):
-    from lib.agent.types import GraphSnapshot, NodeFeatures
+    from dexposure_agent.types import GraphSnapshot, NodeFeatures
     single = GraphSnapshot(
         date="2025-01-01",
         nodes={"aave-v3": NodeFeatures(log_size=8.5, num_tokens=3, max_share=0.6, entropy=1.2, category="lending")},

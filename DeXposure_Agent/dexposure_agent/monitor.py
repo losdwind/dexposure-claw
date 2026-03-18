@@ -10,8 +10,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import Alert, GraphSnapshot, MonitorResult
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import Alert, GraphSnapshot, MonitorResult
 
 # ---------------------------------------------------------------------------
 # Metric metadata

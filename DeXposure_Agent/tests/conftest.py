@@ -1,5 +1,5 @@
 import pytest
-from lib.agent.types import GraphSnapshot, NodeFeatures, Edge
+from dexposure_agent.types import GraphSnapshot, NodeFeatures, Edge
 
 
 @pytest.fixture
@@ -22,5 +22,5 @@ def sample_graph():
 
 @pytest.fixture
 def sample_config():
-    from lib.agent.config import AgentConfig
+    from dexposure_agent.config import AgentConfig
     return AgentConfig()

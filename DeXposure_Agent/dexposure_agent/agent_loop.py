@@ -9,13 +9,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import GraphSnapshot, AgentOutput, ScenarioSummary, ScenarioLoss
-from lib.agent.data_health import compute_data_health
-from lib.agent.pred_graph import build_pred_graph, mc_sample
-from lib.agent.monitor import run_monitor
-from lib.agent.scenario import run_scenarios
-from lib.agent.decision import generate_tickets
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import GraphSnapshot, AgentOutput, ScenarioSummary, ScenarioLoss
+from dexposure_agent.data_health import compute_data_health
+from dexposure_agent.pred_graph import build_pred_graph, mc_sample
+from dexposure_agent.monitor import run_monitor
+from dexposure_agent.scenario import run_scenarios
+from dexposure_agent.decision import generate_tickets
 
 logger = logging.getLogger(__name__)
 

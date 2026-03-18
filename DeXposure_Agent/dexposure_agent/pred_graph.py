@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import Edge, GraphSnapshot, NodeFeatures
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import Edge, GraphSnapshot, NodeFeatures
 
 
 def _stub_node_features() -> NodeFeatures:

@@ -16,8 +16,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from lib.agent.config import AgentConfig
-from lib.agent.types import DataHealthResult, GraphSnapshot
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.types import DataHealthResult, GraphSnapshot
 
 logger = logging.getLogger(__name__)
 

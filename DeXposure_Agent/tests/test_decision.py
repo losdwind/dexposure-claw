@@ -1,7 +1,7 @@
 import pytest
-from lib.agent.decision import generate_tickets
-from lib.agent.types import Alert, ScenarioSummary, DataHealthResult, ScenarioLoss, DecisionResult
-from lib.agent.config import AgentConfig
+from dexposure_agent.decision import generate_tickets
+from dexposure_agent.types import Alert, ScenarioSummary, DataHealthResult, ScenarioLoss, DecisionResult
+from dexposure_agent.config import AgentConfig
 
 
 def test_safe_mode_suppresses_interventions():
