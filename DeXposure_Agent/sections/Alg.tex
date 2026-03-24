@@ -1,179 +1,197 @@
 \section{Algorithm}
 \label{sec:algorithm}
 
-This section specifies the agentic system built on \textsc{DeXposure-FM} for two tasks: monitoring and decision-making. 
-
-\subsection{Task I: Network Risk Monitoring}
-\label{subsec:task_monitoring}
-
-At each decision epoch $t$, we observe a current DeFi credit-exposure snapshot $G_t=(V,E_t,W_t)$ and node covariates $X_t$ (e.g., log-TVL and auxiliary features). Given a set of forecast horizons $\mathcal{H}$, the foundation model \textsc{DeXposure-FM} induces predictive distributions over future exposure networks,
-\begin{equation}
-\mathcal{P}_{t,h} \;:=\; p\!\left(G_{t+h}\mid G_{\le t}, X_{\le t}\right), \qquad h\in\mathcal{H}.
-\end{equation}
-We denote by $\widehat{G}_{t+h}$ a representative predicted network constructed from $\mathcal{P}_{t,h}$ (e.g., the expected-weight graph), and by $\widetilde{G}^{(m)}_{t+h}\sim\mathcal{P}_{t,h}$ a sampled predicted network for uncertainty quantification.
-
-\paragraph{Monitoring objective.}
-The monitoring agent computes a collection of systemic indicators (``measurements'') as functionals of predicted networks:
-\begin{equation}
-\mathbf{M}_{t,h} \;:=\; \Phi\!\left(\widehat{G}_{t+h}, X_t\right)\in\mathbb{R}^d,
-\qquad
-\widetilde{\mathbf{M}}^{(m)}_{t,h} \;:=\; \Phi\!\left(\widetilde{G}^{(m)}_{t+h}, X_t\right),
-\end{equation}
-where $\Phi$ may include, for example, concentration indices, sector spillover measures, systemic importance scores, and stress-test losses. Let $\mathcal{B}_t(\cdot)$ be a baseline band operator derived from historical measurements (e.g., rolling mean and standard deviation). The monitoring agent issues an alert when a predicted measurement departs from its baseline beyond a tolerance:
-\begin{equation}
-\label{eq:monitor_alert_rule}
-\mathcal{A}_t \;:=\; \Bigl\{\, a=(h,j): \; g\!\left(M_{t,h}^{(j)}, \mathcal{B}_t^{(j)}\right)=1 \Bigr\},
-\end{equation}
-where $M_{t,h}^{(j)}$ is the $j$-th component of $\mathbf{M}_{t,h}$, $\mathcal{B}_t^{(j)}$ is the corresponding baseline band, and $g(\cdot)$ is a trigger rule (e.g., a $z$-score or change-point test). 
-
-\paragraph{Uncertainty-aware confidence.}
-To expose forecast uncertainty, the agent attaches an alert confidence score. Let $\mathrm{U}_{t,h}^{(j)}$ denote a dispersion statistic (e.g., inter-quantile range) computed from $\{\widetilde{\mathbf{M}}^{(m)}_{t,h}\}_{m=1}^M$, and let $DH_t\in[0,1]$ be a data-health score. We define a generic confidence mapping
-\begin{equation}
-\label{eq:monitor_confidence}
-C_t(a)\;=\;\psi\!\left(DH_t,\, \mathrm{U}_{t,h}^{(j)},\, h\right)\in[0,1],
-\end{equation}
-so alerts carry both evidence (triggering statistics) and reliability (data/model quality).
-
-
-\subsection{Task II: Decision-Making}
-\label{subsec:task_decision}
-
-The decision-making agent consumes monitoring alerts $\mathcal{A}_t$ and predictive distributions $\{\mathcal{P}_{t,h}\}_{h\in\mathcal{H}}$ to propose risk-mitigating actions. Let $\mathcal{U}$ denote a feasible action set (e.g., watchlist updates, exposure reduction recommendations, governance parameter suggestions). An action $u\in\mathcal{U}$ induces an intervention operator on the current state,
-\begin{equation}
-T(u): (G_t, X_t)\mapsto (G_t^{u}, X_t^{u}),
-\end{equation}
-representing, for example, reduced exposure to certain protocols, altered risk limits, or scenario-dependent constraints. Under $u$, the foundation model yields counterfactual predictive distributions
-\begin{equation}
-\mathcal{P}^{u}_{t,h} \;:=\; p\!\left(G_{t+h}\mid G_{\le t}^{u}, X_{\le t}^{u}\right), \qquad h\in\mathcal{H}.
-\end{equation}
-Let $\mathcal{S}$ be a library of standardised stress scenarios (shocks) applied to predicted networks, and let $\ell(\cdot)$ be a nonnegative systemic loss functional (e.g., stress-test loss, tail concentration, spillover loss). For a scenario $s\in\mathcal{S}$, define the (random) loss at horizon $h$:
-\begin{equation}
-L_{t,h}(u,s) \;:=\; \ell\!\left(G_{t+h}^{u,s}\right), \qquad
-G_{t+h}^{u,s} \sim \mathcal{P}^{u}_{t,h}\ \text{with scenario } s,
-\end{equation}
-and an uncertainty-aware risk aggregation (e.g., expectation plus tail risk):
-\begin{equation}
-\label{eq:risk_objective}
-\mathcal{R}_t(u) \;:=\; \sum_{h\in\mathcal{H}} \omega_h \cdot 
-\max_{s\in\mathcal{S}} \Bigl(
-\mathbb{E}[L_{t,h}(u,s)] + \lambda\cdot \mathrm{CVaR}_{\alpha}(L_{t,h}(u,s))
-\Bigr),
-\end{equation}
-where $\omega_h$ are horizon weights, $\lambda\ge 0$ controls tail sensitivity, and $\alpha\in(0,1)$ is a tail level.
-
-\paragraph{Decision objective with constraints.}
-Let $\mathrm{cost}(u)$ be the operational cost of recommending or implementing $u$ (including conservativeness penalties), and let $\mathcal{C}_t$ encode safety constraints such as data-health and calibration gates. The decision-making task is to select a recommendation
-\begin{equation}
-\label{eq:decision_problem}
-u_t^\star \;\in\; \arg\min_{u\in\mathcal{U}} \ \mathcal{R}_t(u) + \eta\cdot \mathrm{cost}(u)
-\quad \text{s.t.}\quad u \in \mathcal{C}_t,
-\end{equation}
-where $\eta\ge 0$ trades off risk reduction and operational cost. In the minimal viable agent, $\mathcal{U}$ is restricted to a small set of conservative playbooks and $\mathcal{C}_t$ enforces strict gating: when $DH_t$ (or calibration) is low, the feasible set collapses to non-interventional actions (e.g., \texttt{Monitor}/\texttt{Investigate} recommendations).
-
-\paragraph{Decision outputs.}
-The agent returns a ranked set of recommendation tickets $\mathcal{D}_t=\{(u,r(u))\}$, each with (i) the proposed action $u$, (ii) an estimated risk reduction $r(u)$ derived from \eqref{eq:risk_objective}--\eqref{eq:decision_problem}, and (iii) an evidence bundle summarizing the triggering alerts, scenario impacts, and uncertainty measures.
+This section specifies the agentic system built on \textsc{DeXposure-FM} for two tasks: network risk monitoring (Section~\ref{subsec:task_monitoring}--\ref{subsec:scenario_engine}) and decision recommendation (Section~\ref{subsec:decision_v1}).
 
 \subsection{System Interface}
-At each epoch $t$, the agent receives the latest state (graph snapshot and features) and returns: (a) a set of monitoring alerts with evidence and confidence, (b) a scenario stress summary, and (c) a ranked list of recommendation tickets. The agent interacts with \textsc{DeXposure-FM} through a single primitive:
+\label{subsec:system_interface}
+At each decision epoch $t$, the agent observes a credit-exposure snapshot $G_t=(V,E_t,W_t)$ and node covariates $X_t$, and interacts with \textsc{DeXposure-FM} through a single forecast primitive:
 \begin{equation}
 \label{eq:agent_forecast_primitive}
-\mathcal{P}_{t,h} \leftarrow \textsc{DeXposure-FM}.\mathrm{Forecast}(G_t,X_t,h), \forall h\in\mathcal{H},
+\mathcal{P}_{t,h} \leftarrow \textsc{DeXposure-FM}.\mathrm{Forecast}(G_t,X_t,h), \quad \forall h\in\mathcal{H},
 \end{equation}
-where $\mathcal{P}_{t,h}$ denotes the model's predictive distribution for horizon $h$. We use a deterministic graph-construction operator $\mathrm{BuildPredGraph}(\cdot)$ to obtain a representative forecasted network $\widehat{G}_{t+h}$ from $\mathcal{P}_{t,h}$ (e.g., expected-weight or thresholded-probability construction). Optionally, we draw Monte Carlo samples $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M$ for uncertainty quantification.
+where $\mathcal{P}_{t,h}$ denotes the model's predictive distribution over the future network $G_{t+h}$, and $\mathcal{H}=\{1,4,8,12\}$ (weeks). From $\mathcal{P}_{t,h}$ we construct a representative predicted graph $\widehat{G}_{t+h}$ using a thresholded expected-weight operator:
+\begin{equation}
+\label{eq:expected_graph}
+\widehat{w}_{pq,t+h}
+:=
+\Pr(e_{pq,t+h}=1)\cdot \mathbb{E}[w_{pq,t+h}\mid e_{pq,t+h}=1],
+\quad
+\widehat{E}_{t+h}:=\{(p,q): \Pr(e_{pq,t+h}=1)>\pi_{\min}\},
+\end{equation}
+where $\pi_{\min}$ (default $0.2$, tuned on validation) balances edge coverage and sparsity. For uncertainty quantification, we draw $M$ Monte Carlo samples $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M$ by applying Bernoulli edge sampling and Gaussian weight perturbation to $\mathcal{P}_{t,h}$ (default $M=50$).
+
+The agent returns three outputs: (a) a set of monitoring alerts with evidence and confidence, (b) a scenario stress summary, and (c) a ranked list of recommendation tickets.
 
 \subsection{Data-Health Gating}
 \label{subsec:data_health_gate}
-Before producing actionable outputs, the agent computes a scalar data-health score
+Real-world DeFi graphs can be sparse, stale, or corrupted. Before producing actionable outputs, the agent computes a scalar data-health score from four deterministic checks---freshness, feature missingness, topology sanity (edge-to-node ratio), and discontinuity detection:
 \begin{align}
 \label{eq:data_health}
-&DH_t \leftarrow \mathrm{DataHealth}(G_t,X_t)\in[0,1],\nonumber\\
+&DH_t := \mathrm{mean}\bigl(\mathrm{fresh}_t,\;\mathrm{miss}_t,\;\mathrm{topo}_t,\;\mathrm{disc}_t\bigr)\in[0,1],\nonumber\\
 &\mathrm{SAFE\_MODE}_t := \mathbb{I}\{DH_t<\tau_{\mathrm{data}}\}.
 \end{align}
-$\mathrm{DataHealth}(\cdot)$ aggregates deterministic checks including freshness, missingness, discontinuities/outliers, and topology sanity. In safe mode, the agent still emits monitoring alerts but suppresses intervention-type recommendations (Section~\ref{subsec:decision_v1}).
+When $DH_t$ falls below $\tau_{\mathrm{data}}$ (default $0.7$), the system enters safe mode: monitoring alerts are still emitted, but intervention-type recommendations are suppressed (Section~\ref{subsec:decision_v1}).
 
-\subsection{Monitoring: Forecast--then--Measure--then--Alert}
-\label{subsec:monitoring_agent}
-For each horizon $h\in\mathcal{H}$, the agent forecasts $\mathcal{P}_{t,h}$ by \eqref{eq:agent_forecast_primitive}, constructs $\widehat{G}_{t+h}$, and evaluates a vector of monitoring functionals:
+\subsection{Task~I: Network Risk Monitoring}
+\label{subsec:task_monitoring}
+
+\paragraph{Monitoring metrics ($\Phi$).}
+Risk in exposure networks manifests as concentration (a few protocols dominate), fragility (shocks propagate widely), and instability (structure shifts rapidly). To capture these dimensions, the monitoring agent evaluates five functionals on $\widehat{G}_{t+h}$:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+ID & Metric & Definition \\
+\midrule
+M1 & Systemic Importance & $\max_{p\in V} \mathrm{PageRank}(\widehat{G}_{t+h})_p$ \\
+M3 & HHI Concentration & $\sum_p \bigl(d_p / \textstyle\sum_q d_q\bigr)^2$, \ $d_p = \text{weighted out-degree}$ \\
+M4 & Network Density & $|E_{t+h}| \;/\; |V|(|V|-1)$ \\
+M6 & PageRank Gini & $\mathrm{Gini}\!\bigl(\{\mathrm{PR}_p\}_{p\in V}\bigr)$ \\
+M7 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
+\bottomrule
+\end{tabular}
+\caption{Monitoring functionals $\Phi$. PageRank uses power iteration with damping $0.85$ and $10$ iterations. Gini coefficient: $1 - 2\sum_{i=1}^{n}\sum_{k=1}^{i}x_{(k)} \;/\; (n \cdot \sum_k x_{(k)})$, where $x_{(k)}$ are sorted values.}
+\label{tab:metrics}
+\end{table}
+
+\noindent Formally, at each horizon $h$ we compute:
 \begin{equation}
 \label{eq:monitor_metrics}
-\mathbf{M}_{t,h} := \Phi(\widehat{G}_{t+h},X_t)\in\mathbb{R}^d,~
-\widetilde{\mathbf{M}}^{(m)}_{t,h} := \Phi(\widetilde{G}^{(m)}_{t+h},X_t),
+\mathbf{M}_{t,h} := \Phi(\widehat{G}_{t+h},X_t)\in\mathbb{R}^5,\qquad
+\widetilde{\mathbf{M}}^{(m)}_{t,h} := \Phi(\widetilde{G}^{(m)}_{t+h},X_t).
 \end{equation}
-where $\Phi(\cdot)$ includes the systemic indicators used by the monitoring dashboard (e.g., systemic-importance ranking, cross-sector spillover concentration, stability/concentration indices, and stress-test losses). Let $\mathcal{B}_t^{(j)}$ be a baseline band for the $j$-th metric (e.g., a rolling mean/standard deviation band over a fixed historical window). An alert is triggered when a forecasted metric departs from its baseline:
+
+\paragraph{Alert generation.}
+An alert fires when a predicted metric departs from its rolling historical baseline by more than $z$ standard deviations (default $z=2$, baseline window $L=26$ weeks):
 \begin{equation}
-\label{eq:alert_trigger_generic}
+\label{eq:alert_trigger}
 \mathcal{A}_t :=
-\Bigl\{\, a=(h,j)\;:\; g\!\bigl(M_{t,h}^{(j)},\,\mathcal{B}_t^{(j)}\bigr)=1 \Bigr\},
+\Bigl\{\, a=(h,j)\;:\; \frac{|M_{t,h}^{(j)} - \mu_t^{(j)}|}{\max(\sigma_t^{(j)},\,\epsilon)} > z \Bigr\},
 \end{equation}
-where $g(\cdot)$ is a deterministic trigger (e.g., $z$-score, change-point score, or rule-based condition).
+where $(\mu_t^{(j)},\sigma_t^{(j)})$ are the rolling mean and standard deviation of metric $j$ over the last $L$ observed snapshots, and $\epsilon=10^{-8}$ prevents division by zero.
 
 \paragraph{Evidence and attribution.}
-Each alert $a=(h,j)\in\mathcal{A}_t$ is returned with an evidence bundle:
-\begin{equation}
-\label{eq:alert_evidence}
-\mathrm{Ev}_t(a) := \Bigl( M_{t,h}^{(j)},\ \mathcal{B}_t^{(j)},\ \mathrm{Attr}_t(a),\ h \Bigr),
-\end{equation}
-where $\mathrm{Attr}_t(a)$ denotes a ranked set of contributing nodes/edges/sectors obtained via marginal contribution approximations on the corresponding functional $\Phi^{(j)}(\cdot)$.
+Each alert $a\in\mathcal{A}_t$ carries an evidence bundle $\mathrm{Ev}_t(a) = ( M_{t,h}^{(j)},\, \mu_t^{(j)},\, \sigma_t^{(j)},\, \mathrm{Attr}_t(a),\, h )$, where $\mathrm{Attr}_t(a)$ is a ranked list of top-$K$ contributing nodes/edges obtained via marginal contribution approximation: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$ (default $K=10$).
 
 \paragraph{Uncertainty-aware confidence.}
-Using sampled metric realizations $\{\widetilde{\mathbf{M}}^{(m)}_{t,h}\}_{m=1}^M$, we compute a dispersion statistic $\mathrm{U}_{t,h}^{(j)}$ (e.g., inter-quantile range) and attach a confidence score:
+Alert reliability depends on three factors: data quality, forecast dispersion, and horizon length. Using Monte Carlo samples, we compute the coefficient of variation $\mathrm{CV}_{t,h}^{(j)} := \sigma(\{\widetilde{M}^{(m,j)}_{t,h}\}_m) / |\bar{M}^{(j)}_{t,h}|$ (clamped to $[0,1]$) and define:
 \begin{equation}
-\label{eq:alert_confidence_generic}
-C_t(a) := \psi\!\left(DH_t,\ \mathrm{U}_{t,h}^{(j)},\ h\right)\in[0,1],
+\label{eq:alert_confidence}
+C_t(a)\;:=\; DH_t \cdot \frac{1}{1+\mathrm{CV}_{t,h}^{(j)}} \cdot \frac{1}{1+\ln(1+h)}\;\in[0,1].
 \end{equation}
-which monotonically decreases with lower data health, wider predictive spread, and longer horizons.
+This score monotonically decreases with lower data health, wider predictive spread, and longer horizons, ensuring that unreliable alerts are automatically downweighted.
 
 \subsection{Scenario Engine}
 \label{subsec:scenario_engine}
-To support systematic triage, the agent evaluates a small standardised scenario set $\mathcal{S}_0$ (stress shocks). For each horizon $h$ and scenario $s$, we compute a scenario loss functional:
+To quantify tail risk beyond metric-level alerts, the agent evaluates a standardised stress-scenario library $\mathcal{S}_0$. Each scenario applies a deterministic shock---removing or reducing edge weights of targeted nodes---and propagates losses through the network:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+ID & Scenario & Target & Shock \\
+\midrule
+S1 & Single protocol failure & Highest-weight node & 100\% \\
+S2 & Bridge cluster failure & All bridge-category nodes & 100\% \\
+S3 & Stablecoin de-peg & All stablecoin nodes & 50\% \\
+S4 & Sector-wide shock & All lending nodes & 30\% \\
+S5 & Correlated stress & Top-10 nodes by weight & 20\% \\
+\bottomrule
+\end{tabular}
+\caption{Standardised stress-scenario library $\mathcal{S}_0$.}
+\label{tab:scenarios}
+\end{table}
+
+\noindent For each scenario $s$ and horizon $h$, we compute the systemic loss on both the predicted graph and each MC sample:
 \begin{equation}
 \label{eq:scenario_loss}
-L_{t,h}(s) := \ell\!\left(\widehat{G}_{t+h}; s\right),~
-\widetilde{L}^{(m)}_{t,h}(s) := \ell\!\left(\widetilde{G}^{(m)}_{t+h}; s\right),
+L_{t,h}(s) := \frac{\sum_e w_e(\widehat{G}_{t+h}) - \sum_e w_e(\widehat{G}_{t+h}^s)}{\sum_e w_e(\widehat{G}_{t+h})},\quad
+\widetilde{L}^{(m)}_{t,h}(s) := \ell\!\left(\widetilde{G}^{(m)}_{t+h};\, s\right),
 \end{equation}
-where $\ell(\cdot;\,s)$ denotes the stress-test procedure applied to the predicted network under shock $s$. The scenario summary $\mathcal{R}_t$ ranks scenarios by expected (or median) loss and highlights worst-case horizons and dominant propagation channels via the same attribution interface used in monitoring.
+where $\widehat{G}_{t+h}^s$ denotes the network after applying shock $s$. The scenario engine also tracks the number of \emph{distressed} nodes (those losing $>50\%$ of total edge weight) and a propagation depth estimate $\lfloor\log_2(\text{affected nodes}+1)\rfloor + 1$.
 
-\subsection{Decision Agent v1: Conservative Playbook Recommendations}
+\paragraph{CVaR aggregation.}
+To capture tail risk, we compute an empirical CVaR from the MC sample losses. Let $\lambda\in[0,1]$ (default $0.5$) control the tail fraction. We sort the $M$ sample losses in descending order and average the worst $\lceil \lambda M \rceil$:
+\begin{equation}
+\label{eq:cvar}
+\mathrm{CVaR}_\lambda(s,h) := \frac{1}{\lceil \lambda M \rceil} \sum_{i=1}^{\lceil \lambda M \rceil} \widetilde{L}^{(i)}_{t,h}(s),
+\end{equation}
+where $\widetilde{L}^{(1)} \ge \widetilde{L}^{(2)} \ge \cdots$ are order statistics. The scenario summary $\mathcal{R}_t$ ranks scenarios by $L_{t,h}(s)$ and retains the worst-case scenario across all horizons.
+
+\subsection{Task~II: Decision Agent}
 \label{subsec:decision_v1}
-The decision module maps $(\mathcal{A}_t,\{\mathrm{Ev}_t(a),C_t(a)\},\mathcal{R}_t)$ to a ranked set of recommendation tickets. Let $\mathcal{U}$ be a set of conservative recommendation types (e.g., watchlist update, escalated monitoring, investigation request, exposure reduction suggestion, contingency planning). Each $u\in\mathcal{U}$ must satisfy a safety constraint set $\mathcal{C}_t$:
-\begin{align}
-\label{eq:decision_constraints}
-&u \in \mathcal{C}_t
-\quad \Longleftrightarrow \nonumber\\
-&\Bigl(\mathrm{SAFE\_MODE}_t=0\Bigr)\ \wedge\ \Bigl(\min_{a\in \mathrm{Trig}(u)} C_t(a) \ge \tau_{\mathrm{conf}}\Bigr),
-\end{align}
-where $\mathrm{Trig}(u)\subseteq\mathcal{A}_t$ denotes the subset of alerts required to justify $u$. In safe mode, the feasible set collapses to non-interventional actions (e.g., \texttt{Monitor}/\texttt{Investigate}).
 
-\paragraph{Ticket ranking.}
-Each feasible recommendation is scored by a monotone heuristic combining severity, confidence, and scenario impact:
+\paragraph{Action space.}
+The decision module maps alerts and scenario results to recommendation tickets using a conservative playbook with four action types, ordered by escalation severity:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Action & Severity & Weight $w_u$ & Safe-mode OK? & Min.\ alerts \\
+\midrule
+\texttt{Monitor} & Low & 0.25 & Yes & 1 \\
+\texttt{Investigate} & Medium & 0.50 & Yes & 1 \\
+\texttt{Recommend-Reduce} & High & 0.75 & No & 2 \\
+\texttt{Contingency} & Critical & 1.00 & No & 3 \\
+\bottomrule
+\end{tabular}
+\caption{Playbook action space $\mathcal{U}$ with severity weights and feasibility constraints.}
+\label{tab:playbook}
+\end{table}
+
+\paragraph{Feasibility constraints.}
+An intervention-type action $u$ (those requiring safe-mode off) is feasible only when both the data-health gate and the confidence gate are satisfied:
+\begin{equation}
+\label{eq:decision_constraints}
+u \in \mathcal{C}_t
+\quad \Longleftrightarrow \quad
+\bigl(\mathrm{SAFE\_MODE}_t=0\bigr)\ \wedge\
+\Bigl(\bar{C}_t \ge \tau_{\mathrm{conf}}\Bigr),
+\end{equation}
+where $\bar{C}_t = \frac{1}{|\mathcal{A}_t|}\sum_{a\in\mathcal{A}_t} C_t(a)$ is the mean alert confidence and $\tau_{\mathrm{conf}}$ (default $0.6$) gates interventions. Non-interventional actions (\texttt{Monitor}, \texttt{Investigate}) are always feasible when at least one alert exists.
+
+\paragraph{Ticket scoring.}
+Each feasible recommendation is scored by a multiplicative heuristic combining playbook severity, alert confidence, and scenario impact:
 \begin{equation}
 \label{eq:ticket_score}
 \mathrm{Score}_t(u) :=
-\mathrm{Sev}_t(u)\cdot \mathrm{Conf}_t(u)\cdot \mathrm{Imp}_t(u),
+w_u \cdot \bar{C}_t \cdot \mathrm{Imp}_t,
 \end{equation}
-where $\mathrm{Sev}_t(u)$ is derived from triggered metric deviations, $\mathrm{Conf}_t(u)$ aggregates $C_t(a)$ over required alerts, and $\mathrm{Imp}_t(u)$ is derived from $\mathcal{R}_t$ (e.g., worst-case scenario loss). The decision agent returns a ranked ticket list $\mathcal{D}_t=\{(u,\mathrm{Score}_t(u),\mathrm{Ev}_t(u))\}$, where $\mathrm{Ev}_t(u)$ bundles alert evidence, scenario summaries, and an auditable rationale.
+where $w_u$ is the severity weight (Table~\ref{tab:playbook}), $\bar{C}_t$ is the mean alert confidence, and $\mathrm{Imp}_t := \frac{1}{|\mathcal{S}_0|}\sum_{s\in\mathcal{S}_0} \mathrm{CVaR}_\lambda(s)$ aggregates scenario impact as the mean CVaR across all scenarios. When no scenarios are available, $\mathrm{Imp}_t$ defaults to $1.0$ (neutral multiplier), ensuring alert-only tickets receive non-zero scores. The agent returns the top-$N$ tickets (default $N=10$) ranked by $\mathrm{Score}_t(u)$.
+
+\paragraph{Target selection.}
+For intervention tickets, targets are selected by collecting the top-$K$ attributed nodes from all triggering alerts and worst-case scenarios, ranked by frequency-weighted vote.
 
 \subsection{End-to-End Procedure}
-Algorithm~\ref{alg:agent_loop} summarises the minimal viable agent loop.
+Algorithm~\ref{alg:agent_loop} summarises the full agent loop.
 
 \begin{algorithm}[t]
-\caption{DeXposure-Agent}
+\caption{DeXposure-Agent: one epoch}
 \label{alg:agent_loop}
 \begin{algorithmic}[1]
-\Require Current state $(G_t,X_t)$; horizons $\mathcal{H}$; scenarios $\mathcal{S}_0$; baseline bands $\{\mathcal{B}_t^{(j)}\}_{j=1}^d$; thresholds $(\tau_{\mathrm{data}},\tau_{\mathrm{conf}})$
-\Ensure Alerts $\mathcal{A}_t$ with evidence/confidence; scenario summary $\mathcal{R}_t$; recommendation tickets $\mathcal{D}_t$
-\State $DH_t \gets \mathrm{DataHealth}(G_t,X_t)$; $\mathrm{SAFE\_MODE}_t \gets \mathbb{I}\{DH_t<\tau_{\mathrm{data}}\}$
+\Require State $(G_t,X_t)$; horizons $\mathcal{H}$; scenarios $\mathcal{S}_0$; thresholds $(\tau_{\mathrm{data}},\tau_{\mathrm{conf}},z,\pi_{\min})$; MC count $M$
+\Ensure Alerts $\mathcal{A}_t$; scenario summary $\mathcal{R}_t$; tickets $\mathcal{D}_t$
+\State $DH_t \gets \mathrm{DataHealth}(G_t,X_t)$;\; $\mathrm{SAFE\_MODE}_t \gets \mathbb{I}\{DH_t<\tau_{\mathrm{data}}\}$
 \ForAll{$h\in\mathcal{H}$}
     \State $\mathcal{P}_{t,h} \gets \textsc{DeXposure-FM}.\mathrm{Forecast}(G_t,X_t,h)$
-    \State $\widehat{G}_{t+h} \gets \mathrm{BuildPredGraph}(\mathcal{P}_{t,h})$
-    \State $\mathbf{M}_{t,h} \gets \Phi(\widehat{G}_{t+h},X_t)$
-    \State $\mathcal{A}_{t,h} \gets \{(h,j): g(M^{(j)}_{t,h},\mathcal{B}_t^{(j)})=1\}$
-    \State attach $\mathrm{Ev}_t(a)$ and $C_t(a)$ for all $a\in\mathcal{A}_{t,h}$
-    \State compute scenario losses $\{L_{t,h}(s)\}_{s\in\mathcal{S}_0}$ and attributions
+    \State $\widehat{G}_{t+h} \gets \mathrm{BuildPredGraph}(\mathcal{P}_{t,h};\,\pi_{\min})$ \Comment{Eq.~\eqref{eq:expected_graph}}
+    \State $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M \gets \mathrm{MCSample}(\mathcal{P}_{t,h})$ \Comment{Bernoulli edges + Gaussian weights}
+    \State $\mathbf{M}_{t,h} \gets \Phi(\widehat{G}_{t+h},X_t)$ \Comment{Table~\ref{tab:metrics}: M1,M3,M4,M6,M7}
+    \State $\mathcal{A}_{t,h} \gets \{(h,j): |M^{(j)}_{t,h}-\mu^{(j)}_t|/\sigma^{(j)}_t > z\}$
+    \State Attach $\mathrm{Ev}_t(a)$ and $C_t(a)$ for all $a\in\mathcal{A}_{t,h}$ \Comment{Eq.~\eqref{eq:alert_confidence}}
+    \ForAll{$s\in\mathcal{S}_0$}
+        \State $L_{t,h}(s) \gets \mathrm{StressLoss}(\widehat{G}_{t+h}, s)$;\; compute CVaR from $\{\widetilde{G}^{(m)}\}$
+    \EndFor
 \EndFor
 \State $\mathcal{A}_t \gets \bigcup_{h\in\mathcal{H}}\mathcal{A}_{t,h}$
-\State $\mathcal{R}_t \gets \mathrm{SummarizeScenarios}(\{L_{t,h}(s)\}_{h,s})$
-\State $\mathcal{D}_t \gets \mathrm{PlaybookDecision}(\mathcal{A}_t,\mathcal{R}_t, DH_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$
+\State $\mathcal{R}_t \gets \mathrm{RankScenarios}(\{L_{t,h}(s),\mathrm{CVaR}_\lambda(s,h)\}_{h,s})$
+\State $\mathcal{D}_t \gets \mathrm{PlaybookDecision}(\mathcal{A}_t,\mathcal{R}_t, DH_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$ \Comment{Table~\ref{tab:playbook}}
 \State \Return $(\mathcal{A}_t,\mathcal{R}_t,\mathcal{D}_t)$
 \end{algorithmic}
 \end{algorithm}
