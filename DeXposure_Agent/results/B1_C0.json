@@ -1,0 +1,13 @@
+{
+  "benchmark": "B1",
+  "method": "C0",
+  "test_split": "2025-01~2025-08",
+  "timestamp": "2026-03-25T14:46:37.874914",
+  "elapsed_seconds": 79.86,
+  "results": [
+    "B1Result(method=C0, h=1, pr_mae=0.0000, hhi_mae=0.0376, density_mae=0.0000, gini_mae=0.0027, spearman=0.5555, trend=0.0000)",
+    "B1Result(method=C0, h=4, pr_mae=0.0000, hhi_mae=0.0322, density_mae=0.0000, gini_mae=0.0018, spearman=0.5701, trend=0.0000)",
+    "B1Result(method=C0, h=8, pr_mae=0.0000, hhi_mae=0.0399, density_mae=0.0000, gini_mae=0.0028, spearman=0.5166, trend=0.0000)",
+    "B1Result(method=C0, h=12, pr_mae=0.0000, hhi_mae=0.0393, density_mae=0.0000, gini_mae=0.0027, spearman=0.5251, trend=0.0000)"
+  ]
+}

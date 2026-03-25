@@ -61,34 +61,26 @@ def _pagerank(
     damping: float = 0.85,
     iterations: int = 10,
 ) -> dict[str, float]:
-    """Compute PageRank via power iteration.
+    """Compute PageRank using networkx (numpy-backed, much faster than pure Python).
 
-    adjacency[src][tgt] = weight (used as uniform weight here for simplicity).
+    adjacency[src][tgt] = weight.
+    Falls back to uniform distribution on import failure.
     """
     n = len(nodes)
     if n == 0:
         return {}
-    pr: dict[str, float] = {node: 1.0 / n for node in nodes}
-    # Build out-degree (unweighted for standard PageRank)
-    out_degree: dict[str, int] = {node: len(adjacency.get(node, {})) for node in nodes}
-    node_set = set(nodes)
-    for _ in range(iterations):
-        new_pr: dict[str, float] = {node: (1.0 - damping) / n for node in nodes}
-        for src in nodes:
-            targets = adjacency.get(src, {})
-            od = out_degree[src]
-            if od == 0:
-                # Dangling node: distribute equally
-                share = pr[src] / n
-                for node in nodes:
-                    new_pr[node] += damping * share
-            else:
-                share = pr[src] / od
-                for tgt in targets:
-                    if tgt in node_set:
-                        new_pr[tgt] += damping * share
-        pr = new_pr
-    return pr
+    try:
+        import networkx as nx
+        G = nx.DiGraph()
+        G.add_nodes_from(nodes)
+        for src, targets in adjacency.items():
+            for tgt, w in targets.items():
+                if tgt in G:
+                    G.add_edge(src, tgt)
+        return nx.pagerank(G, alpha=damping, max_iter=iterations, tol=1e-4)
+    except Exception:
+        # Fallback: uniform
+        return {node: 1.0 / n for node in nodes}
 
 
 # ---------------------------------------------------------------------------

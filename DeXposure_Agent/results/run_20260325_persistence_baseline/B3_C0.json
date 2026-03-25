@@ -1,0 +1,17 @@
+{
+  "benchmark": "B3",
+  "method": "C0",
+  "timestamp": "2026-03-25T16:46:02.097617",
+  "elapsed_seconds": 524.58,
+  "log_file": "results/B3_C0_20260325_163717.log",
+  "results": [
+    {
+      "method": "C0",
+      "ece": 0.8875000000000002,
+      "pi_coverage": 0.0125,
+      "pi_width": 0.0011968397318185347,
+      "crps": 0.014820098766993594,
+      "n_predictions": 160
+    }
+  ]
+}

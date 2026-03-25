@@ -199,7 +199,13 @@ class SnapshotLoader:
         min_node_size: float = 0.0,
     ):
         self.data_dir = Path(data_dir)
-        self.meta_path = Path(meta_path)
+        # Resolve meta_path: if default and not found, try inside data_dir
+        meta = Path(meta_path)
+        if not meta.exists() and not meta.is_absolute():
+            meta_in_data = self.data_dir / meta.name
+            if meta_in_data.exists():
+                meta = meta_in_data
+        self.meta_path = meta
         self.min_node_size = min_node_size
 
         # Lazy-loaded caches

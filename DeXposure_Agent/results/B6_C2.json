@@ -1,0 +1,14 @@
+{
+  "benchmark": "B6",
+  "method": "C2",
+  "test_split": "2025-01~2025-08",
+  "timestamp": "2026-03-25T15:21:57.978064",
+  "elapsed_seconds": 116.8,
+  "results": [
+    "B6Result(method=C2, regime=low_data_10pct, h=4, pr_mae=0.0091, hhi_mae=0.0289, rel_degrad=-0.120)",
+    "B6Result(method=C2, regime=low_data_25pct, h=4, pr_mae=0.0073, hhi_mae=0.0207, rel_degrad=-0.325)",
+    "B6Result(method=C2, regime=partial_graph_30, h=4, pr_mae=0.0095, hhi_mae=0.0314, rel_degrad=-0.018)",
+    "B6Result(method=C2, regime=noisy_features_01, h=4, pr_mae=0.0098, hhi_mae=0.0322, rel_degrad=+0.000)",
+    "B6Result(method=C2, regime=missing_features_20, h=4, pr_mae=0.0098, hhi_mae=0.0322, rel_degrad=+0.000)"
+  ]
+}

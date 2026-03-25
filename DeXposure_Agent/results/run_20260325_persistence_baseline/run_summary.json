@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-03-25T17:13:34.067560",
+  "total_elapsed_seconds": 2399.01,
+  "total_elapsed_human": "39m59s",
+  "tasks_ok": 11,
+  "tasks_failed": 0,
+  "tasks_total": 11,
+  "results": {
+    "B1/C2": {
+      "status": "OK",
+      "elapsed": "1m16s",
+      "n_results": 4
+    },
+    "B1/C0": {
+      "status": "OK",
+      "elapsed": "1m20s",
+      "n_results": 4
+    },
+    "B2/C2": {
+      "status": "OK",
+      "elapsed": "33.5s",
+      "n_results": 9
+    },
+    "B2/C0": {
+      "status": "OK",
+      "elapsed": "30.9s",
+      "n_results": 9
+    },
+    "B3/C0": {
+      "status": "OK",
+      "elapsed": "8m46s",
+      "n_results": 1
+    },
+    "B4/C2": {
+      "status": "OK",
+      "elapsed": "41.8s",
+      "n_results": 5
+    },
+    "B4/C0": {
+      "status": "OK",
+      "elapsed": "40.7s",
+      "n_results": 5
+    },
+    "B5/C2": {
+      "status": "OK",
+      "elapsed": "11m4s",
+      "n_results": 1
+    },
+    "B5/C0": {
+      "status": "OK",
+      "elapsed": "11m6s",
+      "n_results": 1
+    },
+    "B6/C2": {
+      "status": "OK",
+      "elapsed": "1m56s",
+      "n_results": 5
+    },
+    "B6/C0": {
+      "status": "OK",
+      "elapsed": "1m59s",
+      "n_results": 5
+    }
+  }
+}

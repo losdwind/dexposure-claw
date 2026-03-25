@@ -19,9 +19,25 @@ Scenarios:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import sys
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+import numpy as np
 from loguru import logger
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from experiments.exp_logger import ExpLogger
+from dexposure_agent.config import AgentConfig
+from dexposure_agent.data_loader import SnapshotLoader
+from dexposure_agent.scenario import (
+    SCENARIO_LIBRARY,
+    apply_shock,
+    compute_contagion_loss,
+)
+from dexposure_agent.types import GraphSnapshot
 
 
 SCENARIOS = ["S1", "S2", "S3", "S4", "S5"]
@@ -48,6 +64,26 @@ class B4Result:
         )
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _jaccard(set_a: set[str], set_b: set[str]) -> float:
+    """Compute Jaccard similarity between two sets. Returns 0.0 if both empty."""
+    if not set_a and not set_b:
+        return 1.0  # both empty => perfect agreement
+    union = set_a | set_b
+    if not union:
+        return 0.0
+    return len(set_a & set_b) / len(union)
+
+
+# ---------------------------------------------------------------------------
+# Main benchmark
+# ---------------------------------------------------------------------------
+
+
 def run_b4(
     method_id: str,
     data_dir: str = "data/",
@@ -72,17 +108,154 @@ def run_b4(
     if scenarios is None:
         scenarios = SCENARIOS
 
-    logger.info(
+    results_dir = kwargs.pop("results_dir", "results/")
+    log = ExpLogger("B4", method=method_id, results_dir=results_dir)
+
+    log.info(
         f"B4 | method={method_id} | test_split={test_split} | "
         f"scenarios={scenarios} | top_k={top_k}"
     )
-    # TODO: for each scenario:
-    #   1. load baseline graph snapshot from test_split start
-    #   2. apply scenario shock to the graph
-    #   3. run method's contagion propagation / scenario engine
-    #   4. compare against ground-truth simulated outcomes (oracle simulator)
-    #   5. compute Loss MAE, Distressed Count MAE, Propagation Depth MAE, Target Overlap@K
-    raise NotImplementedError(f"B4 not yet implemented for {method_id}")
+
+    config = AgentConfig(**{k: v for k, v in kwargs.items() if k in AgentConfig.model_fields})
+
+    # --- Load test snapshots ---
+    loader = SnapshotLoader(data_dir=data_dir)
+    test_snapshots = loader.load(date_range=test_split)
+    all_dates = loader.dates
+
+    if len(test_snapshots) < 2:
+        log.warning("B4: fewer than 2 test snapshots, returning NaN results")
+        return [B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0)
+                for sid in scenarios]
+
+    log.info(f"B4: loaded {len(test_snapshots)} test snapshots")
+
+    # Build date -> snapshot index
+    date_to_snap: dict[str, GraphSnapshot] = {s.date: s for s in test_snapshots}
+
+    # Default horizon for stress test comparison
+    horizon = kwargs.get("horizon", 4)
+
+    results: list[B4Result] = []
+
+    for sid in log.progress(scenarios, desc="Scenarios", total=len(scenarios), unit="scenario"):
+        if sid not in SCENARIO_LIBRARY:
+            log.warning(f"B4: scenario {sid} not in SCENARIO_LIBRARY, skipping")
+            results.append(B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
+            continue
+
+        spec = SCENARIO_LIBRARY[sid]
+        log.info(f"B4: evaluating scenario {sid} ({spec.get('name', '')})")
+
+        loss_errors: list[float] = []
+        distressed_errors: list[float] = []
+        depth_errors: list[float] = []
+        overlaps: list[float] = []
+        n_sims = 0
+
+        for snap_t in log.progress(
+            test_snapshots, desc=f"Scenario {sid} snapshots",
+            total=len(test_snapshots), unit="snap"
+        ):
+            # Find ground truth snapshot at t+h
+            t_idx = all_dates.index(snap_t.date) if snap_t.date in all_dates else -1
+            if t_idx < 0:
+                continue
+            future_idx = t_idx + horizon
+            if future_idx >= len(all_dates):
+                continue
+            future_date = all_dates[future_idx]
+
+            # Load ground truth
+            if future_date in date_to_snap:
+                gt_graph = date_to_snap[future_date]
+            else:
+                try:
+                    gt_graph = loader.load_single(future_date)
+                except KeyError:
+                    log.info(f"B4: no ground truth for {future_date}, skipping")
+                    continue
+
+            # --- Predicted path: shock on predicted graph ---
+            from experiments.predict_helper import predict_graph
+            pred_graph = predict_graph(method_id, snap_t, horizon=horizon)
+            pred_shocked = apply_shock(pred_graph, spec)
+            pred_loss = compute_contagion_loss(
+                pred_graph, pred_shocked,
+                scenario_id=sid, scenario_name=spec.get("name", sid),
+                horizon=horizon,
+            )
+
+            # --- Ground truth path: shock on actual G_{t+h} ---
+            gt_shocked = apply_shock(gt_graph, spec)
+            gt_loss = compute_contagion_loss(
+                gt_graph, gt_shocked,
+                scenario_id=sid, scenario_name=spec.get("name", sid),
+                horizon=horizon,
+            )
+
+            # --- Compute errors ---
+            loss_errors.append(abs(pred_loss.expected_loss - gt_loss.expected_loss))
+            distressed_errors.append(abs(pred_loss.distressed_count - gt_loss.distressed_count))
+            depth_errors.append(abs(pred_loss.propagation_depth - gt_loss.propagation_depth))
+
+            # Target Overlap@K: Jaccard of top-K targets
+            pred_top_k = set(pred_loss.top_targets[:top_k])
+            gt_top_k = set(gt_loss.top_targets[:top_k])
+            overlaps.append(_jaccard(pred_top_k, gt_top_k))
+
+            n_sims += 1
+
+            log.step(
+                f"{sid}/{snap_t.date}",
+                loss_err=loss_errors[-1], dist_err=distressed_errors[-1],
+                depth_err=depth_errors[-1], overlap=overlaps[-1],
+            )
+
+        if n_sims == 0:
+            log.warning(f"B4: no valid simulations for scenario {sid}")
+            results.append(B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
+            continue
+
+        result = B4Result(
+            method=method_id,
+            scenario=sid,
+            loss_mae=float(np.mean(loss_errors)),
+            distressed_count_mae=float(np.mean(distressed_errors)),
+            propagation_depth_mae=float(np.mean(depth_errors)),
+            target_overlap_at_k=float(np.mean(overlaps)),
+            top_k=top_k,
+            n_simulations=n_sims,
+        )
+        results.append(result)
+        log.info(f"B4 scenario {sid}: {result}")
+
+    # --- Summary ---
+    valid_results = [r for r in results if r.n_simulations and r.n_simulations > 0]
+    if valid_results:
+        log.summary({
+            "n_scenarios": len(valid_results),
+            "mean_loss_mae": float(np.mean([r.loss_mae for r in valid_results])),
+            "mean_distressed_mae": float(np.mean([r.distressed_count_mae for r in valid_results])),
+            "mean_depth_mae": float(np.mean([r.propagation_depth_mae for r in valid_results])),
+            "mean_overlap_at_k": float(np.mean([r.target_overlap_at_k for r in valid_results])),
+        })
+    else:
+        log.summary({"n_scenarios": 0})
+
+    log.save_results([
+        {
+            "method": r.method, "scenario": r.scenario,
+            "loss_mae": r.loss_mae, "distressed_count_mae": r.distressed_count_mae,
+            "propagation_depth_mae": r.propagation_depth_mae,
+            "target_overlap_at_k": r.target_overlap_at_k,
+            "top_k": r.top_k, "n_simulations": r.n_simulations,
+        }
+        for r in results
+    ])
+
+    log.info(f"B4 complete: {len(results)} scenario results")
+    return results
 
 
 if __name__ == "__main__":

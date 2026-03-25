@@ -1,0 +1,59 @@
+{
+  "benchmark": "B4",
+  "method": "C2",
+  "timestamp": "2026-03-25T16:46:44.418790",
+  "elapsed_seconds": 39.97,
+  "log_file": "results/B4_C2_20260325_164604.log",
+  "results": [
+    {
+      "method": "C2",
+      "scenario": "S1",
+      "loss_mae": 0.06675763935730221,
+      "distressed_count_mae": 200.27586206896552,
+      "propagation_depth_mae": 0.896551724137931,
+      "target_overlap_at_k": 0.3143807783500321,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C2",
+      "scenario": "S2",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C2",
+      "scenario": "S3",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C2",
+      "scenario": "S4",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C2",
+      "scenario": "S5",
+      "loss_mae": 0.010014503181516168,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 0.6015019463295326,
+      "top_k": 10,
+      "n_simulations": 29
+    }
+  ]
+}

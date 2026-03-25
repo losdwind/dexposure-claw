@@ -1,0 +1,10 @@
+{
+  "benchmark": "B5",
+  "method": "C2",
+  "test_split": "2025-01~2025-08",
+  "timestamp": "2026-03-25T15:08:55.957342",
+  "elapsed_seconds": 663.18,
+  "results": [
+    "B5Result(method=C2, ticket_prec=0.645, risk_reduct=0.069, stability=0.459, audit_compl=0.000, suppress=0.000, FIR=0.000)"
+  ]
+}
