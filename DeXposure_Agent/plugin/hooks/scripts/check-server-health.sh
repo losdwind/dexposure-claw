@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Check if the DeXposure-Agent API server is reachable.
-GPU_API="${DEXPOSURE_API_URL:-http://gpu-server:8000}"
-if curl -sf "${GPU_API}/health" > /dev/null 2>&1; then
-    echo "[dexposure-agent] GPU server is reachable at ${GPU_API}"
+# Check if the DeXposure-FM API server is reachable.
+FM_API="${FM_API_URL:-http://localhost:8000}"
+if curl -sf "${FM_API}/health" > /dev/null 2>&1; then
+    echo "[dexposure-agent] FM API server is reachable at ${FM_API}"
 else
-    echo "[dexposure-agent] WARNING: GPU server not reachable at ${GPU_API}. Run scripts/sync_and_serve.sh to start it."
+    echo "[dexposure-agent] WARNING: FM API server not reachable at ${FM_API}. Start the server on GPU or set FM_API_URL env var. If using SSH tunnel: ssh -f -N -L 8000:localhost:8000 gpu-server"
 fi

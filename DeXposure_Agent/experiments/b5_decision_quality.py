@@ -42,8 +42,8 @@ from dexposure_agent.types import Edge, GraphSnapshot, ScenarioSummary
 STRESS_THRESHOLD = 0.20
 # Lookahead window for ground truth stress detection (weeks)
 STRESS_LOOKAHEAD = 4
-# MC noise sigma for persistence-based MC samples
-MC_NOISE_SIGMA = 0.1
+# MC noise sigma for persistence-based MC samples (calibrated at runtime)
+MC_NOISE_SIGMA_DEFAULT = 0.1
 
 
 @dataclass
@@ -77,7 +77,7 @@ class B5Result:
 def _generate_mc_samples(
     graph: GraphSnapshot,
     n_samples: int,
-    sigma: float = MC_NOISE_SIGMA,
+    sigma: float = MC_NOISE_SIGMA_DEFAULT,
     rng: np.random.Generator | None = None,
 ) -> list[GraphSnapshot]:
     """Generate MC samples by adding Gaussian noise to edge weights."""
@@ -186,6 +186,11 @@ def run_b5(
 
     log.info(f"B5: loaded {len(test_pairs)} test snapshots with baselines")
 
+    # Calibrate MC sigma from training data
+    from experiments.b3_uncertainty_calibration import _calibrate_mc_sigma
+    mc_sigma = _calibrate_mc_sigma(loader, test_split, horizon=STRESS_LOOKAHEAD)
+    log.info(f"B5: calibrated MC sigma = {mc_sigma:.4f}")
+
     # Build date -> snapshot for future lookups
     all_snapshots = loader.load()
     date_to_snap: dict[str, GraphSnapshot] = {s.date: s for s in all_snapshots}
@@ -235,7 +240,7 @@ def run_b5(
         alerts = detect_alerts(current_metrics, rolling_baseline, horizon=horizon, config=config)
 
         # --- Step c: Scenario engine ---
-        mc_samples = _generate_mc_samples(pred_graph, config.mc_samples, sigma=MC_NOISE_SIGMA, rng=rng)
+        mc_samples = _generate_mc_samples(pred_graph, config.mc_samples, sigma=mc_sigma, rng=rng)
         scenario_summary = run_scenarios(pred_graph, mc_samples, config, horizon=horizon)
 
         # --- Step d: Generate tickets ---

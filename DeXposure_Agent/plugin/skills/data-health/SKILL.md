@@ -28,7 +28,7 @@ The DataHealth module evaluates four dimensions of graph data quality:
 Use the API directly via the call-api.py helper:
 
 ```
-python plugin/dexposure-agent/scripts/call-api.py health
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" health
 ```
 
 This calls `GET /health` on the DeXposure-Agent server. A full data health check is also embedded at the start of every `/run-epoch` call.
@@ -36,7 +36,7 @@ This calls `GET /health` on the DeXposure-Agent server. A full data health check
 For a standalone structured JSON result:
 
 ```
-python plugin/dexposure-agent/scripts/call-api.py health --output json
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" health --output json
 ```
 
 ## Interpreting Results

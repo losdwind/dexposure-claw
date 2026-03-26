@@ -1,0 +1,53 @@
+{
+  "benchmark": "B1",
+  "method": "C0",
+  "timestamp": "2026-03-26T04:54:46.816312",
+  "elapsed_seconds": 210.5,
+  "log_file": "/root/graph-dexposure/DeXposure_Agent/results/run_20260326_045002/B1_C0_20260326_045116.log",
+  "results": [
+    {
+      "method": "C0",
+      "horizon": 1,
+      "pagerank_mae": 4.074402737383379e-05,
+      "hhi_mae": 0.037558665241817626,
+      "density_mae": 5.552350966287274e-05,
+      "gini_mae": 0.002729357023477548,
+      "rank_correlation": 0.5525616411278542,
+      "trend_consistency": 0.53125,
+      "n_test_snapshots": 32
+    },
+    {
+      "method": "C0",
+      "horizon": 4,
+      "pagerank_mae": 3.80148232696034e-05,
+      "hhi_mae": 0.03216092418648261,
+      "density_mae": 4.885599819965058e-05,
+      "gini_mae": 0.0019876608163026887,
+      "rank_correlation": 0.5646203844228219,
+      "trend_consistency": 0.5862068965517241,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "C0",
+      "horizon": 8,
+      "pagerank_mae": 4.196612457987176e-05,
+      "hhi_mae": 0.03989727845294985,
+      "density_mae": 3.872130167193338e-05,
+      "gini_mae": 0.002953441846526945,
+      "rank_correlation": 0.5138992592892694,
+      "trend_consistency": 0.592,
+      "n_test_snapshots": 25
+    },
+    {
+      "method": "C0",
+      "horizon": 12,
+      "pagerank_mae": 3.88790881965113e-05,
+      "hhi_mae": 0.03934623655405714,
+      "density_mae": 2.9736022227855964e-05,
+      "gini_mae": 0.0029079020763410836,
+      "rank_correlation": 0.5227763541679048,
+      "trend_consistency": 0.5714285714285715,
+      "n_test_snapshots": 21
+    }
+  ]
+}

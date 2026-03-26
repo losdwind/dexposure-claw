@@ -37,20 +37,30 @@ You communicate clearly to both technical users (quants, engineers) and non-tech
 Before running any analysis, verify the DeXposure-Agent server is reachable:
 
 ```
-python plugin/dexposure-agent/scripts/call-api.py health
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" health
 ```
 
 If the server is unreachable, report the connection error clearly and ask the user to verify the server is running at the expected address.
 
-### Step 2: Run Full Epoch
+### Step 2: Run Analysis Pipeline
 
-Run the complete analysis pipeline for the requested date (or today if unspecified):
+Run the analysis pipeline for the requested date (or latest test date if unspecified):
 
+```bash
+# Get available dates
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" dates
+
+# Compact prediction summary
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" predict --date YYYY-MM-DD --horizon 4 --compact
+
+# Network risk metrics
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date YYYY-MM-DD --horizon 4
+
+# Stress test scenarios
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" stress --date YYYY-MM-DD --horizon 4
 ```
-python plugin/dexposure-agent/scripts/call-api.py run-epoch --date YYYY-MM-DD --output json
-```
 
-Parse the full JSON response. Extract all four sections: data_health, alerts, stress_tests, tickets.
+Parse the JSON outputs from metrics and stress commands.
 
 ### Step 3: Parse and Interpret Output
 

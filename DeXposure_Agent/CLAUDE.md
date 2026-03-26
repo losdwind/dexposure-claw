@@ -1,4 +1,65 @@
-# DeXposure-Agent Experiment SOP
+# DeXposure-Agent
+
+## Folder Structure
+
+    DeXposure_Agent/
+    |
+    |-- dexposure_agent/          # Python library: FM inference + deterministic pipeline
+    |   |                         # Runs on GPU server. No LLM logic here.
+    |   |-- serve.py              #   FastAPI server -- FM prediction HTTP API
+    |   |-- fm_predictor.py       #   GraphPFN model loading + inference
+    |   |-- agent_loop.py         #   Algorithm 1 deterministic pipeline
+    |   |-- monitor.py            #   Network metrics M1-M7 + z-score alerts
+    |   |-- scenario.py           #   Stress scenarios S1-S5
+    |   |-- decision.py           #   Rule-based decision engine (benchmark baseline)
+    |   |-- data_health.py        #   Data quality gate
+    |   |-- data_loader.py        #   Snapshot data loading
+    |   |-- pred_graph.py         #   Predicted graph builder + MC sampling
+    |   |-- config.py             #   Hyperparameter configuration
+    |   +-- types.py              #   Pydantic data models
+    |
+    |-- plugin/                   # Claude Code plugin (LLM agent distribution package)
+    |   |                         # Users install this to get AI-powered risk analysis.
+    |   |                         # Claude Code = the LLM agent; scripts call FM API for data.
+    |   |-- .claude-plugin/
+    |   |   +-- plugin.json       #   Plugin metadata (name: dexposure-agent)
+    |   |-- commands/
+    |   |   +-- dexposure.md      #   /dexposure-agent:dexposure slash command
+    |   |-- agents/
+    |   |   |-- risk-analyst.md   #   Full risk analysis subagent
+    |   |   +-- stress-tester.md  #   Stress testing subagent
+    |   |-- skills/               #   8 domain skills (forecast, monitor, scenario, decision, etc.)
+    |   |-- hooks/
+    |   |   +-- hooks.json        #   SessionStart hook: check FM server health
+    |   +-- scripts/
+    |       +-- call-api.py       #   Single API client (health/dates/predict/metrics/stress/batch)
+    |
+    |-- experiments/              # B1-B6 benchmark implementations
+    |   |                         # Runs on GPU server for paper experiments.
+    |   |-- b1_risk_forecasting.py - b6_robustness.py
+    |   |-- predict_helper.py     #   FM prediction router (C0=FM, C2=persistence)
+    |   |-- competitors/          #   Baseline methods (persistence, ROLAND, llm_agent stub)
+    |   |-- exp_logger.py         #   Structured experiment logging
+    |   +-- tune_agent.py         #   Hyperparameter tuning
+    |
+    |-- scripts/                  # GPU server operations
+    |   |-- run_benchmarks_sequential.py  # Run full B1-B6 suite (~40 min)
+    |   |-- run_c0_only.py        #   Run C0-only benchmarks (~8 min)
+    |   |-- start_server.sh       #   Start FM API server
+    |   +-- sync_and_serve.sh     #   Sync code from local + start server
+    |
+    |-- results/                  # Benchmark result JSONs (timestamped run directories)
+    |-- sections/                 # LaTeX paper sections
+    |-- tests/                    # Unit tests
+    +-- autoresearch/             # Automated hyperparameter search
+
+Key principles:
+- dexposure_agent/ = GPU server only, no LLM SDK, pure FM + deterministic compute
+- plugin/ = Claude Code plugin, Claude Code itself is the LLM agent
+- experiments/ + scripts/ = paper benchmarks, run on GPU server
+- FM API (serve.py) is the bridge: GPU server hosts it, plugin/scripts/call-api.py calls it
+
+## Experiment SOP
 
 Standard operating procedure for running the B1-B6 benchmark experiments.
 

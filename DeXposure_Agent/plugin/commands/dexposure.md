@@ -33,32 +33,48 @@ Run DeXposure-Agent risk monitoring analysis for a given date. This command orch
 
 1. **Parse arguments** — Extract date (default: today) and any flags.
 
-2. **Check server** — Verify the DeXposure-Agent API server is reachable at the configured base URL (default: http://gpu-server:8000). Report connection errors immediately if unreachable.
-
-3. **Run analysis** — Execute `run-epoch` for the specified date:
+2. **Check server** — Verify the FM API server is reachable:
    ```
-   python plugin/dexposure-agent/scripts/call-api.py run-epoch --date [date] --output json
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" health
+   ```
+   Report connection errors immediately if unreachable. The server URL is configured via FM_API_URL env var (default: http://localhost:8000).
+
+3. **Compute metrics** on the predicted graph:
+   ```
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date [date] --horizon 4
    ```
 
-4. **Parse output** — Extract data health score, alerts, stress test results, and action tickets from the JSON response.
+4. **Run stress scenarios**:
+   ```
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" stress --date [date] --horizon 4
+   ```
 
 5. **Present results** — Format and display a structured risk report covering:
-   - Data health status and safe mode flag
-   - Active alerts sorted by severity
-   - Stress test CVaR summary
-   - Prioritized action tickets
+   - Network metrics (HHI, Gini, PageRank, density)
+   - Stress test losses per scenario (S1-S5)
+   - Top affected protocols
+   - Recommended actions with reasoning
 
 ### Scenario-Only Run (`--scenario S1-S5`)
 
-Skips the full epoch and runs only the specified stress test. Useful for quick targeted analysis or re-running a specific scenario with different parameters.
+Runs only the specified stress test:
 
-1. Check server health
-2. Run targeted stress test: `POST /stress-test {"date": "[date]", "scenario": "[S1-S5]"}`
-3. Present contagion results with propagation narrative
+```
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" stress --date [date] --horizon 4 --scenario [S1-S5]
+```
 
 ### Full Run (`--full`)
 
-Runs the epoch with all four forecast horizons and all five scenarios, then presents the complete multi-horizon risk trajectory. Takes longer but provides the most complete picture.
+Runs batch forecast across all horizons, then metrics and stress for each:
+
+```
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" batch --date [date]
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date [date] --horizon 1
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date [date] --horizon 4
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date [date] --horizon 8
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" metrics --date [date] --horizon 12
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" stress --date [date] --horizon 4
+```
 
 ## Output Format
 

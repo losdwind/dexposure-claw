@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -33,7 +34,7 @@ TARGET_COVERAGE = 0.90  # nominal coverage of prediction intervals
 
 METRIC_IDS = list(METRIC_NAMES.keys())  # M1, M3, M4, M6, M7
 
-MC_NOISE_SIGMA = 0.1  # standard deviation for persistence MC noise
+MC_NOISE_SIGMA_DEFAULT = 0.1  # fallback if calibration fails
 
 
 @dataclass
@@ -57,10 +58,68 @@ class B3Result:
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _calibrate_mc_sigma(
+    loader: SnapshotLoader,
+    test_split: str,
+    horizon: int = 1,
+) -> float:
+    """Compute empirical noise sigma from week-over-week edge weight changes.
+
+    Looks at the training period (before test_split), computes relative
+    edge weight changes between consecutive snapshots, and returns the
+    empirical std of those relative changes.  This gives a data-driven
+    MC noise level that produces well-calibrated prediction intervals.
+    """
+    from dexposure_agent.data_loader import parse_date_range
+    dt_start, _ = parse_date_range(test_split)
+
+    all_dates = loader.dates
+    train_dates = [d for d in all_dates
+                   if datetime.strptime(d, "%Y-%m-%d") < dt_start]
+
+    if len(train_dates) < 3:
+        logger.warning("B3 calibration: too few training dates, using default sigma")
+        return MC_NOISE_SIGMA_DEFAULT
+
+    # Compute relative edge weight changes across consecutive pairs
+    relative_changes: list[float] = []
+    prev_snap = None
+    for date_str in train_dates[-(52 + horizon):]:  # last year of training
+        snap = loader.load_single(date_str)
+        if prev_snap is not None:
+            # Build edge weight dicts for fast lookup
+            prev_weights: dict[tuple[str, str], float] = {}
+            for e in prev_snap.edges:
+                prev_weights[(e.source, e.target)] = e.weight
+
+            for e in snap.edges:
+                key = (e.source, e.target)
+                if key in prev_weights and prev_weights[key] > 0:
+                    rel_change = abs(e.weight - prev_weights[key]) / prev_weights[key]
+                    relative_changes.append(rel_change)
+        prev_snap = snap
+
+    if not relative_changes:
+        logger.warning("B3 calibration: no relative changes computed, using default sigma")
+        return MC_NOISE_SIGMA_DEFAULT
+
+    sigma = float(np.std(relative_changes))
+    # Scale by horizon (larger horizon -> wider intervals)
+    sigma *= max(1.0, horizon ** 0.5)
+    # Clamp to reasonable range
+    sigma = max(0.01, min(sigma, 2.0))
+
+    logger.info(
+        f"B3 calibrated sigma={sigma:.4f} from {len(relative_changes)} "
+        f"edge-weight changes over {len(train_dates)} training weeks"
+    )
+    return sigma
+
+
 def _generate_mc_samples(
     graph: GraphSnapshot,
     n_samples: int,
-    sigma: float = MC_NOISE_SIGMA,
+    sigma: float = MC_NOISE_SIGMA_DEFAULT,
     rng: np.random.Generator | None = None,
 ) -> list[GraphSnapshot]:
     """Generate MC samples by adding N(0, sigma * w) noise to edge weights.
@@ -192,6 +251,10 @@ def run_b3(
     alpha_lo = (1.0 - target_coverage) / 2.0
     alpha_hi = 1.0 - alpha_lo
 
+    # Calibrate MC noise sigma from training data
+    mc_sigma = _calibrate_mc_sigma(loader, test_split, horizon=horizon)
+    log.info(f"B3: calibrated MC sigma = {mc_sigma:.4f}")
+
     # --- Accumulators ---
     all_coverages: list[bool] = []       # was actual inside PI?
     all_pi_widths: list[float] = []      # width of PI
@@ -228,8 +291,8 @@ def run_b3(
         from experiments.predict_helper import predict_graph
         pred_graph = predict_graph(method_id, snap_t, horizon=horizon)
 
-        # Generate MC samples with noise
-        mc_samples = _generate_mc_samples(pred_graph, mc_count, sigma=MC_NOISE_SIGMA, rng=rng)
+        # Generate MC samples with calibrated noise
+        mc_samples = _generate_mc_samples(pred_graph, mc_count, sigma=mc_sigma, rng=rng)
 
         # Compute ground truth metrics
         gt_metrics = compute_metrics(gt_graph)

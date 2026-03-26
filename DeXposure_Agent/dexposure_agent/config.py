@@ -13,7 +13,7 @@ class AgentConfig(BaseModel):
 
     # Monitor
     z_threshold: float = Field(2.0, gt=0.0, description="Alert z-score threshold")
-    rolling_window: int = Field(26, gt=0, description="Rolling baseline window (weeks)")
+    rolling_window: int = Field(42, gt=0, description="Rolling baseline window (weeks)")
 
     # PredGraph builder
     pi_min: float = Field(0.2, ge=0.0, le=1.0, description="Edge existence probability threshold")
@@ -26,7 +26,7 @@ class AgentConfig(BaseModel):
 
     # Decision
     tau_conf: float = Field(0.6, ge=0.0, le=1.0, description="Confidence gate for interventions")
-    top_k: int = Field(10, gt=0, description="Top-K attribution nodes/edges")
+    top_k: int = Field(5, gt=0, description="Top-K attribution nodes/edges")
 
     # Horizons
     horizons: list[int] = Field(default=[1, 4, 8, 12], description="Forecast horizons in weeks")

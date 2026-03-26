@@ -362,7 +362,11 @@ def run_b6(
     all_snaps = loader.load()
     date_to_snap: dict[str, GraphSnapshot] = {s.date: s for s in all_snaps}
 
-    # --- Build paired (pred, gt) lists for clean evaluation ---
+    # --- Build paired (input, pred, gt) lists for clean evaluation ---
+    # Keep input snapshots so we can degrade them before prediction in regimes
+    from experiments.predict_helper import predict_graph
+
+    clean_inputs: list[GraphSnapshot] = []  # original input snapshots
     clean_pred: list[GraphSnapshot] = []
     clean_gt: list[GraphSnapshot] = []
 
@@ -381,7 +385,7 @@ def run_b6(
                 gt_graph = loader.load_single(future_date)
             except KeyError:
                 continue
-        from experiments.predict_helper import predict_graph
+        clean_inputs.append(snap_t)
         clean_pred.append(predict_graph(method_id, snap_t, horizon=horizon))
         clean_gt.append(gt_graph)
 
@@ -418,21 +422,22 @@ def run_b6(
         regime_cfg = REGIME_CONFIGS[regime]
         log.info(f"B6: evaluating regime {regime} with config {regime_cfg}")
 
-        # Apply degradation
         train_fraction = regime_cfg.get("train_fraction", 1.0)
 
         if train_fraction < 1.0:
-            # Low-data regime: subsample the prediction snapshots
-            degraded_pred = _subsample_snapshots(clean_pred, train_fraction, rng)
-            # Also subsample the corresponding GT to maintain alignment
-            # For simplicity, subsample using the same indices
-            n_keep = max(1, int(len(clean_pred) * train_fraction))
-            indices = sorted(rng.choice(len(clean_pred), size=n_keep, replace=False))
-            degraded_pred = [clean_pred[i] for i in indices]
+            # Low-data regime: subsample the (input, gt) pairs, then predict
+            n_keep = max(1, int(len(clean_inputs) * train_fraction))
+            indices = sorted(rng.choice(len(clean_inputs), size=n_keep, replace=False))
+            degraded_pred = [predict_graph(method_id, clean_inputs[i], horizon=horizon)
+                            for i in indices]
             degraded_gt = [clean_gt[i] for i in indices]
         else:
-            # Per-snapshot degradation
-            degraded_pred = [_apply_degradation(snap, regime_cfg, rng) for snap in clean_pred]
+            # Per-snapshot degradation: degrade INPUT, then predict on degraded input
+            # This correctly tests robustness — the model sees noisy/incomplete data
+            degraded_inputs = [_apply_degradation(snap, regime_cfg, rng)
+                               for snap in clean_inputs]
+            degraded_pred = [predict_graph(method_id, deg_snap, horizon=horizon)
+                            for deg_snap in degraded_inputs]
             degraded_gt = clean_gt  # GT is never degraded
 
         if not degraded_pred:

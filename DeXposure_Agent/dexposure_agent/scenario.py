@@ -26,19 +26,19 @@ SCENARIO_LIBRARY: dict[str, dict[str, Any]] = {
     "S2": {
         "name": "Bridge cluster failure",
         "type": "category",
-        "category": "bridge",
+        "categories": ["Bridge", "Cross Chain"],
         "shock_pct": 1.0,
     },
     "S3": {
         "name": "Stablecoin de-peg",
         "type": "category",
-        "category": "stablecoin",
+        "categories": ["Algo-Stables", "Decentralized Stablecoin", "CDP"],
         "shock_pct": 0.5,
     },
     "S4": {
         "name": "Sector-wide shock",
         "type": "category",
-        "category": "lending",
+        "categories": ["Lending", "Uncollateralized Lending", "RWA Lending", "NFT Lending"],
         "shock_pct": 0.3,
     },
     "S5": {
@@ -92,11 +92,15 @@ def apply_shock(graph: GraphSnapshot, scenario_spec: dict[str, Any]) -> GraphSna
             n for n, _ in sorted(node_weights.items(), key=lambda x: x[1], reverse=True)[:count]
         }
     elif shock_type == "category":
-        target_category = scenario_spec["category"]
+        # Support both singular "category" and plural "categories" (list)
+        target_cats = scenario_spec.get("categories", [])
+        if not target_cats:
+            target_cats = [scenario_spec["category"]]
+        target_cats_lower = {c.lower() for c in target_cats}
         shocked_nodes = {
             name
             for name, features in graph.nodes.items()
-            if features.category == target_category
+            if features.category.lower() in target_cats_lower
         }
     else:
         raise ValueError(f"Unknown scenario type: {shock_type!r}")

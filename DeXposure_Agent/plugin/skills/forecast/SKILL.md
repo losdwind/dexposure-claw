@@ -74,13 +74,13 @@ Edges with high weight_std relative to edge_weight (coefficient of variation > 0
 ## How to Invoke
 
 ```
-python plugin/dexposure-agent/scripts/call-api.py forecast --date 2025-01-15 --horizon 4
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" predict --date 2025-01-15 --horizon 4 --compact
 ```
 
 For full JSON output:
 
 ```
-python plugin/dexposure-agent/scripts/call-api.py forecast --date 2025-01-15 --horizon 4 --output json
+python "${CLAUDE_PLUGIN_ROOT}/scripts/call-api.py" predict --date 2025-01-15 --horizon 4 --compact --output json
 ```
 
 The API endpoint is `POST /forecast` with body `{"date": "YYYY-MM-DD", "horizon": 4}`.

@@ -1,0 +1,17 @@
+{
+  "benchmark": "B3",
+  "method": "C0",
+  "timestamp": "2026-03-26T10:47:53.266824",
+  "elapsed_seconds": 585.89,
+  "log_file": "/root/graph-dexposure/DeXposure_Agent/results/run_20260326_103217/B3_C0_20260326_103807.log",
+  "results": [
+    {
+      "method": "C0",
+      "ece": 0.7562500000000001,
+      "pi_coverage": 0.14375,
+      "pi_width": 0.01364812306048584,
+      "crps": 0.014457568379717836,
+      "n_predictions": 160
+    }
+  ]
+}

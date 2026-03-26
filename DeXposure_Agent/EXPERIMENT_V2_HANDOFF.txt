@@ -1,0 +1,190 @@
+EXPERIMENT V2 HANDOFF — DeXposure-Agent LLM Evaluation
+======================================================
+Date: 2026-03-26
+Status: Architecture complete, experiment design needed
+
+
+1. WHAT WE HAVE NOW
+====================
+
+FM backbone (DONE):
+  - DeXposure-FM: AUROC 0.993-0.995, AUPRC 0.967-0.978
+  - FM API server running on GPU (serve.py, port 8000)
+  - Checkpoints: h1, h4, h8-h12
+
+Claude Code plugin (DONE):
+  - Location: DeXposure_Agent/plugin/
+  - Scripts: plugin/scripts/call-api.py (health/dates/predict/metrics/stress/batch)
+  - 2 agents (risk-analyst, stress-tester), 8 skills, 1 command
+  - Tested: scripts work end-to-end against live FM API
+
+Rule-based benchmarks (DONE but problematic):
+  - B1: FM metrics marginal over persistence (trend_consistency ~55% vs 0%)
+  - B2: Early warning 4-5 weeks lead, precision 60-100% (good)
+  - B3: PI coverage 1.25% vs target 90% (BROKEN — mc noise sigma too small)
+  - B4: S2-S4 = 0.0 MAE (FAKE — meta_df.csv categories missing)
+  - B5: FM-Agent precision 0.50, Persistence-Agent 0.66 (FM WORSE)
+  - B6: noise/missing degradation = 0.0 (SUSPICIOUS — perturbation not reaching model)
+
+Deprecated and removed:
+  - llm_decision.py, llm_agent_loop.py, llm_tools.py (called Anthropic API directly)
+  - .claude/ folder under DeXposure_Agent (replaced by plugin/)
+
+
+2. WHAT THE PAPER NEEDS TO PROVE
+==================================
+
+Core thesis: "FM + LLM Agent > Pure LLM" and "FM + LLM Agent > FM + Rules"
+
+Four methods to compare:
+
+  C2:     Persistence + Rules      (naive baseline)
+  C0:     FM + Rules               (current, has benchmark data)
+  C3:     No FM + LLM              (pure LLM, no grounded predictions)
+  C0-LLM: FM + LLM                (our full system, the paper's claim)
+
+Key comparisons:
+  C0-LLM vs C0   -> proves LLM reasoning > rule engine
+  C0-LLM vs C3   -> proves FM grounding makes LLM better
+  C0-LLM vs C2   -> proves full system > naive
+
+
+3. EXPERIMENT DESIGN NEEDED
+=============================
+
+Problem: current B5 only tests rule-based decision. Need to evaluate LLM decisions.
+
+3a. Automated LLM evaluation for B5 (29 test weeks)
+
+  For each test week (2025-01 to 2025-08):
+    1. Get FM prediction via API: call-api.py predict --date {date} --horizon 4
+    2. Compute metrics: call-api.py metrics --date {date} --horizon 4
+    3. Run scenarios: call-api.py stress --date {date} --horizon 4
+    4. Feed all data to LLM as a structured prompt
+    5. LLM outputs: target protocols + action level + rationale (JSON)
+    6. Compare LLM targets to ground truth (which protocols actually stressed)
+
+  Implementation options:
+    a) Python script calling Claude API (anthropic SDK) in batch
+       - Deterministic (temperature=0), reproducible
+       - ~29 API calls * ~$0.05 each = ~$1.50 total
+       - Can run on any machine with API key
+    b) Claude Code subagent via Agent SDK
+       - More aligned with "plugin" story
+       - Harder to batch-evaluate
+    c) Hybrid: Python batch script for data collection, API for decisions
+       - Most practical for paper
+
+  For C3 (pure LLM, no FM):
+    - Same prompt structure but replace FM predictions with raw text description
+    - "Here is the current DeFi network with N protocols, top-5 by TVL are..."
+    - No edge probabilities, no predicted graph, no metrics from predicted graph
+    - LLM must reason from text description alone
+
+3b. New evaluation metrics for LLM decisions
+
+  Quantitative (same as B5):
+    - Ticket precision: fraction of targets that were truly stressed
+    - Audit completeness: fraction of truly stressed that were targeted
+    - Target stability: Jaccard between consecutive weeks
+
+  New metrics for LLM:
+    - Rationale quality: does the rationale cite real numbers from the data?
+    - Grounding score: how many claims are traceable to FM output vs hallucinated?
+    - Consistency: given same data, does the LLM produce same decision? (run 3x)
+
+  Evaluation method for rationale:
+    - LLM-as-judge (GPT-4 or Claude evaluates rationale quality 1-5)
+    - Or rule-based: count specific metric citations in rationale text
+
+
+4. FIXES NEEDED FOR EXISTING BENCHMARKS
+==========================================
+
+Before running V2, fix the broken benchmarks:
+
+B3 (uncertainty calibration):
+  - Problem: MC noise sigma=0.1 is hardcoded, way too small
+  - Fix: compute empirical sigma from actual week-over-week prediction errors
+  - Location: experiments/b3_uncertainty_calibration.py, MC_NOISE_SIGMA constant
+  - Also: pred_graph.py mc_sample() uses this sigma
+
+B4 (stress test):
+  - Problem: meta_df.csv on GPU server has categories as "Unknown"
+  - Fix: ensure meta_df.csv is properly loaded with real protocol categories
+  - Check: ssh gpu-server "head -5 /root/graph-dexposure/DeXposure/data/meta_df.csv"
+  - S2 (bridge), S3 (stablecoin), S4 (lending) all depend on correct categories
+
+B5 (decision quality):
+  - Problem: FM-Agent (C0) precision 0.50 < Persistence (C2) 0.66
+  - Root cause: FM hybrid strategy adds/reweights edges, changing which protocols
+    are flagged by scenario engine, but not necessarily improving targeting
+  - May not be fixable for rule-based — this is WHY we need LLM
+
+B6 (robustness):
+  - Problem: noisy_features and missing_features show zero degradation
+  - Check: is the perturbation actually being applied to FM input features?
+  - Location: experiments/b6_robustness.py, look at how noise is injected
+
+
+5. GPU SERVER STATE
+=====================
+
+  Host: ssh9.vast.ai:35417 (alias: gpu-server)
+  GPU: RTX 4090 24GB
+  FM API: running on port 8000 (may need restart if server rebooted)
+  SSH tunnel: ssh -f -N -L 8000:localhost:8000 gpu-server
+  Data: /root/graph-dexposure/DeXposure/data/ (283 weekly snapshots)
+  Checkpoints: /root/graph-dexposure/checkpoints/dexposure-fm-release/
+  anthropic SDK: installed (pip install anthropic, v0.86.0)
+
+  To verify:
+    ssh gpu-server "curl -s http://localhost:8000/health"
+    # Should show: {"status":"ok","fm_available":true}
+
+  To restart FM API:
+    ssh -f gpu-server "cd /root/graph-dexposure/DeXposure_Agent && \
+      DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
+      nohup python3 -m uvicorn dexposure_agent.serve:app --host 0.0.0.0 --port 8000 \
+      > /root/fm_api.log 2>&1 &"
+
+
+6. FILE LOCATIONS
+==================
+
+  Plugin:           DeXposure_Agent/plugin/
+  FM API server:    DeXposure_Agent/dexposure_agent/serve.py
+  API client:       DeXposure_Agent/plugin/scripts/call-api.py
+  B5 benchmark:     DeXposure_Agent/experiments/b5_decision_quality.py
+  C3 stub:          DeXposure_Agent/experiments/competitors/llm_agent.py (NotImplementedError)
+  Config:           DeXposure_Agent/dexposure_agent/config.py
+  Folder structure: DeXposure_Agent/CLAUDE.md (top section)
+
+
+7. SUGGESTED NEXT SESSION PLAN
+================================
+
+  Phase 1: Fix existing benchmarks (~2 hours)
+    1. Fix B3 sigma calibration
+    2. Fix B4 meta_df.csv categories
+    3. Investigate B6 zero-degradation
+    4. Re-run B1-B6 with fixes, get clean baseline numbers
+
+  Phase 2: Build LLM evaluation pipeline (~3 hours)
+    1. Write batch evaluation script (Python + Claude API)
+    2. Design prompts for C0-LLM (FM data + metrics + scenarios -> decision)
+    3. Design prompts for C3 (text description only -> decision)
+    4. Run both on 29 test weeks
+    5. Compute precision, completeness, stability, grounding score
+
+  Phase 3: Implement C3 competitor (~1 hour)
+    1. Complete llm_agent.py (currently NotImplementedError)
+    2. Feed it text-only network description (no FM predictions)
+    3. Run same B5 evaluation
+
+  Phase 4: Analysis and paper writing (~2 hours)
+    1. Build comparison table: C2 vs C0 vs C3 vs C0-LLM
+    2. Show FM grounding effect (C0-LLM vs C3)
+    3. Show LLM reasoning effect (C0-LLM vs C0)
+    4. Write experiments section with real numbers
+    5. Update intro to match what we actually proved

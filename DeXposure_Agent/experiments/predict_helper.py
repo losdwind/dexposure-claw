@@ -1,7 +1,7 @@
 """Shared prediction helper for B1-B6 benchmarks.
 
 Routes method_id to the appropriate prediction strategy:
-- C0/C4: DeXposure-FM backbone (if available)
+- C0/C4: DeXposure-FM backbone (local, requires GPU + checkpoints)
 - C2: Persistence (G_{t+h} = G_t)
 - Others: Persistence proxy with warning
 """

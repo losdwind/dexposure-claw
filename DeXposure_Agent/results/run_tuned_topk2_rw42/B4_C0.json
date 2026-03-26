@@ -1,0 +1,59 @@
+{
+  "benchmark": "B4",
+  "method": "C0",
+  "timestamp": "2026-03-26T05:08:56.988943",
+  "elapsed_seconds": 177.62,
+  "log_file": "/root/graph-dexposure/DeXposure_Agent/results/run_20260326_045002/B4_C0_20260326_050559.log",
+  "results": [
+    {
+      "method": "C0",
+      "scenario": "S1",
+      "loss_mae": 0.06675767161540433,
+      "distressed_count_mae": 200.0,
+      "propagation_depth_mae": 0.896551724137931,
+      "target_overlap_at_k": 0.3143807783500321,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C0",
+      "scenario": "S2",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C0",
+      "scenario": "S3",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C0",
+      "scenario": "S4",
+      "loss_mae": 0.0,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 1.0,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "C0",
+      "scenario": "S5",
+      "loss_mae": 0.010014511195074483,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 0.6015019463295326,
+      "top_k": 10,
+      "n_simulations": 29
+    }
+  ]
+}

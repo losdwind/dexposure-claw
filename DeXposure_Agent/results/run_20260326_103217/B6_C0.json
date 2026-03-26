@@ -1,0 +1,74 @@
+{
+  "benchmark": "B6",
+  "method": "C0",
+  "timestamp": "2026-03-26T11:22:04.662327",
+  "elapsed_seconds": 241.25,
+  "log_file": "/root/graph-dexposure/DeXposure_Agent/results/run_20260326_103217/B6_C0_20260326_111803.log",
+  "results": [
+    {
+      "method": "C0",
+      "regime": "low_data_10pct",
+      "horizon": 4,
+      "pagerank_mae": 0.014348573617958459,
+      "hhi_mae": 0.05905954002750438,
+      "density_mae": 5.115384226426638e-05,
+      "gini_mae": 0.0027834343940632,
+      "rank_correlation": 0.536473579780363,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.7648009149740228,
+      "n_test_snapshots": 2
+    },
+    {
+      "method": "C0",
+      "regime": "low_data_25pct",
+      "horizon": 4,
+      "pagerank_mae": 0.009481352428163009,
+      "hhi_mae": 0.028172179884611997,
+      "density_mae": 5.899094640189287e-05,
+      "gini_mae": 0.0022479446206716985,
+      "rank_correlation": 0.5639193634004778,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.07502923510649777,
+      "n_test_snapshots": 7
+    },
+    {
+      "method": "C0",
+      "regime": "partial_graph_30",
+      "horizon": 4,
+      "pagerank_mae": 0.011996232230154245,
+      "hhi_mae": 0.035027191773924424,
+      "density_mae": 4.734487101304392e-05,
+      "gini_mae": 0.00195711344532241,
+      "rank_correlation": 0.511594156980165,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.13485552640115597,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "C0",
+      "regime": "noisy_features_01",
+      "horizon": 4,
+      "pagerank_mae": 0.009004418850284714,
+      "hhi_mae": 0.032160925293590686,
+      "density_mae": 4.885504542047194e-05,
+      "gini_mae": 0.0019876476510189327,
+      "rank_correlation": 0.5631439970255712,
+      "trend_consistency": NaN,
+      "relative_degradation": -5.646367990240714e-07,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "C0",
+      "regime": "missing_features_20",
+      "horizon": 4,
+      "pagerank_mae": 0.009004419260992819,
+      "hhi_mae": 0.03216093279370052,
+      "density_mae": 4.885537456290706e-05,
+      "gini_mae": 0.0019876674424860606,
+      "rank_correlation": 0.5631441199423219,
+      "trend_consistency": NaN,
+      "relative_degradation": 8.421073214116967e-08,
+      "n_test_snapshots": 29
+    }
+  ]
+}
