@@ -1,0 +1,36 @@
+{
+  "timestamp": "20260414_075532",
+  "total_time_seconds": 3578.9,
+  "total_time_human": "59.6 min",
+  "steps": {
+    "step1_train_evolvegcn": {
+      "status": "done",
+      "duration_seconds": 301.4,
+      "details": {}
+    },
+    "step2_evolvegcn_benchmarks": {
+      "status": "done",
+      "duration_seconds": 433.7,
+      "details": {}
+    },
+    "step3_b3_conformal": {
+      "status": "failed",
+      "duration_seconds": 81.2,
+      "details": {
+        "error": "No module named 'torchdata.datapipes'"
+      }
+    },
+    "step4_ablations": {
+      "status": "failed",
+      "duration_seconds": 133.7,
+      "details": {
+        "error": "No module named 'torchdata.datapipes'"
+      }
+    },
+    "step5_full_suite": {
+      "status": "done",
+      "duration_seconds": 2617.5,
+      "details": {}
+    }
+  }
+}

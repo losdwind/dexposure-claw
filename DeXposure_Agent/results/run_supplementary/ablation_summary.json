@@ -1,0 +1,106 @@
+{
+  "timestamp": "2026-04-14T14:10:03.148403",
+  "c0_baseline": {
+    "b1_rank_correlation": 0.5646208529520682,
+    "b1_trend_consistency": 0.5862068965517241,
+    "b1_hhi_mae": 0.032160925152284164,
+    "b5_ticket_precision": 0.503448275862069,
+    "b5_target_stability": 0.2569444444444445,
+    "b5_false_intervention_rate": 0.0,
+    "b5_suppression_rate": 0.0
+  },
+  "ablations": [
+    {
+      "ablation_id": "A1",
+      "description": "Disable data-health gating (tau_data=0.0)",
+      "config_override": {
+        "tau_data": 0.0
+      },
+      "benchmarks_run": [
+        "B5"
+      ],
+      "b1_rank_correlation": NaN,
+      "b1_trend_consistency": NaN,
+      "b1_hhi_mae": NaN,
+      "b4_loss_mae": NaN,
+      "b4_overlap_at_10": NaN,
+      "b5_ticket_precision": 0.503448275862069,
+      "b5_target_stability": 0.2569444444444445,
+      "b5_false_intervention_rate": 0.0,
+      "b5_suppression_rate": 0.0,
+      "relative_drop": {
+        "b5_precision": 0.0,
+        "b5_stability": 0.0
+      }
+    },
+    {
+      "ablation_id": "A2",
+      "description": "Disable confidence-based intervention control (tau_conf=0.0)",
+      "config_override": {
+        "tau_conf": 0.0
+      },
+      "benchmarks_run": [
+        "B5"
+      ],
+      "b1_rank_correlation": NaN,
+      "b1_trend_consistency": NaN,
+      "b1_hhi_mae": NaN,
+      "b4_loss_mae": NaN,
+      "b4_overlap_at_10": NaN,
+      "b5_ticket_precision": 0.503448275862069,
+      "b5_target_stability": 0.2569444444444445,
+      "b5_false_intervention_rate": 0.4,
+      "b5_suppression_rate": 0.0,
+      "relative_drop": {
+        "b5_precision": 0.0,
+        "b5_fir": Infinity,
+        "b5_stability": 0.0
+      }
+    },
+    {
+      "ablation_id": "A3",
+      "description": "Skip scenario engine",
+      "config_override": {
+        "skip_scenario": true
+      },
+      "benchmarks_run": [],
+      "b1_rank_correlation": NaN,
+      "b1_trend_consistency": NaN,
+      "b1_hhi_mae": NaN,
+      "b4_loss_mae": NaN,
+      "b4_overlap_at_10": NaN,
+      "b5_ticket_precision": NaN,
+      "b5_target_stability": NaN,
+      "b5_false_intervention_rate": NaN,
+      "b5_suppression_rate": NaN,
+      "relative_drop": {}
+    },
+    {
+      "ablation_id": "A6",
+      "description": "Single-horizon forecasting (horizons=[4])",
+      "config_override": {
+        "horizons": [
+          4
+        ]
+      },
+      "benchmarks_run": [
+        "B1",
+        "B5"
+      ],
+      "b1_rank_correlation": 0.5646208529520682,
+      "b1_trend_consistency": 0.5862068965517241,
+      "b1_hhi_mae": 0.032160925234597335,
+      "b4_loss_mae": NaN,
+      "b4_overlap_at_10": NaN,
+      "b5_ticket_precision": 0.503448275862069,
+      "b5_target_stability": 0.2569444444444445,
+      "b5_false_intervention_rate": 0.0,
+      "b5_suppression_rate": 0.0,
+      "relative_drop": {
+        "b5_precision": 0.0,
+        "b5_stability": 0.0,
+        "b1_rank_corr": 0.0
+      }
+    }
+  ]
+}

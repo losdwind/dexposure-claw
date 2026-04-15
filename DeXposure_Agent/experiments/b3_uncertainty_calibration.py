@@ -35,6 +35,7 @@ TARGET_COVERAGE = 0.90  # nominal coverage of prediction intervals
 METRIC_IDS = list(METRIC_NAMES.keys())  # M1, M3, M4, M6, M7
 
 MC_NOISE_SIGMA_DEFAULT = 0.1  # fallback if calibration fails
+CONFORMAL_VAL_SPLIT = "2024-07~2024-12"  # validation period for conformal calibration
 
 
 @dataclass
@@ -197,6 +198,105 @@ def _compute_crps_sample(samples: np.ndarray, actual: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Conformal calibration
+# ---------------------------------------------------------------------------
+
+
+def _conformal_calibrate(
+    loader: SnapshotLoader,
+    method_id: str,
+    mc_sigma: float,
+    mc_count: int,
+    target_coverage: float,
+    horizon: int = 1,
+    rng: np.random.Generator | None = None,
+) -> float:
+    """Compute conformal correction factor on the validation set.
+
+    For each validation snapshot, generates MC-based PIs and records the
+    nonconformity score (max residual relative to PI bounds).  Returns the
+    (1-alpha) quantile of these scores, which is added to PI bounds at
+    test time to guarantee asymptotic coverage.
+
+    Returns:
+        Conformal margin to add to each side of the PI (in metric units).
+    """
+    from experiments.predict_helper import predict_graph
+
+    if rng is None:
+        rng = np.random.default_rng(seed=123)
+
+    val_snapshots = loader.load(date_range=CONFORMAL_VAL_SPLIT)
+    all_dates = loader.dates
+    alpha = 1.0 - target_coverage
+    alpha_lo = alpha / 2.0
+    alpha_hi = 1.0 - alpha_lo
+
+    if len(val_snapshots) < 3:
+        logger.warning("Conformal calibration: too few val snapshots, returning 0.0")
+        return 0.0
+
+    nonconformity_scores: list[float] = []
+
+    for snap_t in val_snapshots:
+        t_idx = all_dates.index(snap_t.date) if snap_t.date in all_dates else -1
+        if t_idx < 0:
+            continue
+        future_idx = t_idx + horizon
+        if future_idx >= len(all_dates):
+            continue
+        future_date = all_dates[future_idx]
+
+        try:
+            gt_graph = loader.load_single(future_date)
+        except (KeyError, IndexError):
+            continue
+
+        pred_graph = predict_graph(method_id, snap_t, horizon=horizon)
+        mc_samples = _generate_mc_samples(pred_graph, mc_count, sigma=mc_sigma, rng=rng)
+
+        gt_metrics = compute_metrics(gt_graph)
+
+        sample_metrics: dict[str, list[float]] = {mid: [] for mid in METRIC_IDS}
+        for sample in mc_samples:
+            sm = compute_metrics(sample)
+            for mid in METRIC_IDS:
+                sample_metrics[mid].append(sm.get(mid, 0.0))
+
+        for mid in METRIC_IDS:
+            actual_val = gt_metrics.get(mid, 0.0)
+            samples_arr = np.array(sample_metrics[mid])
+            if len(samples_arr) == 0:
+                continue
+
+            lo = float(np.quantile(samples_arr, alpha_lo))
+            hi = float(np.quantile(samples_arr, alpha_hi))
+
+            # Nonconformity: how far outside the PI is the actual value
+            if actual_val < lo:
+                nonconformity_scores.append(lo - actual_val)
+            elif actual_val > hi:
+                nonconformity_scores.append(actual_val - hi)
+            else:
+                nonconformity_scores.append(0.0)
+
+    if not nonconformity_scores:
+        logger.warning("Conformal calibration: no scores computed, returning 0.0")
+        return 0.0
+
+    # The conformal quantile: (1 - alpha)(1 + 1/n) quantile of scores
+    n = len(nonconformity_scores)
+    q_level = min(1.0, (1.0 - alpha) * (1.0 + 1.0 / n))
+    margin = float(np.quantile(nonconformity_scores, q_level))
+
+    logger.info(
+        f"Conformal calibration: {n} scores, "
+        f"q_level={q_level:.3f}, margin={margin:.6f}"
+    )
+    return margin
+
+
+# ---------------------------------------------------------------------------
 # Main benchmark
 # ---------------------------------------------------------------------------
 
@@ -255,6 +355,14 @@ def run_b3(
     mc_sigma = _calibrate_mc_sigma(loader, test_split, horizon=horizon)
     log.info(f"B3: calibrated MC sigma = {mc_sigma:.4f}")
 
+    # Conformal calibration on validation set
+    conformal_margin = _conformal_calibrate(
+        loader, method_id, mc_sigma, mc_count,
+        target_coverage, horizon=horizon,
+        rng=np.random.default_rng(seed=123),
+    )
+    log.info(f"B3: conformal margin = {conformal_margin:.6f}")
+
     # --- Accumulators ---
     all_coverages: list[bool] = []       # was actual inside PI?
     all_pi_widths: list[float] = []      # width of PI
@@ -312,9 +420,9 @@ def run_b3(
             if len(samples_arr) == 0:
                 continue
 
-            # 90% prediction interval from MC quantiles
-            lo = float(np.quantile(samples_arr, alpha_lo))
-            hi = float(np.quantile(samples_arr, alpha_hi))
+            # 90% prediction interval from MC quantiles + conformal margin
+            lo = float(np.quantile(samples_arr, alpha_lo)) - conformal_margin
+            hi = float(np.quantile(samples_arr, alpha_hi)) + conformal_margin
 
             inside = lo <= actual_val <= hi
             width = hi - lo

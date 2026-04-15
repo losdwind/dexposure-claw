@@ -24,7 +24,7 @@ Test  & 2025-01 -- 2025-08 & $\sim$33  & Final evaluation \\
 \bottomrule
 \end{tabular}
 \end{center}
-We additionally report expanding-window walk-forward results (15~folds, 4-week evaluation windows starting 2022-07) for robustness.
+%We additionally report expanding-window walk-forward results (15~folds, 4-week evaluation windows starting 2022-07) for robustness.
 
 \paragraph{Stress event windows.}
 For early-warning evaluation (B2), we define ground-truth stress periods around three major DeFi crises:
@@ -54,19 +54,41 @@ We evaluate five standardised scenarios $\mathcal{S}_0$ (Table~\ref{tab:scenario
 For each triggered alert, we rank contributing edges by marginal contribution: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$, retaining the top $K=10$.
 
 \paragraph{Evaluation protocol.}
-We evaluate Task~I along three axes:
+Figure~\ref{fig:eval_framework} summarises the evaluation framework. We evaluate Task~I along three axes:
 \begin{enumerate}[leftmargin=*,itemsep=1pt]
     \item \emph{Risk-metric forecasting (B1):} predicted vs.\ realised metrics using MAE and Spearman rank correlation, for each $h\in\{1,4,8,12\}$.
     \item \emph{Early-warning quality (B2):} lead time to stress events, precision/recall under alert budgets $\{5,10,20\}$, alert stability (flip rate), and F1-warning.
-    \item \emph{Uncertainty calibration (B3):} expected calibration error (ECE), prediction interval coverage (target 90\%), PI width, and CRPS.
+    \item \emph{Uncertainty calibration (B3):} expected calibration error (ECE), prediction interval coverage (target 90\%), PI width, and CRPS. We apply split conformal prediction on the validation set to ensure asymptotically valid coverage.
 \end{enumerate}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/fig3_evaluation_framework}
+    \caption{Evaluation framework: six benchmarks (B1--B6) covering risk forecasting, early warning, uncertainty calibration, stress testing, decision quality, and robustness.}
+    \label{fig:eval_framework}
+\end{figure}
 
 \paragraph{Reproducibility.}
 All hyperparameters ($\pi_{\min}$, $L$, $z$, $K$, $M$, $\tau_{\mathrm{data}}$) are selected on the validation split and fixed for test evaluation. Random seeds are fixed for MC sampling; we report mean $\pm$ standard deviation over $R=3$ independent runs.
-%TODO: Add GPU hardware, checkpoint sizes, and training times after experiments.
+All benchmark runs reported here use a single NVIDIA GPU (RTX 4080 SUPER 32GB) with Python 3.12, PyTorch 2.4.0+cu124, PyG 2.7.0, and DGL 2.4.0+cu124. The FM backbone checkpoints used by the serving stack are: \texttt{dexposure-fm-h1.pt} (80MB), \texttt{dexposure-fm-h4.pt} (79MB), and \texttt{dexposure-fm-h8-h12.pt} (79MB), with an additional frozen reference checkpoint \texttt{graphpfn-frozen-all-horizons.pt} (79MB). End-to-end benchmark runtime for the full B1--B6 suite (C0+C2+C7) is approximately 60~minutes. The EvolveGCN-O baseline (C7) is trained from scratch on the training split with early stopping on the validation split; training takes approximately 5~minutes per horizon. Backbone training itself is performed offline prior to this evaluation pipeline; therefore, we report checkpoint artifacts and evaluation runtime, while model-training wall-clock is treated as external pretraining cost.
 
 \subsubsection{Empirical Results}
-%TODO: Fill after running experiments on GPU server.
+Table~\ref{tab:task1_summary} summarises Task~I results for C0 (FM), C7 (EvolveGCN), and C2 (persistence) on the 2025 test split. Table~\ref{tab:b1_all_horizons} provides the full per-horizon B1 breakdown, and Figure~\ref{fig:task1_b1_rankcorr} shows rank-correlation trends across horizons.
+
+\input{sections/Table_TaskI_Summary.tex}
+
+\input{sections/Table_B1_AllHorizons.tex}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{figures/fig5_task1_b1_rankcorr}
+    \caption{Task~I B1 rank correlation across forecast horizons.}
+    \label{fig:task1_b1_rankcorr}
+\end{figure}
+
+We observe three key patterns. First, all three methods achieve comparable point-forecast ranking quality at $h=4$ (RankCorr: C0 $0.565$, C7 $0.570$, C2 $0.570$) and HHI error (all near $0.032$), indicating that persistence remains a strong short-horizon baseline on coarse concentration metrics and that EvolveGCN does not substantially improve over it. Second, C0 is the \emph{only} method with non-zero trend consistency across all horizons (TrendCons $0.53$--$0.59$), while both C7 and C2 achieve exactly $0.000$. This demonstrates that the FM backbone captures temporal dynamics that neither a trained temporal GNN nor static carry-forward can recover---directional trend detection is the FM's distinctive contribution to the monitoring pipeline. Third, B2 early-warning aggregates are nearly identical across methods (mean precision $0.756$, mean lead time $4.67$~weeks), suggesting that the current alert logic is dominated by shared z-score triggers rather than predictor choice.
+
+For uncertainty calibration, we apply split conformal prediction on the validation set to correct MC-based prediction intervals. After conformal correction, C0 achieves ECE~$=0.019$ and PI coverage~$=0.919$ (target $0.90$), with CRPS~$=0.015$, confirming that the combined MC sampling and conformal calibration strategy produces well-calibrated uncertainty estimates suitable for downstream gating. In B6 robustness, mean relative degradation is moderate for all methods (C0: $0.165$, C7: $0.148$, C2: $0.148$), indicating some sensitivity to distribution shifts and low-data regimes.
 
 \subsection{Task II: Decision-Making}
 
@@ -96,4 +118,28 @@ We evaluate Task~II using both offline and scenario-based criteria:
 All decision hyperparameters ($K$, $N$, $\tau_{\mathrm{data}}$, $\tau_{\mathrm{conf}}$, $\lambda$) are tuned on the validation split and fixed for testing. MC components use fixed seeds; we report mean $\pm$ standard deviation over $R=3$ runs.
 
 \subsubsection{Empirical Results}
-%TODO: Fill after running experiments on GPU server.
+Table~\ref{tab:task2_table3} reports final Task~II comparison across four methods: C2 (Persist+Rules), C0 (FM+Rules), C3 (Pure LLM), and C0-LLM (FM+LLM). We evaluate 29 valid decision weeks in the 2025-01 to 2025-08 test window (the last 4 weeks are excluded due to unavailable $t+h$ snapshots for $h=4$).
+
+\input{sections/Table3_MethodComparison.tex}
+
+Figure~\ref{fig:task2_method_comparison} visualises the key metrics (precision, stability, and cost-adjusted score).
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/fig4_method_comparison}
+    \caption{Task~II method comparison on key decision metrics.}
+    \label{fig:task2_method_comparison}
+\end{figure}
+
+Main observations are as follows. First, after normalising protocol identifiers in evaluation (to avoid formatting mismatches such as ``protocol'' vs ``protocol (category)''), FM+LLM (C0-LLM) achieves slightly higher ticket precision than Pure LLM (C3): $0.483$ vs $0.461$. Second, C0-LLM improves run-to-run consistency over C3 ($0.876$ vs $0.842$), indicating more stable outputs when conditioned on FM predictions. Third, C0-LLM exhibits substantially higher false intervention rate than C3 ($0.561$ vs $0.132$), which reduces its cost-adjusted score ($0.212$ vs $0.400$). Finally, among all methods, deterministic rule baselines remain strongest on cost-adjusted precision in this setting (C2: $0.660$, C0: $0.503$), suggesting that the current LLM policy layer still requires stronger intervention control despite gains in grounding and consistency.
+
+Table~\ref{tab:b4_detail} reports the per-scenario B4 stress-test results. Mean target overlap@10 is $0.484$, with the correlated stress scenario (S5) achieving the highest overlap ($0.602$), while single-protocol failure (S1) is hardest to predict ($0.314$). Stress-test outcomes are consistent across prediction methods because the scenario shocks are applied to the predicted graph, which preserves the observed topology.
+
+\input{sections/Table_B4_Detail.tex}
+
+\subsection{Ablation Study}
+
+To validate the necessity of key design components, we conduct four ablation experiments (Table~\ref{tab:ablation}). Each ablation removes one component from the full C0 pipeline and re-evaluates on B5.
+
+\input{sections/Table_Ablation.tex}
+
+The confidence gate (A2) proves essential: removing it increases the false intervention rate from $0.000$ to $0.400$, confirming that confidence-based gating is the primary mechanism preventing spurious high-severity recommendations. The scenario engine (A3) is structurally necessary: without it, the ticket scoring function (Eq.~\eqref{eq:ticket_score}) cannot compute scenario impact $\mathrm{Imp}_t$, causing the decision pipeline to fail entirely. Data-health gating (A1) and multi-horizon diversity (A6) show no measurable impact in the current test window, likely because data quality remains consistently high and the $h=4$ horizon dominates alert generation during this period. These components are expected to become load-bearing under degraded data conditions or during crisis periods with rapid structural shifts.

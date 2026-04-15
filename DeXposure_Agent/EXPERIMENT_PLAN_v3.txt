@@ -1,0 +1,216 @@
+EXPERIMENT PLAN v3 -- DeXposure-Agent 补充实验方案
+=====================================================================
+生成日期: 2026-04-14
+目标: 补全论文缺失的实验数据 (B3修复 + GNN基线 + 4个消融 + 缺失表格)
+
+=====================================================================
+PHASE 0: B3 不确定性校准修复 [最高优先级]
+=====================================================================
+
+问题诊断:
+- 当前 ECE=0.756 (应接近0), PI覆盖率=0.144 (目标0.90)
+- 根因: B3的MC采样 (_generate_mc_samples) 使用 N(0, sigma*w) 加噪
+  其中 sigma 由 _calibrate_mc_sigma 从训练数据计算
+- sigma 的计算方法: std(相邻周边权重相对变化) * sqrt(horizon)
+- 但问题在于: sigma 只衡量了边权重的变化,
+  没有衡量 *指标层面* 的变化 (M1,M3,M4,M6,M7)
+- 边权重的小变化经过 PageRank/HHI/Gini 非线性映射后被放大,
+  导致指标层面的PI过窄
+
+修复方案 (两步):
+
+步骤 A: 指标级 sigma 校准
+  修改 b3_uncertainty_calibration.py:
+  - 不再只校准边权重sigma, 而是直接校准指标层面的变化幅度
+  - 新方法: 对训练数据中每周的5个指标计算周间变化的std
+  - 用这个指标级std来缩放MC噪声sigma
+
+  具体实现:
+  1. 在 _calibrate_mc_sigma 之后, 新增 _calibrate_metric_sigma():
+     - 遍历训练期最近52周
+     - 每周计算5个指标 M1,M3,M4,M6,M7
+     - 计算指标周间变化的std
+     - 如果 metric_std > edge_std * 3, 则放大 sigma 使PI更宽
+  2. 或者更直接: 用 "conformalized quantile" 方法
+     - 在验证集上计算残差分位数
+     - 用验证集残差来校正PI宽度
+
+  推荐方案: Conformal Prediction (最简单可靠)
+  - 在验证集上跑MC采样 -> 计算PI -> 记录残差
+  - 用残差的 (1-alpha) 分位数来扩展PI
+  - 保证覆盖率渐近正确
+
+步骤 B: 修改代码
+  文件: DeXposure_Agent/experiments/b3_uncertainty_calibration.py
+  修改:
+  1. 新增 _conformal_calibrate() 函数
+  2. 在 run_b3() 中先在验证集上计算 conformal score
+  3. 用 conformal score 扩展测试集的PI
+
+预计效果: PI覆盖率应接近 0.90, ECE应降至 <0.10
+
+运行位置: GPU server (需要FM预测)
+预计时间: ~10 分钟 (B3本身只需跑1个horizon)
+
+=====================================================================
+PHASE 1: EvolveGCN 基线 (C7) [高优先级]
+=====================================================================
+
+为什么选 EvolveGCN:
+- 最知名的时序图神经网络之一 (Pareja et al., KDD 2020)
+- 代码已开源 (torch_geometric_temporal 有实现)
+- 直接处理动态图序列,和我们的setting最匹配
+- 桩代码已经在 baselines.py 中准备好了
+
+实现方案:
+
+步骤 A: 安装依赖 (GPU server)
+  pip install torch-geometric-temporal  # 依赖PyG, 已装
+
+步骤 B: 实现 C7 预测器
+  文件: DeXposure_Agent/experiments/competitors/evolvegcn.py (新建)
+
+  架构:
+  - EvolveGCN-O variant (ODE-based, 更稳定)
+  - 输入: 最近 W=26 周的图序列
+  - 输出: 下一周的边权重预测
+  - 训练: 在 train+val 数据上端到端训练
+  - 推理: 输入测试期图序列, 输出预测图
+
+  训练策略:
+  - 滑动窗口 W=26 周作为输入序列
+  - 预测 h={1,4,8,12} 周后的边权重
+  - 每个horizon训练一个模型 (或一个模型多head)
+  - 训练100 epochs, 验证集早停
+  - 保存checkpoint到 checkpoints/evolvegcn/
+
+步骤 C: 集成到 predict_helper.py
+  - 新增 C7 路由: 加载EvolveGCN checkpoint -> predict
+  - 返回 GraphSnapshot 格式 (与C0/C2一致)
+
+步骤 D: 运行 B1, B4, B6
+  - B1: 风险指标预测 (MAE + Spearman) 所有horizon
+  - B4: 压力测试准确度
+  - B6: 鲁棒性 (5个退化场景)
+  - 注意: C7 不产生决策, 所以不跑 B2, B3, B5
+
+运行位置: GPU server
+预计时间: 训练 ~30-60 分钟, 评估 ~15 分钟
+
+=====================================================================
+PHASE 2: 消融实验 (4个核心消融) [高优先级]
+=====================================================================
+
+从论文声称的4个核心设计选择中各做一个消融:
+
+| ID | 消融内容 | 配置覆盖 | 评估基准 |
+|----|---------|---------|---------|
+| A1 | 去数据健康门控 | tau_data=0.0 | B5 (FIR应上升) |
+| A2 | 去置信度门控 | tau_conf=0.0 | B5 (FIR应上升) |
+| A3 | 去压力测试引擎 | skip_scenario=True | B4, B5 (精度应下降) |
+| A6 | 单一时域(h=4) | horizons=[4] | B1, B5 (覆盖应下降) |
+
+实现方案:
+
+步骤 A: 实现 ablations.py 的 run_ablation()
+  当前状态: 框架在, 但 run_ablation() 是 NotImplementedError
+  需要做:
+  1. 构建带覆盖配置的 AgentConfig
+  2. 对 A1/A2: 直接修改config参数, 跑 B5
+  3. 对 A3: 需要在 agent_loop.py 加 skip_scenario 支持
+  4. 对 A6: 直接修改 horizons 列表, 跑 B1+B5
+  5. 计算相对于C0基线的性能下降
+
+步骤 B: 在 config.py 中新增字段
+  - skip_scenario: bool = False  # A3 需要
+  - unconstrained_actions: bool = False  # A8 需要 (暂不跑)
+
+步骤 C: 在 agent_loop.py 中添加 skip_scenario 分支
+  - if config.skip_scenario: 跳过场景引擎, scenario_summary=空
+
+步骤 D: 新建运行脚本
+  文件: DeXposure_Agent/scripts/run_ablations.py
+  - 先跑 C0 基线获取参考指标
+  - 依次跑 A1, A2, A3, A6
+  - 每个消融跑对应的benchmark
+  - 汇总结果到 ablation_summary.json
+
+运行位置: GPU server (消融需要FM)
+预计时间: ~30 分钟 (每个消融约B5 11min, 但部分可并行)
+
+=====================================================================
+PHASE 3: 补全缺失的实验表格和图 [中优先级]
+=====================================================================
+
+当前缺失 -> 需要生成:
+
+3.1 B1 全时域表格
+  现有: 只报告了 h=4
+  需要: h=1, h=4, h=8, h=12 的完整表格
+  数据来源: 现有结果JSON中应该已有 (B1跑了所有horizon)
+  操作: 写脚本从 results/ 中提取并生成LaTeX表格
+
+3.2 B2 各事件分项表格
+  需要: Terra/Luna, FTX, SVB 各自的 precision/recall/lead time
+  数据来源: B2结果JSON (按事件分组)
+  操作: 从结果中提取并生成表格
+
+3.3 B4 压力测试详细表格
+  需要: S1-S5 各场景的 loss MAE, distressed count, overlap@K
+  数据来源: B4结果JSON
+  操作: 从结果中提取并生成表格
+
+3.4 B6 各退化场景分项表格
+  需要: low_data_10%, low_data_25%, partial_graph_30%,
+         noisy_features, missing_features 分项数据
+  数据来源: B6结果JSON
+  操作: 从结果中提取并生成表格
+
+3.5 消融结果表格
+  需要: A1,A2,A3,A6 的指标 + 相对于C0的下降
+  数据来源: Phase 2 输出
+  操作: 生成 Table_Ablation.tex
+
+3.6 引用 fig1 和 fig3
+  需要: 在 Alg.tex 或 Intro.tex 中添加 \includegraphics
+  操作: 纯LaTeX编辑
+
+=====================================================================
+GPU SERVER 执行顺序 (一次性规划)
+=====================================================================
+
+为了最大化GPU利用率, 按以下顺序在GPU server上连续执行:
+
+  [Step 1] 同步代码到GPU server
+  [Step 2] Phase 1: 训练 EvolveGCN (C7) -- ~60 min
+  [Step 3] Phase 1: C7 评估 B1+B4+B6 -- ~15 min
+  [Step 4] Phase 0: 修复B3 + 重跑B3 -- ~10 min
+  [Step 5] Phase 2: 运行4个消融 -- ~30 min
+  [Step 6] 拉取所有结果到本地
+  [Step 7] Phase 3: 生成所有表格 (本地)
+
+总GPU时间: ~115 分钟 (约2小时)
+本地工作: Phase 3 表格生成 (可在GPU跑的同时做)
+
+=====================================================================
+需要修改/新建的文件清单
+=====================================================================
+
+修改:
+  - dexposure_agent/config.py          -- 新增 skip_scenario 字段
+  - dexposure_agent/agent_loop.py      -- skip_scenario 分支逻辑
+  - experiments/ablations.py           -- 实现 run_ablation()
+  - experiments/predict_helper.py      -- 新增 C7 路由
+  - experiments/b3_uncertainty_calibration.py -- conformal PI 修复
+  - sections/Alg.tex                   -- 引用 fig1
+  - sections/Exp.tex                   -- 新增表格/图引用
+
+新建:
+  - experiments/competitors/evolvegcn.py -- EvolveGCN 实现
+  - scripts/run_ablations.py           -- 消融运行脚本
+  - scripts/build_all_tables.py        -- 表格生成脚本
+  - sections/Table_B1_AllHorizons.tex  -- B1全时域表
+  - sections/Table_B2_PerEvent.tex     -- B2各事件表
+  - sections/Table_B4_Detail.tex       -- B4压力测试详表
+  - sections/Table_B6_Detail.tex       -- B6鲁棒性分项表
+  - sections/Table_Ablation.tex        -- 消融结果表

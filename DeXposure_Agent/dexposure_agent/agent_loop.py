@@ -160,8 +160,9 @@ async def run_epoch(
         logger.debug("Horizon h=%d: %d alert(s) generated", h, len(monitor_result.alerts))
 
         # Step 2e: Scenario engine — stress tests S1-S5
-        scenario_result = run_scenarios(g_hat, samples, config, horizon=h)
-        all_scenario_losses.extend(scenario_result.ranked_losses)
+        if not config.skip_scenario:
+            scenario_result = run_scenarios(g_hat, samples, config, horizon=h)
+            all_scenario_losses.extend(scenario_result.ranked_losses)
 
     # Step 3: Aggregate scenario losses across all horizons
     scenario_summary = _aggregate_scenarios(all_scenario_losses)

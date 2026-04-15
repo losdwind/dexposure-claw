@@ -1,0 +1,31 @@
+% Updated with supplementary experiment results (run_20260414)
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Metric (Task I) & C0 (FM) & C7 (EvolveGCN) & C2 (Persistence) \\
+\midrule
+\multicolumn{4}{l}{\emph{B1: Risk-Metric Forecasting}} \\
+RankCorr@h4 & 0.565 & 0.570 & 0.570 \\
+TrendCons@h4 & \textbf{0.586} & 0.000 & 0.000 \\
+HHI-MAE@h4 $\downarrow$ & 0.032 & 0.032 & 0.032 \\
+\midrule
+\multicolumn{4}{l}{\emph{B2: Early Warning}} \\
+Precision (mean) & 0.756 & --- & 0.756 \\
+F1-warning (mean) & 0.007 & --- & 0.007 \\
+Lead time (weeks) & 4.67 & --- & 4.67 \\
+\midrule
+\multicolumn{4}{l}{\emph{B3: Uncertainty Calibration (conformal)}} \\
+ECE $\downarrow$ & \textbf{0.019} & --- & --- \\
+PI coverage (target 0.90) & \textbf{0.919} & --- & --- \\
+PI width $\downarrow$ & 0.170 & --- & --- \\
+CRPS $\downarrow$ & \textbf{0.015} & --- & --- \\
+\midrule
+\multicolumn{4}{l}{\emph{B6: Robustness}} \\
+Mean relative degradation $\downarrow$ & 0.165 & 0.148 & 0.148 \\
+\bottomrule
+\end{tabular}
+\caption{Task~I monitoring quality summary on the 2025 test split. C0 uses the DeXposure-FM backbone; C7 is EvolveGCN-O trained from scratch; C2 is persistence ($G_{t+h}=G_t$). B3 applies split conformal prediction on the validation set for calibrated prediction intervals. Arrows ($\downarrow$) indicate lower is better.}
+\label{tab:task1_summary}
+\end{table}

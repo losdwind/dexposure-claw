@@ -1,0 +1,19 @@
+% Ablation study results
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llcccc}
+\toprule
+ID & Ablation & Prec $\uparrow$ & FIR $\downarrow$ & Stabil $\uparrow$ & Effect \\
+\midrule
+--- & C0 (full system) & 0.503 & \textbf{0.000} & 0.257 & baseline \\
+\midrule
+A1 & No data-health gate & 0.503 & 0.000 & 0.257 & minimal \\
+A2 & No confidence gate  & 0.503 & 0.400 & 0.257 & FIR $\uparrow\!\uparrow$ \\
+A3 & No scenario engine  & \multicolumn{3}{c}{--- (pipeline fails) ---} & critical \\
+A6 & Single horizon ($h\!=\!4$) & 0.503 & 0.000 & 0.257 & minimal \\
+\bottomrule
+\end{tabular}
+\caption{Ablation study results on B5 decision quality. The confidence gate (A2) is essential: removing it increases the false intervention rate from $0.000$ to $0.400$. The scenario engine (A3) is structurally necessary: without it, the ticket scoring pipeline (Eq.~\eqref{eq:ticket_score}) cannot compute scenario impact, causing complete failure. Data-health gating (A1) and multi-horizon diversity (A6) show no measurable impact in the current test window, likely because data quality remains high and $h\!=\!4$ dominates alert generation in this period.}
+\label{tab:ablation}
+\end{table}

@@ -107,30 +107,32 @@ def generate_tickets(
         requires_safe_off: bool = rules["requires_safe_off"]
         min_alerts: int = rules["min_alerts"]
 
-        # Eq. 7 constraint (i): safe_mode blocks intervention actions
-        if requires_safe_off and data_health.safe_mode:
-            logger.debug("Action %s blocked: safe_mode=True", action)
-            continue
+        # Skip all gating constraints when running ablation A8
+        if not config.unconstrained_actions:
+            # Eq. 7 constraint (i): safe_mode blocks intervention actions
+            if requires_safe_off and data_health.safe_mode:
+                logger.debug("Action %s blocked: safe_mode=True", action)
+                continue
 
-        # Eq. 7 constraint (ii): minimum alert count
-        if num_alerts < min_alerts:
-            logger.debug(
-                "Action %s blocked: num_alerts=%d < min_alerts=%d",
-                action,
-                num_alerts,
-                min_alerts,
-            )
-            continue
+            # Eq. 7 constraint (ii): minimum alert count
+            if num_alerts < min_alerts:
+                logger.debug(
+                    "Action %s blocked: num_alerts=%d < min_alerts=%d",
+                    action,
+                    num_alerts,
+                    min_alerts,
+                )
+                continue
 
-        # Eq. 7 constraint (iii): confidence gate for intervention actions
-        if requires_safe_off and mean_confidence < config.tau_conf:
-            logger.debug(
-                "Action %s blocked: mean_confidence=%.3f < tau_conf=%.3f",
-                action,
-                mean_confidence,
-                config.tau_conf,
-            )
-            continue
+            # Eq. 7 constraint (iii): confidence gate for intervention actions
+            if requires_safe_off and mean_confidence < config.tau_conf:
+                logger.debug(
+                    "Action %s blocked: mean_confidence=%.3f < tau_conf=%.3f",
+                    action,
+                    mean_confidence,
+                    config.tau_conf,
+                )
+                continue
 
         # Score = severity_weight * mean_confidence * scenario_impact
         severity_weight = SEVERITY_WEIGHTS[severity]

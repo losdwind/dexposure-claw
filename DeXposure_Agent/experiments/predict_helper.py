@@ -20,6 +20,7 @@ from dexposure_agent.types import GraphSnapshot
 logger = logging.getLogger(__name__)
 
 _FM_PREDICTOR = None
+_EVOLVEGCN_PREDICTOR = None
 
 
 def _get_fm():
@@ -38,6 +39,22 @@ def _get_fm():
     return _FM_PREDICTOR
 
 
+def _get_evolvegcn():
+    global _EVOLVEGCN_PREDICTOR
+    if _EVOLVEGCN_PREDICTOR is None:
+        try:
+            from experiments.competitors.evolvegcn import EvolveGCNPredictor
+            _EVOLVEGCN_PREDICTOR = EvolveGCNPredictor()
+            if _EVOLVEGCN_PREDICTOR.available:
+                logger.info("EvolveGCN predictor ready")
+            else:
+                logger.warning("EvolveGCN predictor: no checkpoints found")
+        except Exception as e:
+            logger.warning("EvolveGCN predictor init failed: %s", e)
+            _EVOLVEGCN_PREDICTOR = None
+    return _EVOLVEGCN_PREDICTOR
+
+
 def predict_graph(
     method_id: str,
     current_snapshot: GraphSnapshot,
@@ -45,7 +62,7 @@ def predict_graph(
 ) -> GraphSnapshot:
     """Generate predicted graph G_{t+h} for any method.
 
-    Returns a NEW GraphSnapshot for FM methods, or the same object for persistence.
+    Returns a NEW GraphSnapshot for FM/GNN methods, or the same object for persistence.
     Use `is` check to determine if prediction differs from input.
     """
     # C2: persistence baseline
@@ -58,6 +75,14 @@ def predict_graph(
         if fm is not None and fm.available:
             return fm.predict(current_snapshot, horizon)
         logger.debug("FM not available for %s, using persistence", method_id)
+        return current_snapshot
+
+    # C7: EvolveGCN
+    if method_id == "C7":
+        egcn = _get_evolvegcn()
+        if egcn is not None and egcn.available:
+            return egcn.predict(current_snapshot, horizon)
+        logger.debug("EvolveGCN not available, using persistence")
         return current_snapshot
 
     # All others: persistence proxy

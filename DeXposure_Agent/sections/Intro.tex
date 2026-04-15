@@ -9,13 +9,13 @@ This paper addresses that bottleneck by building an agentic system around a stro
 
 Our contributions are:
 \begin{enumerate}[leftmargin=*, itemsep=2pt]
-    \item \textbf{First agentic system for DeFi exposure-network risk.} We design and implement \textsc{DeXposure-Agent}, to our knowledge the first end-to-end agent that combines a graph time-series foundation model backbone with multi-horizon monitoring, scenario stress testing, and conservative decision recommendation---all with explicit safety gating and uncertainty quantification.
+    \item \textbf{First foundation-model-backed agentic system for DeFi exposure-network risk.} We design and implement \textsc{DeXposure-Agent}, to our knowledge the first end-to-end agent that integrates a graph time-series foundation model backbone with multi-horizon monitoring, scenario stress testing, and conservative decision recommendation---all with explicit safety gating and uncertainty quantification. While prior agentic work in DeFi targets transaction verification~\cite{yao2025arbiter} or intent mining~\cite{mao2025knowyourintent}, and graph-based foundation models for risk have been explored only in traditional finance~\cite{li2025hgmae}, no existing system unifies these capabilities for DeFi exposure networks.
 
     \item \textbf{Concrete, reproducible pipeline.} Unlike LLM-based or heuristic agents, every component of our system is deterministic and auditable: five network risk metrics with rolling baselines, five standardised stress scenarios with CVaR aggregation, and a four-level playbook with data-health and confidence gates. The full pipeline is open-sourced.
 
-    \item \textbf{Comprehensive evaluation across six benchmarks.} We evaluate on risk metric forecasting (B1), early warning quality (B2), uncertainty calibration (B3), stress-test accuracy (B4), decision quality (B5), and robustness under low-data and noisy regimes (B6), comparing against 10~competitor methods including temporal GNN baselines and agentic alternatives. %Results: [to be filled after experiments]
+    \item \textbf{Comprehensive evaluation across six benchmarks.} We evaluate on risk metric forecasting (B1), early warning quality (B2), uncertainty calibration (B3), stress-test accuracy (B4), decision quality (B5), and robustness under low-data and noisy regimes (B6), comparing the full agent pipeline against persistence, temporal GNN, pure-LLM, and rule-based baselines.
 
-    \item \textbf{Ablation-validated design.} Eight ablation studies (A1--A8) isolate the contribution of each component---data-health gating, confidence scoring, scenario engine, multi-horizon diversity, and Monte Carlo sampling---demonstrating that each is necessary for reliable operation.
+    \item \textbf{Ablation-validated design.} Targeted ablation studies isolate the contribution of each core design choice---data-health gating, confidence-based intervention control, the scenario stress engine, and multi-horizon diversity---demonstrating that each is necessary for reliable operation.
 \end{enumerate}
 
 An open-source implementation is available at \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}.

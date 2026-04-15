@@ -3,6 +3,15 @@
 
 This section specifies the agentic system built on \textsc{DeXposure-FM} for two tasks: network risk monitoring (Section~\ref{subsec:task_monitoring}--\ref{subsec:scenario_engine}) and decision recommendation (Section~\ref{subsec:decision_v1}).
 
+Figure~\ref{fig:system_overview} provides an architectural overview of the full system.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/fig1_system_overview}
+    \caption{System overview of DeXposure-Agent. The agent ingests weekly exposure snapshots, queries the DeXposure-FM backbone for multi-horizon forecasts, computes risk metrics and stress scenarios, and emits auditable recommendation tickets under data-health and confidence gates.}
+    \label{fig:system_overview}
+\end{figure}
+
 \subsection{System Interface}
 \label{subsec:system_interface}
 At each decision epoch $t$, the agent observes a credit-exposure snapshot $G_t=(V,E_t,W_t)$ and node covariates $X_t$, and interacts with \textsc{DeXposure-FM} through a single forecast primitive:

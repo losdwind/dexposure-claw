@@ -31,5 +31,9 @@ class AgentConfig(BaseModel):
     # Horizons
     horizons: list[int] = Field(default=[1, 4, 8, 12], description="Forecast horizons in weeks")
 
+    # Ablation toggles
+    skip_scenario: bool = Field(False, description="Skip scenario engine (ablation A3)")
+    unconstrained_actions: bool = Field(False, description="All actions always feasible (ablation A8)")
+
     # Server
     api_base_url: str = Field("http://localhost:8000", description="GPU server API base URL")
