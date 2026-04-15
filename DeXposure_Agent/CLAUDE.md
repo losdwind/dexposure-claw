@@ -35,16 +35,20 @@
     |       +-- call-api.py       #   Single API client (health/dates/predict/metrics/stress/batch)
     |
     |-- experiments/              # B1-B6 benchmark implementations
-    |   |                         # Runs on GPU server for paper experiments.
+    |   |                         # B1-B6 run on GPU server; llm_eval runs LOCALLY.
     |   |-- b1_risk_forecasting.py - b6_robustness.py
+    |   |-- llm_eval_b5.py        #   LLM evaluation pipeline (Layer 2+3, runs locally)
     |   |-- predict_helper.py     #   FM prediction router (C0=FM, C2=persistence)
-    |   |-- competitors/          #   Baseline methods (persistence, ROLAND, llm_agent stub)
+    |   |-- competitors/
+    |   |   |-- llm_agent.py      #   C3: Pure LLM competitor (no FM, calls Claude API)
+    |   |   +-- persistence.py    #   C2: Persistence baseline
     |   |-- exp_logger.py         #   Structured experiment logging
     |   +-- tune_agent.py         #   Hyperparameter tuning
     |
-    |-- scripts/                  # GPU server operations
+    |-- scripts/                  # GPU server operations + local LLM eval
     |   |-- run_benchmarks_sequential.py  # Run full B1-B6 suite (~40 min)
     |   |-- run_c0_only.py        #   Run C0-only benchmarks (~8 min)
+    |   |-- run_llm_eval.sh       #   Run LLM evaluation locally (Layer 2+3)
     |   |-- start_server.sh       #   Start FM API server
     |   +-- sync_and_serve.sh     #   Sync code from local + start server
     |
@@ -56,8 +60,68 @@
 Key principles:
 - dexposure_agent/ = GPU server only, no LLM SDK, pure FM + deterministic compute
 - plugin/ = Claude Code plugin, Claude Code itself is the LLM agent
-- experiments/ + scripts/ = paper benchmarks, run on GPU server
-- FM API (serve.py) is the bridge: GPU server hosts it, plugin/scripts/call-api.py calls it
+- experiments/ B1-B6 run on GPU server; llm_eval_b5.py runs LOCALLY
+- FM API (serve.py) is the bridge: GPU server hosts it, scripts call it via SSH tunnel
+
+## LLM Evaluation Pipeline (Layer 2 + Layer 3)
+
+Evaluates LLM decision quality for the paper's core claim: FM+LLM > FM+Rules > Pure LLM.
+Runs LOCALLY (not on GPU server). Calls FM API via SSH tunnel + Claude API directly.
+
+### Methods Compared
+
+| ID     | Name           | Prediction     | Decision   | Runs where |
+|--------|----------------|----------------|------------|------------|
+| C2     | Persist+Rules  | G_{t+h}=G_t   | Rule engine| GPU (B5)   |
+| C0     | FM+Rules       | FM backbone    | Rule engine| GPU (B5)   |
+| C3     | NoFM+LLM      | None (raw text)| Claude     | LOCAL      |
+| C0-LLM | FM+LLM        | FM backbone    | Claude     | LOCAL      |
+
+### Running
+
+    # 1. Ensure SSH tunnel + FM API running
+    ssh -f -N -L 8000:localhost:8000 gpu-server
+    curl localhost:8000/health
+
+    # 2. Export API key
+    export ANTHROPIC_API_KEY=sk-ant-...
+
+    # 3. Run (auto-sets up tunnel if needed)
+    bash DeXposure_Agent/scripts/run_llm_eval.sh
+
+    # Options:
+    bash DeXposure_Agent/scripts/run_llm_eval.sh --method C0-LLM  # single method
+    bash DeXposure_Agent/scripts/run_llm_eval.sh --resume          # resume from checkpoint
+    bash DeXposure_Agent/scripts/run_llm_eval.sh --no-judge        # skip explanation quality
+    bash DeXposure_Agent/scripts/run_llm_eval.sh --model claude-haiku-4-5  # cheaper model
+
+### Metrics
+
+Layer 2 (LLM reasoning quality):
+- Grounding Score: fraction of cited values traceable to input data
+- Consistency: Jaccard across 3 repeated runs (temperature=0)
+
+Layer 3 (end-to-end decision quality):
+- Ticket Precision: flagged protocols that were truly stressed (>20% weight drop)
+- Audit Completeness: truly stressed protocols that were flagged
+- Target Stability: Jaccard between consecutive weeks
+- Severity Correlation: Spearman rho between recommended severity vs actual loss
+- False Intervention Rate: high-severity tickets targeting stable protocols
+- Explanation Quality: LLM-as-Judge score (1-5)
+
+### Output
+
+Results go to results/llm_eval_{timestamp}/:
+- summary_C0-LLM.json, summary_C3.json: per-method aggregate metrics
+- raw_C0-LLM.json, raw_C3.json: full prompts + LLM responses for audit
+- comparison.json: side-by-side comparison table
+- checkpoint_*.json: for resume support
+- eval.log: detailed execution log
+
+### Cost Estimate
+
+~29 test weeks x 2 methods x 3 consistency runs x ~$0.03/call = ~$5-10 total
+LLM-as-Judge adds ~$0.50 (uses Haiku)
 
 ## Experiment SOP
 

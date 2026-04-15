@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sf http://localhost:8000/health)",
+      "Bash(python3 -c \"import anthropic; c = anthropic.Anthropic\\(\\); print\\('Anthropic SDK OK, key set:', bool\\(c.api_key\\)\\)\")",
+      "Bash(env)",
+      "Read(//home/figurich/.config/anthropic/**)",
+      "Read(//home/figurich/**)",
+      "Bash(python3)"
+    ]
+  }
+}

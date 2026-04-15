@@ -1,0 +1,56 @@
+{
+  "rows": [
+    {
+      "method_id": "C2",
+      "method_name": "Persist+Rules",
+      "ticket_precision": 0.66,
+      "audit_completeness": 0.0002,
+      "target_stability": 0.5139,
+      "severity_correlation": null,
+      "false_intervention_rate": 0.0,
+      "grounding_score": null,
+      "consistency": null,
+      "explanation_quality": null,
+      "cost_adjusted_score": 0.66
+    },
+    {
+      "method_id": "C0",
+      "method_name": "FM+Rules",
+      "ticket_precision": 0.5034,
+      "audit_completeness": 0.0004,
+      "target_stability": 0.2569,
+      "severity_correlation": null,
+      "false_intervention_rate": 0.0,
+      "grounding_score": null,
+      "consistency": null,
+      "explanation_quality": null,
+      "cost_adjusted_score": 0.5034
+    },
+    {
+      "method_id": "C3",
+      "method_name": "Pure LLM",
+      "ticket_precision": 0.4612,
+      "audit_completeness": 0.0007,
+      "target_stability": 0.5507,
+      "severity_correlation": 0.0635,
+      "false_intervention_rate": 0.1322,
+      "grounding_score": 1.0,
+      "consistency": 0.8418,
+      "explanation_quality": 2.0,
+      "cost_adjusted_score": 0.4002
+    },
+    {
+      "method_id": "C0-LLM",
+      "method_name": "FM+LLM",
+      "ticket_precision": 0.4833,
+      "audit_completeness": 0.0008,
+      "target_stability": 0.4757,
+      "severity_correlation": -0.0958,
+      "false_intervention_rate": 0.5615,
+      "grounding_score": 1.0,
+      "consistency": 0.8757,
+      "explanation_quality": 2.0,
+      "cost_adjusted_score": 0.2119
+    }
+  ]
+}

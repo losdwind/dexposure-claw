@@ -1,35 +1,38 @@
 #!/usr/bin/env python3
-"""C3: LLM-Agent competitor wrapper.
+"""C3: Pure LLM-Agent competitor (no FM backbone).
 
-Calls a large language model (Claude or GPT-4) with tabular risk metrics
-serialised as a structured prompt. The LLM is asked to produce:
-  - Protocol-level risk scores
-  - Recommended supervisory actions
+Calls Claude with a text-only description of the current DeFi network.
+No forward-looking FM predictions, no predicted graph, no scenario analysis
+on predicted graph. The LLM must reason from the raw current snapshot alone.
 
-Applicable to: B2, B5, B6 (not B1 -- too many numeric predictions;
-not B3 -- no calibrated uncertainty; not B4 -- no contagion simulation).
+Used by llm_eval_b5.py for the C3 vs C0-LLM comparison.
+Can also be called standalone for single-week analysis.
 
-Prompt design:
-  System: You are a DeFi systemic risk analyst ...
-  User:   Here is the current DeFi network state as of {date}: {tabular_metrics}
-          Predict which protocols are at elevated risk over the next {h} weeks ...
+Usage:
+    # Requires SSH tunnel: ssh -f -N -L 8000:localhost:8000 gpu-server
+    # Requires ANTHROPIC_API_KEY
+    python DeXposure_Agent/experiments/competitors/llm_agent.py --date 2025-03-03 --horizon 4
 """
 from __future__ import annotations
 
+import json
 import os
+import sys
+import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
 from loguru import logger
 
 
 @dataclass
 class LLMAgentConfig:
-    model: str = "claude-opus-4-5"          # or "gpt-4o"
+    model: str = "claude-sonnet-4-6"
     horizon: int = 4
-    max_tokens: int = 2048
-    temperature: float = 0.0                # greedy for reproducibility
-    api_key_env: str = "ANTHROPIC_API_KEY"  # env var name
-    prompt_template: Optional[str] = None   # override default prompt
+    max_tokens: int = 4096
+    temperature: float = 0.0
+    api_key_env: str = "ANTHROPIC_API_KEY"
 
 
 @dataclass
@@ -37,108 +40,219 @@ class LLMAgentPrediction:
     """Output format shared across all agent-level competitors."""
     method_id: str = "C3"
     horizon: int = 4
-    pagerank_pred: dict[str, float] = field(default_factory=dict)
-    hhi_pred: float = float("nan")
-    density_pred: float = float("nan")
-    gini_pred: float = float("nan")
+    risk_level: str = ""
     risk_scores: dict[str, float] = field(default_factory=dict)
-    uncertainty: dict[str, float] = field(default_factory=dict)
     recommended_actions: list[dict[str, Any]] = field(default_factory=list)
-    raw_response: Optional[str] = None      # LLM completion for audit
-
-    def __str__(self) -> str:
-        return (
-            f"LLMAgentPrediction(model={self.method_id}, h={self.horizon}, "
-            f"n_protocols={len(self.risk_scores)}, "
-            f"n_actions={len(self.recommended_actions)})"
-        )
+    rationale: str = ""
+    raw_response: Optional[str] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: float = 0.0
 
 
-DEFAULT_SYSTEM_PROMPT = """You are a DeFi systemic risk analyst.
-You will be given a summary of the current DeFi protocol network state as tabular metrics.
-Your task is to identify protocols at elevated risk of distress over the specified horizon,
-and recommend appropriate supervisory actions.
-Respond in structured JSON only."""
+SYSTEM_PROMPT = """You are a DeFi systemic risk analyst for a regulatory supervisory body.
+You will be given a summary of the CURRENT DeFi protocol network state as tabular metrics.
+You do NOT have access to any predictive model. You must reason from current data only.
+Your task is to identify protocols at elevated risk of distress over the specified horizon.
 
-DEFAULT_USER_TEMPLATE = """Current DeFi network state ({date}), horizon={horizon} weeks:
+Respond with valid JSON only:
+{{
+  "risk_level": "low" | "moderate" | "elevated" | "critical",
+  "target_protocols": [
+    {{
+      "protocol": "<name>",
+      "risk_score": <float 0-1>,
+      "action": "Monitor" | "Investigate" | "Recommend-Reduce" | "Contingency",
+      "reason": "<explanation citing specific data>"
+    }}
+  ],
+  "rationale": "<2-3 sentence overall assessment>"
+}}"""
 
-{tabular_metrics}
 
-Identify the top protocols at risk and recommended actions.
-Return JSON with keys: "risk_scores" (dict protocol->float[0,1]),
-"recommended_actions" (list of dicts with keys: protocol, action, reason)."""
+USER_TEMPLATE = """Current DeFi network state ({date}), forecast horizon = {horizon} weeks.
+
+NOTE: No predictive model available. Reason from current snapshot only.
+
+== CURRENT NETWORK ==
+Protocols: {n_nodes} | Edges: {n_edges} | Total weight: {total_weight:.2f}
+
+Top-10 protocols by exposure weight:
+{top_protocols}
+
+Category breakdown:
+{category_summary}
+
+== NETWORK METRICS ==
+{metrics}
+
+Identify protocols at elevated risk over the next {horizon} weeks."""
 
 
-def _build_prompt(
-    tabular_metrics: dict[str, Any],
-    date: str,
-    horizon: int,
-    template: Optional[str] = None,
-) -> str:
-    """Serialise tabular metrics into an LLM prompt string."""
-    import json
-    metrics_str = json.dumps(tabular_metrics, indent=2)
-    tmpl = template or DEFAULT_USER_TEMPLATE
-    return tmpl.format(
-        date=date,
-        horizon=horizon,
-        tabular_metrics=metrics_str,
-    )
+def _summarize_snapshot(snapshot: dict) -> dict[str, Any]:
+    """Extract summary fields from a raw snapshot dict (from /snapshot API)."""
+    nodes = snapshot.get("nodes", {})
+    edges = snapshot.get("edges", [])
+    nw: dict[str, float] = defaultdict(float)
+    for e in edges:
+        nw[e["source"]] += e["weight"]
+        nw[e["target"]] += e["weight"]
+    top = sorted(nw.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    top_lines = []
+    for i, (nid, w) in enumerate(top, 1):
+        cat = nodes.get(nid, {}).get("category", "?")
+        top_lines.append(f"  {i}. {nid} ({cat}) -- weight: {w:.2f}")
+
+    cats: dict[str, int] = defaultdict(int)
+    for nid, nf in nodes.items():
+        cats[nf.get("category", "Unknown")] += 1
+    cat_lines = [f"  {c}: {n} protocols"
+                 for c, n in sorted(cats.items(), key=lambda x: x[1], reverse=True)[:10]]
+
+    # Simple metrics
+    n = len(nodes)
+    deg_vals = list(nw.values())
+    total_wd = sum(deg_vals) if deg_vals else 1.0
+    hhi = sum((d / total_wd) ** 2 for d in deg_vals) if total_wd > 0 else 0
+    density = len(edges) / (n * (n - 1)) if n > 1 else 0
+
+    return {
+        "n_nodes": n,
+        "n_edges": len(edges),
+        "total_weight": sum(e["weight"] for e in edges),
+        "top_protocols": "\n".join(top_lines),
+        "category_summary": "\n".join(cat_lines),
+        "metrics": f"  M3_hhi: {hhi:.6f}\n  M4_density: {density:.6f}\n  M7_degree_gini: {_gini(deg_vals):.6f}",
+    }
+
+
+def _gini(vals):
+    n = len(vals)
+    if n == 0 or sum(vals) == 0:
+        return 0.0
+    s = sorted(vals)
+    total = sum(s)
+    cumsum = gs = 0.0
+    for v in s:
+        cumsum += v
+        gs += cumsum
+    return 1.0 - (2.0 * gs) / (n * total)
 
 
 def run_llm_agent(
-    graph: Any,
+    snapshot: dict,
     config: LLMAgentConfig | None = None,
-    **kwargs,
+    date: str = "",
 ) -> LLMAgentPrediction:
-    """Run the LLM-Agent: convert graph metrics to text and call an LLM.
+    """Run the pure LLM agent (C3) on a raw snapshot dict.
 
     Args:
-        graph: Temporal graph object. The latest snapshot is converted to
-               tabular metrics (PageRank, TVL, degree, etc.) and passed as
-               a structured prompt to the LLM.
-        config: LLMAgentConfig. Uses defaults if None.
-        **kwargs: Extra config key-value pairs that override config fields.
+        snapshot: Raw snapshot dict from /snapshot API (nodes, edges).
+        config: LLMAgentConfig (uses defaults if None).
+        date: Snapshot date string.
 
     Returns:
-        LLMAgentPrediction parsed from the LLM JSON response.
+        LLMAgentPrediction with risk scores and recommended actions.
     """
     if config is None:
         config = LLMAgentConfig()
-    for k, v in kwargs.items():
-        if hasattr(config, k):
-            setattr(config, k, v)
 
     api_key = os.environ.get(config.api_key_env)
     if not api_key:
-        logger.warning(
-            f"LLM-Agent: environment variable {config.api_key_env!r} not set; "
-            "API calls will fail at runtime."
-        )
+        logger.error(f"Environment variable {config.api_key_env!r} not set")
+        return LLMAgentPrediction(rationale="API key not set")
 
-    logger.info(
-        f"LLM-Agent (C3) | model={config.model} | horizon={config.horizon} | "
-        f"temperature={config.temperature}"
+    import anthropic
+    client = anthropic.Anthropic()
+
+    summary = _summarize_snapshot(snapshot)
+    system = SYSTEM_PROMPT.format(horizon=config.horizon)
+    user = USER_TEMPLATE.format(date=date, horizon=config.horizon, **summary)
+
+    t0 = time.time()
+    try:
+        with client.messages.stream(
+            model=config.model,
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        ) as stream:
+            response = stream.get_final_message()
+    except Exception as e:
+        logger.error(f"LLM API call failed: {e}")
+        return LLMAgentPrediction(rationale=f"API error: {e}")
+
+    latency_ms = (time.time() - t0) * 1000
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    # Parse JSON
+    text = raw
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        logger.warning(f"JSON parse failed: {text[:200]}")
+        parsed = {"risk_level": "unknown", "target_protocols": [], "rationale": raw[:500]}
+
+    risk_scores = {}
+    actions = []
+    for p in parsed.get("target_protocols", []):
+        name = p.get("protocol", "")
+        risk_scores[name] = p.get("risk_score", 0.5)
+        actions.append({
+            "protocol": name,
+            "action": p.get("action", "Monitor"),
+            "reason": p.get("reason", ""),
+        })
+
+    return LLMAgentPrediction(
+        method_id="C3",
+        horizon=config.horizon,
+        risk_level=parsed.get("risk_level", "unknown"),
+        risk_scores=risk_scores,
+        recommended_actions=actions,
+        rationale=parsed.get("rationale", ""),
+        raw_response=raw,
+        input_tokens=response.usage.input_tokens,
+        output_tokens=response.usage.output_tokens,
+        latency_ms=round(latency_ms, 1),
     )
-    # TODO: extract latest snapshot from graph as tabular metrics dict
-    # TODO: call _build_prompt(metrics, date, config.horizon, config.prompt_template)
-    # TODO: send system+user prompt to config.model via anthropic or openai SDK
-    # TODO: parse JSON response into LLMAgentPrediction
-    raise NotImplementedError("LLM-Agent (C3) API call not yet implemented")
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="C3: LLM-Agent competitor")
-    parser.add_argument("--data-dir", default="data/", help="Data directory")
-    parser.add_argument("--test-split", default="2025-01~2025-08")
+    parser = argparse.ArgumentParser(description="C3: Pure LLM-Agent (no FM)")
+    parser.add_argument("--date", required=True, help="Snapshot date (YYYY-MM-DD)")
     parser.add_argument("--horizon", type=int, default=4)
-    parser.add_argument("--model", default="claude-opus-4-5",
-                        help="LLM model identifier")
+    parser.add_argument("--model", default="claude-sonnet-4-6")
+    parser.add_argument("--fm-api", default="http://localhost:8000",
+                        help="FM API URL for fetching snapshots")
     args = parser.parse_args()
 
+    import urllib.request
+    url = f"{args.fm_api}/snapshot?date={args.date}"
+    with urllib.request.urlopen(url, timeout=120) as resp:
+        snapshot = json.loads(resp.read())
+
     cfg = LLMAgentConfig(horizon=args.horizon, model=args.model)
-    # TODO: load graph from args.data_dir
-    pred = run_llm_agent(graph=None, config=cfg)
-    print(pred)
+    pred = run_llm_agent(snapshot, cfg, date=args.date)
+    print(json.dumps({
+        "method": pred.method_id,
+        "risk_level": pred.risk_level,
+        "risk_scores": pred.risk_scores,
+        "actions": pred.recommended_actions,
+        "rationale": pred.rationale,
+        "tokens": {"input": pred.input_tokens, "output": pred.output_tokens},
+        "latency_ms": pred.latency_ms,
+    }, indent=2))

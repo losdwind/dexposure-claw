@@ -1,0 +1,15 @@
+{
+  "method": "C0-LLM",
+  "model": "claude-sonnet-4-6",
+  "n_weeks": 29,
+  "ticket_precision": 0.4833,
+  "audit_completeness": 0.0008,
+  "target_stability": 0.4757,
+  "severity_correlation": -0.0958,
+  "false_intervention_rate": 0.5615,
+  "grounding_score": 1.0,
+  "consistency": 0.8757,
+  "explanation_quality": 2.0,
+  "total_input_tokens": 30908,
+  "total_output_tokens": 44735
+}
