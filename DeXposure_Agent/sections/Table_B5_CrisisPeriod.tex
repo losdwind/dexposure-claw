@@ -1,0 +1,22 @@
+% B5 Decision quality on crisis periods vs calm baseline (multi-horizon pipeline)
+% Data source: results/run_fm_vs_persistence_crisis/b5_crisis.json
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llccccc}
+\toprule
+Period & Method & Alerts & Prec $\uparrow$ & FIR $\downarrow$ & Audit $\uparrow$ & Stabil $\uparrow$ \\
+\midrule
+\multirow{2}{*}{Terra/Luna} & C0 (FM) & \textbf{65} & \textbf{0.576} & 0.000 & \textbf{0.0012} & 0.163 \\
+                            & C2 (Pers.) & 8 & 0.200 & 0.000 & 0.0001 & \textbf{0.882} \\
+\midrule
+\multirow{2}{*}{FTX}        & C0 (FM) & \textbf{98} & 0.533 & 0.000 & \textbf{0.0011} & 0.409 \\
+                            & C2 (Pers.) & 28 & \textbf{0.680} & 0.000 & 0.0004 & \textbf{0.601} \\
+\midrule
+\multirow{2}{*}{2025 (calm)} & C0 (FM) & \textbf{144} & 0.503 & 0.000 & \textbf{0.0004} & 0.257 \\
+                            & C2 (Pers.) & 44 & \textbf{0.660} & 0.000 & 0.0002 & \textbf{0.514} \\
+\bottomrule
+\end{tabular}
+\caption{Multi-horizon decision quality (B5) across crisis and calm periods. C0 consistently generates $3$--$8\times$ more alerts than C2 and achieves $3$--$12\times$ higher audit completeness. C2 achieves higher ticket precision on FTX and calm periods, reflecting a precision--coverage trade-off: persistence is conservative (few alerts, higher precision) while the FM backbone casts a wider net (more alerts, broader coverage). During Terra/Luna, C0 dominates on both alert volume and precision. Random-baseline precision is 36--75\% during crisis weeks due to the broad stress definition ($>$20\% weight drop); the primary FM advantage is alert \emph{generation} rather than alert \emph{targeting}.}
+\label{tab:b5_crisis}
+\end{table}

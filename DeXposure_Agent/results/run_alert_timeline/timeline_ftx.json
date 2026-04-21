@@ -1,0 +1,1296 @@
+[
+  {
+    "date": "2022-09-05",
+    "phase": "pre",
+    "weeks_to_event": 9.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 2616,
+    "flagged_protocols": [
+      "111",
+      "114",
+      "118",
+      "182",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-09-12",
+    "phase": "pre",
+    "weeks_to_event": 8.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 2578,
+    "flagged_protocols": [
+      "111",
+      "114",
+      "118",
+      "182",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-09-19",
+    "phase": "pre",
+    "weeks_to_event": 7.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2083,
+    "flagged_protocols": [
+      "144",
+      "1599",
+      "240",
+      "359",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-09-26",
+    "phase": "pre",
+    "weeks_to_event": 6.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 1406,
+    "flagged_protocols": [
+      "114",
+      "118",
+      "1599",
+      "2111",
+      "WBTC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-03",
+    "phase": "pre",
+    "weeks_to_event": 5.0,
+    "method": "C0",
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 1487,
+    "flagged_protocols": [
+      "111",
+      "194",
+      "2235",
+      "254",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-10",
+    "phase": "pre",
+    "weeks_to_event": 4.0,
+    "method": "C0",
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 889,
+    "flagged_protocols": [
+      "111",
+      "2198",
+      "240",
+      "641",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-17",
+    "phase": "pre",
+    "weeks_to_event": 3.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 4,
+    "n_total_targets": 5,
+    "precision": 0.8,
+    "truly_stressed_protocols": 2387,
+    "flagged_protocols": [
+      "118",
+      "1599",
+      "2198",
+      "240",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-24",
+    "phase": "pre",
+    "weeks_to_event": 2.0,
+    "method": "C0",
+    "n_alerts": 9,
+    "alerts_per_horizon": {
+      "1": 3,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 4,
+    "n_total_targets": 5,
+    "precision": 0.8,
+    "truly_stressed_protocols": 2980,
+    "flagged_protocols": [
+      "111",
+      "118",
+      "182",
+      "3",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-31",
+    "phase": "during",
+    "weeks_to_event": 1.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 3081,
+    "flagged_protocols": [
+      "118",
+      "240",
+      "937",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-11-07",
+    "phase": "during",
+    "weeks_to_event": 0.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 4228,
+    "flagged_protocols": [
+      "118",
+      "182",
+      "2272",
+      "3",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-11-14",
+    "phase": "during",
+    "weeks_to_event": -1.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 1830,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BUSD",
+      "USDC",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-11-21",
+    "phase": "during",
+    "weeks_to_event": -2.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 3182,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-11-28",
+    "phase": "during",
+    "weeks_to_event": -3.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2710,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-12-05",
+    "phase": "post",
+    "weeks_to_event": -4.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 5,
+    "precision": 0.0,
+    "truly_stressed_protocols": 2375,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-12-12",
+    "phase": "post",
+    "weeks_to_event": -5.0,
+    "method": "C0",
+    "n_alerts": 12,
+    "alerts_per_horizon": {
+      "1": 3,
+      "4": 3,
+      "8": 3,
+      "12": 3
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 1756,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-12-19",
+    "phase": "post",
+    "weeks_to_event": -6.0,
+    "method": "C0",
+    "n_alerts": 5,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 1925,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-12-26",
+    "phase": "post",
+    "weeks_to_event": -7.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2033,
+    "flagged_protocols": [
+      "2269",
+      "BNB",
+      "BUSD",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-01-02",
+    "phase": "post",
+    "weeks_to_event": -8.0,
+    "method": "C0",
+    "n_alerts": 6,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2266,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-01-09",
+    "phase": "post",
+    "weeks_to_event": -9.0,
+    "method": "C0",
+    "n_alerts": 9,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 3,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 3235,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-01-16",
+    "phase": "post",
+    "weeks_to_event": -10.0,
+    "method": "C0",
+    "n_alerts": 7,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 1,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 5,
+    "precision": 0.0,
+    "truly_stressed_protocols": 1788,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "USDC",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-01-23",
+    "phase": "post",
+    "weeks_to_event": -11.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 4,
+    "n_total_targets": 5,
+    "precision": 0.8,
+    "truly_stressed_protocols": 2005,
+    "flagged_protocols": [
+      "182",
+      "2521",
+      "3",
+      "359",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-01-30",
+    "phase": "post",
+    "weeks_to_event": -12.0,
+    "method": "C0",
+    "n_alerts": 5,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 2088,
+    "flagged_protocols": [
+      "129",
+      "2198",
+      "2400",
+      "268",
+      "937"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-06",
+    "phase": "post",
+    "weeks_to_event": -13.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 1852,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "937",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-13",
+    "phase": "post",
+    "weeks_to_event": -14.0,
+    "method": "C0",
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 2498,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BUSD",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-20",
+    "phase": "post",
+    "weeks_to_event": -15.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2988,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BUSD",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-27",
+    "phase": "post",
+    "weeks_to_event": -16.0,
+    "method": "C0",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 3631,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-09-05",
+    "phase": "pre",
+    "weeks_to_event": 9.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2616,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-09-12",
+    "phase": "pre",
+    "weeks_to_event": 8.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2578,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-09-19",
+    "phase": "pre",
+    "weeks_to_event": 7.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2083,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-09-26",
+    "phase": "pre",
+    "weeks_to_event": 6.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 1406,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-10-03",
+    "phase": "pre",
+    "weeks_to_event": 5.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 1487,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-10-10",
+    "phase": "pre",
+    "weeks_to_event": 4.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 889,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-10-17",
+    "phase": "pre",
+    "weeks_to_event": 3.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 4,
+    "n_total_targets": 5,
+    "precision": 0.8,
+    "truly_stressed_protocols": 2387,
+    "flagged_protocols": [
+      "118",
+      "1599",
+      "2198",
+      "240",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-24",
+    "phase": "pre",
+    "weeks_to_event": 2.0,
+    "method": "C2",
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 4,
+    "n_total_targets": 5,
+    "precision": 0.8,
+    "truly_stressed_protocols": 2980,
+    "flagged_protocols": [
+      "111",
+      "118",
+      "182",
+      "3",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-10-31",
+    "phase": "during",
+    "weeks_to_event": 1.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 3081,
+    "flagged_protocols": [
+      "118",
+      "240",
+      "937",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-11-07",
+    "phase": "during",
+    "weeks_to_event": 0.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 4228,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-11-14",
+    "phase": "during",
+    "weeks_to_event": -1.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 1830,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-11-21",
+    "phase": "during",
+    "weeks_to_event": -2.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 3182,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-11-28",
+    "phase": "during",
+    "weeks_to_event": -3.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2710,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-12-05",
+    "phase": "post",
+    "weeks_to_event": -4.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2375,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-12-12",
+    "phase": "post",
+    "weeks_to_event": -5.0,
+    "method": "C2",
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 1756,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2022-12-19",
+    "phase": "post",
+    "weeks_to_event": -6.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 1925,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2022-12-26",
+    "phase": "post",
+    "weeks_to_event": -7.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2033,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-01-02",
+    "phase": "post",
+    "weeks_to_event": -8.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2266,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-01-09",
+    "phase": "post",
+    "weeks_to_event": -9.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 3235,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-01-16",
+    "phase": "post",
+    "weeks_to_event": -10.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 1788,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-01-23",
+    "phase": "post",
+    "weeks_to_event": -11.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2005,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-01-30",
+    "phase": "post",
+    "weeks_to_event": -12.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 3,
+    "n_total_targets": 5,
+    "precision": 0.6,
+    "truly_stressed_protocols": 2088,
+    "flagged_protocols": [
+      "129",
+      "2198",
+      "2400",
+      "268",
+      "937"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-06",
+    "phase": "post",
+    "weeks_to_event": -13.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 1,
+    "n_total_targets": 5,
+    "precision": 0.2,
+    "truly_stressed_protocols": 1852,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "937",
+      "USDT",
+      "WETH"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-13",
+    "phase": "post",
+    "weeks_to_event": -14.0,
+    "method": "C2",
+    "n_alerts": 0,
+    "alerts_per_horizon": {
+      "1": 0,
+      "4": 0,
+      "8": 0,
+      "12": 0
+    },
+    "n_true_positive_targets": 0,
+    "n_total_targets": 0,
+    "precision": NaN,
+    "truly_stressed_protocols": 2498,
+    "flagged_protocols": [],
+    "ticket_actions": []
+  },
+  {
+    "date": "2023-02-20",
+    "phase": "post",
+    "weeks_to_event": -15.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 2,
+    "n_total_targets": 5,
+    "precision": 0.4,
+    "truly_stressed_protocols": 2988,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BUSD",
+      "USDC",
+      "USDT"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  },
+  {
+    "date": "2023-02-27",
+    "phase": "post",
+    "weeks_to_event": -16.0,
+    "method": "C2",
+    "n_alerts": 4,
+    "alerts_per_horizon": {
+      "1": 1,
+      "4": 1,
+      "8": 1,
+      "12": 1
+    },
+    "n_true_positive_targets": 5,
+    "n_total_targets": 5,
+    "precision": 1.0,
+    "truly_stressed_protocols": 3631,
+    "flagged_protocols": [
+      "2269",
+      "2786",
+      "BNB",
+      "BUSD",
+      "USDC"
+    ],
+    "ticket_actions": [
+      "Monitor",
+      "Investigate"
+    ]
+  }
+]

@@ -15,7 +15,7 @@ Our contributions are:
 
     \item \textbf{Comprehensive evaluation across six benchmarks.} We evaluate on risk metric forecasting (B1), early warning quality (B2), uncertainty calibration (B3), stress-test accuracy (B4), decision quality (B5), and robustness under low-data and noisy regimes (B6), comparing the full agent pipeline against persistence, temporal GNN, pure-LLM, and rule-based baselines.
 
-    \item \textbf{Ablation-validated design.} Targeted ablation studies isolate the contribution of each core design choice---data-health gating, confidence-based intervention control, the scenario stress engine, and multi-horizon diversity---demonstrating that each is necessary for reliable operation.
+    \item \textbf{Ablation-validated design under standard and stress conditions.} Targeted ablation studies isolate the contribution of each core design choice---data-health gating, confidence-based intervention control, the scenario stress engine, and multi-horizon diversity---demonstrating that each is necessary for reliable operation. Components that appear inactive under clean test conditions (data-health gating, multi-horizon diversity) are shown to be safety reserves that activate under data degradation (reducing false intervention rate from 48\% to 0\%) and crisis dynamics (increasing alert volume $5\times$), respectively.
 \end{enumerate}
 
 An open-source implementation is available at \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}.

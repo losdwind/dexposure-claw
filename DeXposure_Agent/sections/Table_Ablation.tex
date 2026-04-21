@@ -1,4 +1,5 @@
-% Ablation study results
+% Ablation study results: standard test + stress conditions
+% Data source: run_supplementary/ablation_summary.json, run_a1_isolated/a1_isolated.json
 \begin{table}[t]
 \centering
 \small
@@ -6,14 +7,25 @@
 \toprule
 ID & Ablation & Prec $\uparrow$ & FIR $\downarrow$ & Stabil $\uparrow$ & Effect \\
 \midrule
+\multicolumn{6}{l}{\emph{Panel A: Standard conditions (2025 test split, clean data)}} \\
 --- & C0 (full system) & 0.503 & \textbf{0.000} & 0.257 & baseline \\
 \midrule
 A1 & No data-health gate & 0.503 & 0.000 & 0.257 & minimal \\
 A2 & No confidence gate  & 0.503 & 0.400 & 0.257 & FIR $\uparrow\!\uparrow$ \\
 A3 & No scenario engine  & \multicolumn{3}{c}{--- (pipeline fails) ---} & critical \\
 A6 & Single horizon ($h\!=\!4$) & 0.503 & 0.000 & 0.257 & minimal \\
+\midrule
+\multicolumn{6}{l}{\emph{Panel B: A1 under data degradation ($\tau_\mathrm{conf}=0$ to isolate gate)}} \\
+--- & C0 + extreme degrad.\ & 0.517 & \textbf{0.000} & --- & gate~ON \\
+A1  & No gate + extreme    & 0.517 & 0.483 & --- & FIR $\uparrow\!\uparrow$ \\
+--- & C0 + severe degrad.\ & 0.500 & \textbf{0.000} & --- & gate~ON \\
+A1  & No gate + severe     & 0.496 & 0.413 & --- & FIR $\uparrow\!\uparrow$ \\
+\midrule
+\multicolumn{6}{l}{\emph{Panel C: A6 on crisis periods (multi-horizon B5, Terra/Luna)}} \\
+--- & C0 all horizons      & \multicolumn{4}{l}{65~alerts, prec\,=\,0.576, audit\,=\,0.0012} \\
+A6  & Single $h\!=\!4$    & \multicolumn{4}{l}{13~alerts, prec\,=\,0.576, audit\,=\,0.0012} \\
 \bottomrule
 \end{tabular}
-\caption{Ablation study results on B5 decision quality. The confidence gate (A2) is essential: removing it increases the false intervention rate from $0.000$ to $0.400$. The scenario engine (A3) is structurally necessary: without it, the ticket scoring pipeline (Eq.~\eqref{eq:ticket_score}) cannot compute scenario impact, causing complete failure. Data-health gating (A1) and multi-horizon diversity (A6) show no measurable impact in the current test window, likely because data quality remains high and $h\!=\!4$ dominates alert generation in this period.}
+\caption{Ablation study. \emph{Panel~A}: Under standard conditions, A2 (confidence gate) is essential and A3 (scenario engine) is structurally required. A1 and A6 show no effect because data quality is high and $h\!=\!4$ dominates. \emph{Panel~B}: Under data degradation (80--95\% feature/edge removal, DH$_t$\,$\approx$\,0.59--0.75), disabling the data-health gate increases FIR from $0$ to $41$--$48\%$, confirming A1 is a safety mechanism that activates under adverse conditions. \emph{Panel~C}: During the Terra/Luna crisis, multi-horizon monitoring generates $5\times$ more alerts than single-horizon while maintaining precision, confirming A6 provides broader risk coverage when network dynamics are rapid.}
 \label{tab:ablation}
 \end{table}

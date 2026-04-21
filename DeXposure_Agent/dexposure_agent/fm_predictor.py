@@ -236,9 +236,11 @@ class FMPredictor:
             probs = torch.sigmoid(logits).cpu().numpy()
             weights = w_pred.cpu().numpy()
 
-        # Build predicted graph: hybrid strategy
-        # 1. KEEP all existing edges, reweight with FM residual * probability
-        # 2. ADD new edges only if FM prob >= pi_min (high confidence new links)
+        # Build predicted graph: FM-driven strategy
+        # Follows DeXposure-FM paper Eq.(9): ŵ_{τ+h} = w̃_τ + r̂_{pq,τ,h}
+        # Use existence probability to decide IF an edge exists (binary),
+        # and the weight residual to decide HOW MUCH it weighs (regression).
+        # These are separate prediction heads trained with separate losses.
         edges: list[Edge] = []
         included_nodes: set[str] = set()
 
@@ -252,7 +254,31 @@ class FMPredictor:
         for edge in graph.edges:
             current_edges[(edge.source, edge.target)] = edge.weight
 
-        # Step 1: Keep ALL existing edges, apply FM weight adjustment
+        # Step 1: Existing edges — use FM existence prob RANKING to remove
+        #         bottom fraction, use full residual for weight adjustment.
+        #
+        # FM existence probs are not calibrated (trained with 5:1 neg sampling),
+        # but RANKING is excellent (AUROC=0.995). So we remove the bottom
+        # `removal_pct` of edges by probability — the ones FM is most confident
+        # will disappear.
+        removal_pct = 0.05  # remove bottom 5% (tunable on validation set)
+
+        # Collect probs for existing edges to compute percentile threshold
+        existing_probs: list[float] = []
+        for edge in graph.edges:
+            s_id, t_id = edge.source, edge.target
+            if s_id in node_to_idx and t_id in node_to_idx:
+                si, ti = node_to_idx[s_id], node_to_idx[t_id]
+                if (si, ti) in fm_pred:
+                    existing_probs.append(fm_pred[(si, ti)][0])
+
+        if existing_probs:
+            import numpy as _np
+            removal_threshold = float(_np.percentile(existing_probs, removal_pct * 100))
+        else:
+            removal_threshold = 0.0
+
+        n_removed = 0
         for edge in graph.edges:
             s_id, t_id = edge.source, edge.target
             if s_id not in node_to_idx or t_id not in node_to_idx:
@@ -264,8 +290,12 @@ class FMPredictor:
             si, ti = node_to_idx[s_id], node_to_idx[t_id]
             if (si, ti) in fm_pred:
                 prob, w_residual = fm_pred[(si, ti)]
-                # Weight = baseline + prob * residual (prob-weighted residual)
-                new_w = max(edge.weight + prob * w_residual, 0.0)
+                # Existence decision: remove if in bottom removal_pct by prob
+                if prob < removal_threshold:
+                    n_removed += 1
+                    continue
+                # Weight update: baseline + full residual (Eq.9 from FM paper)
+                new_w = max(edge.weight + w_residual, 0.0)
                 if new_w > 0:
                     edges.append(Edge(source=s_id, target=t_id, weight=new_w))
                 else:
@@ -296,8 +326,8 @@ class FMPredictor:
         }
 
         logger.info(
-            "FM predict h=%d: %d nodes, %d edges (kept=%d, new=%d, candidates=%d, pi_min=%.2f)",
-            horizon, len(nodes), len(edges), len(edges) - n_new, n_new,
+            "FM predict h=%d: %d nodes, %d edges (kept=%d, removed=%d, new=%d, candidates=%d, pi_min=%.2f)",
+            horizon, len(nodes), len(edges), len(edges) - n_new, n_removed, n_new,
             len(src_idx), self.pi_min,
         )
 
