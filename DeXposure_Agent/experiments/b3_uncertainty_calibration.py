@@ -311,7 +311,7 @@ def run_b3(
     """Run B3 benchmark for a given method.
 
     Args:
-        method_id: One of C0, C1, C4 (methods with uncertainty output).
+        method_id: Forecasting method ID with uncertainty output, typically C0 or C4.
         data_dir: Path to processed graph snapshots.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         target_coverage: Nominal PI coverage level (default 0.90).
@@ -395,7 +395,7 @@ def run_b3(
                 log.info(f"B3: no ground truth for {future_date}, skipping")
                 continue
 
-        # Generate prediction (FM for C0/C4, persistence for C2/others)
+        # Generate prediction via the shared fail-closed method router.
         from experiments.predict_helper import predict_graph
         pred_graph = predict_graph(method_id, snap_t, horizon=horizon)
 
@@ -493,7 +493,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="B3: Uncertainty Calibration benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0, C1, C4)")
+    parser.add_argument("--method", required=True, help="Method ID (e.g. C0 or C4)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

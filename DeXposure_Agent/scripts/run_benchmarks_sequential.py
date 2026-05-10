@@ -103,7 +103,7 @@ def main():
     # Define all benchmark-method pairs
     benchmark_plan = [
         ("B1", "experiments.b1_risk_forecasting", "run_b1", ["C2", "C0"]),
-        ("B2", "experiments.b2_early_warning", "run_b2", ["C2", "C0"]),
+        ("B2", "experiments.b2_early_warning", "run_b2", ["H0"]),
         ("B3", "experiments.b3_uncertainty_calibration", "run_b3", ["C0"]),
         ("B4", "experiments.b4_stress_test", "run_b4", ["C2", "C0"]),
         ("B5", "experiments.b5_decision_quality", "run_b5", ["C2", "C0"]),

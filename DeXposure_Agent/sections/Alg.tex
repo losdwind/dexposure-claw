@@ -5,12 +5,12 @@ This section specifies the agentic system built on \textsc{DeXposure-FM} for two
 
 Figure~\ref{fig:system_overview} provides an architectural overview of the full system.
 
-\begin{figure}[t]
+\begin{figure*}[!t]
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/fig1_system_overview}
+    \includegraphics[width=0.82\textwidth]{figures/fig1_system_overview}
     \caption{System overview of DeXposure-Agent. The agent ingests weekly exposure snapshots, queries the DeXposure-FM backbone for multi-horizon forecasts, computes risk metrics and stress scenarios, and emits auditable recommendation tickets under data-health and confidence gates.}
     \label{fig:system_overview}
-\end{figure}
+\end{figure*}
 
 \subsection{System Interface}
 \label{subsec:system_interface}
@@ -20,14 +20,15 @@ At each decision epoch $t$, the agent observes a credit-exposure snapshot $G_t=(
 \mathcal{P}_{t,h} \leftarrow \textsc{DeXposure-FM}.\mathrm{Forecast}(G_t,X_t,h), \quad \forall h\in\mathcal{H},
 \end{equation}
 where $\mathcal{P}_{t,h}$ denotes the model's predictive distribution over the future network $G_{t+h}$, and $\mathcal{H}=\{1,4,8,12\}$ (weeks). From $\mathcal{P}_{t,h}$ we construct a representative predicted graph $\widehat{G}_{t+h}$ using a thresholded expected-weight operator:
-\begin{equation}
+\begin{align}
 \label{eq:expected_graph}
 \widehat{w}_{pq,t+h}
-:=
+&:=
 \Pr(e_{pq,t+h}=1)\cdot \mathbb{E}[w_{pq,t+h}\mid e_{pq,t+h}=1],
-\quad
-\widehat{E}_{t+h}:=\{(p,q): \Pr(e_{pq,t+h}=1)>\pi_{\min}\},
-\end{equation}
+\\
+\widehat{E}_{t+h}
+&:=\{(p,q): \Pr(e_{pq,t+h}=1)>\pi_{\min}\}.
+\end{align}
 where $\pi_{\min}$ (default $0.2$, tuned on validation) balances edge coverage and sparsity. For uncertainty quantification, we draw $M$ Monte Carlo samples $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M$ by applying Bernoulli edge sampling and Gaussian weight perturbation to $\mathcal{P}_{t,h}$ (default $M=50$).
 
 The agent returns three outputs: (a) a set of monitoring alerts with evidence and confidence, (b) a scenario stress summary, and (c) a ranked list of recommendation tickets.
@@ -48,10 +49,11 @@ When $DH_t$ falls below $\tau_{\mathrm{data}}$ (default $0.7$), the system enter
 \paragraph{Monitoring metrics ($\Phi$).}
 Risk in exposure networks manifests as concentration (a few protocols dominate), fragility (shocks propagate widely), and instability (structure shifts rapidly). To capture these dimensions, the monitoring agent evaluates five functionals on $\widehat{G}_{t+h}$:
 
-\begin{table}[h]
+\begin{table*}[!t]
 \centering
-\small
-\begin{tabular}{lll}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
 \toprule
 ID & Metric & Definition \\
 \midrule
@@ -61,10 +63,10 @@ M4 & Network Density & $|E_{t+h}| \;/\; |V|(|V|-1)$ \\
 M6 & PageRank Gini & $\mathrm{Gini}\!\bigl(\{\mathrm{PR}_p\}_{p\in V}\bigr)$ \\
 M7 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Monitoring functionals $\Phi$. PageRank uses power iteration with damping $0.85$ and $10$ iterations. Gini coefficient: $1 - 2\sum_{i=1}^{n}\sum_{k=1}^{i}x_{(k)} \;/\; (n \cdot \sum_k x_{(k)})$, where $x_{(k)}$ are sorted values.}
 \label{tab:metrics}
-\end{table}
+\end{table*}
 
 \noindent Formally, at each horizon $h$ we compute:
 \begin{equation}
@@ -97,9 +99,10 @@ This score monotonically decreases with lower data health, wider predictive spre
 \label{subsec:scenario_engine}
 To quantify tail risk beyond metric-level alerts, the agent evaluates a standardised stress-scenario library $\mathcal{S}_0$. Each scenario applies a deterministic shock---removing or reducing edge weights of targeted nodes---and propagates losses through the network:
 
-\begin{table}[h]
+\begin{table}[!t]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{llll}
 \toprule
 ID & Scenario & Target & Shock \\
@@ -116,11 +119,15 @@ S5 & Correlated stress & Top-10 nodes by weight & 20\% \\
 \end{table}
 
 \noindent For each scenario $s$ and horizon $h$, we compute the systemic loss on both the predicted graph and each MC sample:
-\begin{equation}
+\begin{align}
 \label{eq:scenario_loss}
-L_{t,h}(s) := \frac{\sum_e w_e(\widehat{G}_{t+h}) - \sum_e w_e(\widehat{G}_{t+h}^s)}{\sum_e w_e(\widehat{G}_{t+h})},\quad
-\widetilde{L}^{(m)}_{t,h}(s) := \ell\!\left(\widetilde{G}^{(m)}_{t+h};\, s\right),
-\end{equation}
+L_{t,h}(s)
+&:= \frac{\sum_e w_e(\widehat{G}_{t+h}) - \sum_e w_e(\widehat{G}_{t+h}^s)}
+{\sum_e w_e(\widehat{G}_{t+h})},
+\\
+\widetilde{L}^{(m)}_{t,h}(s)
+&:= \ell\!\left(\widetilde{G}^{(m)}_{t+h};\, s\right).
+\end{align}
 where $\widehat{G}_{t+h}^s$ denotes the network after applying shock $s$. The scenario engine also tracks the number of \emph{distressed} nodes (those losing $>50\%$ of total edge weight) and a propagation depth estimate $\lfloor\log_2(\text{affected nodes}+1)\rfloor + 1$.
 
 \paragraph{CVaR aggregation.}
@@ -137,16 +144,17 @@ where $\widetilde{L}^{(1)} \ge \widetilde{L}^{(2)} \ge \cdots$ are order statist
 \paragraph{Action space.}
 The decision module maps alerts and scenario results to recommendation tickets using a conservative playbook with four action types, ordered by escalation severity:
 
-\begin{table}[h]
+\begin{table}[!t]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccc}
 \toprule
 Action & Severity & Weight $w_u$ & Safe-mode OK? & Min.\ alerts \\
 \midrule
 \texttt{Monitor} & Low & 0.25 & Yes & 1 \\
 \texttt{Investigate} & Medium & 0.50 & Yes & 1 \\
-\texttt{Recommend-Reduce} & High & 0.75 & No & 2 \\
+\makecell[l]{\texttt{Recommend}\\[-1pt]\texttt{-Reduce}} & High & 0.75 & No & 2 \\
 \texttt{Contingency} & Critical & 1.00 & No & 3 \\
 \bottomrule
 \end{tabular}
@@ -180,7 +188,7 @@ For intervention tickets, targets are selected by collecting the top-$K$ attribu
 \subsection{End-to-End Procedure}
 Algorithm~\ref{alg:agent_loop} summarises the full agent loop.
 
-\begin{algorithm}[t]
+\begin{algorithm}[!t]
 \caption{DeXposure-Agent: one epoch}
 \label{alg:agent_loop}
 \begin{algorithmic}[1]
@@ -200,7 +208,8 @@ Algorithm~\ref{alg:agent_loop} summarises the full agent loop.
 \EndFor
 \State $\mathcal{A}_t \gets \bigcup_{h\in\mathcal{H}}\mathcal{A}_{t,h}$
 \State $\mathcal{R}_t \gets \mathrm{RankScenarios}(\{L_{t,h}(s),\mathrm{CVaR}_\lambda(s,h)\}_{h,s})$
-\State $\mathcal{D}_t \gets \mathrm{PlaybookDecision}(\mathcal{A}_t,\mathcal{R}_t, DH_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$ \Comment{Table~\ref{tab:playbook}}
+\State $\mathcal{D}_t \gets \mathrm{PlaybookDecision}($
+\Statex \hspace{\algorithmicindent}$\mathcal{A}_t,\mathcal{R}_t,DH_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$ \Comment{Table~\ref{tab:playbook}}
 \State \Return $(\mathcal{A}_t,\mathcal{R}_t,\mathcal{D}_t)$
 \end{algorithmic}
 \end{algorithm}

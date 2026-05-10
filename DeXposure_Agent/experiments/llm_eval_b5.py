@@ -11,6 +11,8 @@ Tests four methods:
   C0      FM + Rules            (loaded from existing B5 results)
   C3      Pure LLM, no FM       (text-only snapshot -> Claude)
   C0-LLM  FM + LLM              (FM predictions + metrics + scenarios -> Claude)
+  C0-LLM-GATED
+          FM + LLM + RulesGate  (same prompt, conservative post-hoc action gate)
 
 Layer 2 metrics (LLM reasoning quality):
   - Groundedness: fraction of cited values traceable to input data
@@ -75,6 +77,7 @@ MODEL_COSTS = {
     "claude-opus-4-6": {"input": 5.0, "output": 25.0},
 }
 SEVERITY_ORDER = {"Monitor": 1, "Investigate": 2, "Recommend-Reduce": 3, "Contingency": 4}
+GATED_LLM_METHODS = {"C0-LLM-GATED"}
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +338,10 @@ Rules:
 - Only flag protocols you genuinely believe are at elevated risk.
 - Cite specific numbers from the provided data to justify each assessment.
 - Use the exact protocol names as they appear in the data.
-- Order target_protocols by risk_score descending."""
+- Order target_protocols by risk_score descending.
+- Recommend-Reduce requires elevated or critical overall risk and protocol risk_score >= 0.75.
+- Contingency requires critical overall risk and protocol risk_score >= 0.90.
+- If those action constraints are not met, use Investigate instead of an intervention."""
 
 C0_LLM_USER_TEMPLATE = """Current DeFi network analysis ({date}), forecast horizon = {horizon} weeks.
 
@@ -402,15 +408,12 @@ Key metrics: {metrics_summary}
 == GROUND TRUTH ==
 {n_stressed} protocols actually experienced >20% weight loss: {stressed_list}
 
-== REPORT A (baseline rule-engine output, for context only) ==
-Flagged: {rule_targets}
-
-== REPORT B (to evaluate) ==
+== REPORT TO EVALUATE ==
 Risk level: {risk_level}
 Targets: {llm_targets}
 Rationale: {rationale}
 
-Rate Report B's quality (1-5)."""
+Rate the report's quality (1-5)."""
 
 
 # ---------------------------------------------------------------------------
@@ -461,7 +464,7 @@ def build_prompt(method: str, date: str, horizon: int,
                  metrics: dict, scenarios: list[dict] | None) -> tuple[str, str]:
     system = SYSTEM_PROMPT.format(horizon=horizon)
 
-    if method == "C0-LLM":
+    if method in ("C0-LLM", "C0-LLM-GATED"):
         assert forecast is not None
         user = C0_LLM_USER_TEMPLATE.format(
             date=date, horizon=horizon,
@@ -620,6 +623,47 @@ def compute_consistency(run_outputs: list[dict]) -> float:
     return float(np.mean(jacs)) if jacs else 1.0
 
 
+def apply_action_gate(llm_output: dict) -> dict:
+    """Apply conservative intervention constraints to an LLM decision.
+
+    This is deliberately a post-hoc safety gate, not a replacement for the
+    deterministic rules engine. It lets us separate target-selection quality
+    from the LLM's tendency to over-escalate intervention severity.
+    """
+    gated = json.loads(json.dumps(llm_output))
+    risk_level = str(gated.get("risk_level", "")).lower()
+    targets = gated.get("target_protocols", [])
+    if not isinstance(targets, list):
+        gated["target_protocols"] = []
+        return gated
+
+    for target in targets:
+        if not isinstance(target, dict):
+            continue
+        action = target.get("action", "Monitor")
+        try:
+            risk_score = float(target.get("risk_score", 0.0))
+        except (TypeError, ValueError):
+            risk_score = 0.0
+
+        if action == "Contingency":
+            if risk_level != "critical" or risk_score < 0.90:
+                target["action"] = "Investigate"
+                target["gate_note"] = (
+                    "Demoted from Contingency: Contingency requires critical "
+                    "overall risk and protocol risk_score >= 0.90."
+                )
+        elif action == "Recommend-Reduce":
+            if risk_level not in {"elevated", "critical"} or risk_score < 0.75:
+                target["action"] = "Investigate"
+                target["gate_note"] = (
+                    "Demoted from Recommend-Reduce: intervention requires "
+                    "elevated/critical overall risk and protocol risk_score >= 0.75."
+                )
+
+    return gated
+
+
 # ---------------------------------------------------------------------------
 # Layer 3 metrics: end-to-end decision quality
 # ---------------------------------------------------------------------------
@@ -723,8 +767,7 @@ def _jaccard(a: set, b: set) -> float:
 # ---------------------------------------------------------------------------
 
 def judge_explanation(date: str, horizon: int, metrics: dict,
-                     truly_stressed: set[str], rule_targets: set[str],
-                     llm_output: dict) -> dict:
+                     truly_stressed: set[str], llm_output: dict) -> dict:
     """Rate the LLM's explanation quality using a cheaper judge model."""
     system = JUDGE_SYSTEM_PROMPT
     user = JUDGE_USER_TEMPLATE.format(
@@ -734,7 +777,6 @@ def judge_explanation(date: str, horizon: int, metrics: dict,
         metrics_summary=", ".join(f"{k}={v}" for k, v in metrics.items() if k.startswith("M")),
         n_stressed=len(truly_stressed),
         stressed_list=", ".join(sorted(truly_stressed)[:10]) or "none",
-        rule_targets=", ".join(sorted(rule_targets)[:10]) or "none",
         risk_level=llm_output.get("risk_level", "?"),
         llm_targets=", ".join(p["protocol"] for p in llm_output.get("target_protocols", [])[:10]),
         rationale=llm_output.get("rationale", "N/A"),
@@ -901,7 +943,7 @@ def run_pipeline(
             # Collect data for prompt
             forecast = None
             scenarios = None
-            if method == "C0-LLM":
+            if method in ("C0-LLM", "C0-LLM-GATED"):
                 forecast = get_forecast(date_str, horizon)
                 metrics = compute_metrics(forecast)
                 scenarios = run_scenarios(forecast)
@@ -915,6 +957,8 @@ def run_pipeline(
             run_outputs = []
             for ri in range(consistency_runs):
                 out = call_llm(system, user)
+                if method in GATED_LLM_METHODS:
+                    out = apply_action_gate(out)
                 run_outputs.append(out)
                 cost_usd = (out.get("input_tokens", 0) * costs["input"] +
                             out.get("output_tokens", 0) * costs["output"]) / 1_000_000
@@ -927,13 +971,8 @@ def run_pipeline(
             # LLM-as-Judge
             explain_quality = 0
             if run_judge:
-                # Use C0's rule-based targets as context for judge
-                if method == "C0-LLM" and forecast:
-                    rule_metrics = compute_metrics(forecast)
-                else:
-                    rule_metrics = metrics
                 judge_result = judge_explanation(
-                    date_str, horizon, metrics, truly_stressed, set(), primary)
+                    date_str, horizon, metrics, truly_stressed, primary)
                 explain_quality = judge_result.get("quality_score", 0)
                 j_cost = (judge_result.get("input_tokens", 0) * judge_costs["input"] +
                           judge_result.get("output_tokens", 0) * judge_costs["output"]) / 1_000_000
@@ -961,6 +1000,7 @@ def run_pipeline(
                 "date": date_str, "method": method,
                 "system_prompt": system, "user_prompt": user,
                 "llm_outputs": run_outputs,
+                "action_gate_applied": method in GATED_LLM_METHODS,
                 "truly_stressed": sorted(truly_stressed),
                 "assessment": ev, "consistency": consistency,
                 "explanation_quality": explain_quality,
@@ -1089,7 +1129,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="LLM Decision Evaluation Pipeline (runs locally)")
     parser.add_argument("--method", action="append", default=[],
-                        help="C0-LLM and/or C3 (can repeat; default: both)")
+                        help="C0-LLM, C0-LLM-GATED, and/or C3 (can repeat; default: all three)")
     parser.add_argument("--test-split", default="2025-01~2025-08")
     parser.add_argument("--horizon", type=int, default=STRESS_LOOKAHEAD)
     parser.add_argument("--consistency-runs", type=int, default=CONSISTENCY_RUNS)
@@ -1104,7 +1144,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.method:
-        args.method = ["C0-LLM", "C3"]
+        args.method = ["C0-LLM", "C0-LLM-GATED", "C3"]
     if args.model:
         DECISION_MODEL = args.model
     if args.judge_model:

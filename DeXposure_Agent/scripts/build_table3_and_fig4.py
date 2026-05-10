@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
 from pathlib import Path
 
 import matplotlib
@@ -19,8 +20,29 @@ RESULTS = ROOT / "results"
 FIGURES = ROOT / "figures"
 SECTIONS = ROOT / "sections"
 
-B5_RUN = RESULTS / "run_20260326_103217"
-LLM_RUN = RESULTS / "llm_eval_20260409_181815"
+
+def _resolve_b5_run() -> Path:
+    configured = os.environ.get("DEXPOSURE_B5_RUN")
+    if configured:
+        return Path(configured)
+    return RESULTS / "latest"
+
+
+def _resolve_llm_run() -> Path:
+    configured = os.environ.get("DEXPOSURE_LLM_RUN")
+    if configured:
+        return Path(configured)
+    candidates = sorted(
+        [p for p in RESULTS.glob("llm_eval_*") if p.is_dir()],
+        key=lambda p: p.name,
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError(
+            "No llm_eval_* directory found. Set DEXPOSURE_LLM_RUN or rerun "
+            "experiments/llm_eval_b5.py first."
+        )
+    return candidates[0]
 
 
 def _load_json(path: Path) -> dict:
@@ -42,10 +64,19 @@ def _round_or_none(x: float | None, ndigits: int = 4) -> float | None:
 
 
 def build_rows() -> list[dict]:
-    b5_c2 = _load_json(B5_RUN / "B5_C2.json")["results"][0]
-    b5_c0 = _load_json(B5_RUN / "B5_C0.json")["results"][0]
-    llm_cmp = _load_json(LLM_RUN / "comparison.json")["methods"]
+    b5_run = _resolve_b5_run()
+    llm_run = _resolve_llm_run()
+    if not b5_run.exists():
+        raise FileNotFoundError(
+            f"B5 run directory not found: {b5_run}. Set DEXPOSURE_B5_RUN "
+            "or run scripts/run_benchmarks_sequential.py first."
+        )
+
+    b5_c2 = _load_json(b5_run / "B5_C2.json")["results"][0]
+    b5_c0 = _load_json(b5_run / "B5_C0.json")["results"][0]
+    llm_cmp = _load_json(llm_run / "comparison.json")["methods"]
     c0llm = llm_cmp["C0-LLM"]
+    c0llm_gated = llm_cmp.get("C0-LLM-GATED")
     c3 = llm_cmp["C3"]
 
     rows = [
@@ -98,6 +129,21 @@ def build_rows() -> list[dict]:
             "explanation_quality": _round_or_none(c0llm.get("explanation_quality"), ndigits=2),
         },
     ]
+    if c0llm_gated is not None:
+        rows.append({
+            "method_id": "C0-LLM-GATED",
+            "method_name": "FM+LLM+RulesGate",
+            "ticket_precision": _round_or_none(c0llm_gated.get("ticket_precision")),
+            "audit_completeness": _round_or_none(c0llm_gated.get("audit_completeness")),
+            "target_stability": _round_or_none(c0llm_gated.get("target_stability")),
+            "severity_correlation": _round_or_none(c0llm_gated.get("severity_correlation")),
+            "false_intervention_rate": _round_or_none(c0llm_gated.get("false_intervention_rate")),
+            "grounding_score": _round_or_none(c0llm_gated.get("grounding_score")),
+            "consistency": _round_or_none(c0llm_gated.get("consistency")),
+            "explanation_quality": _round_or_none(
+                c0llm_gated.get("explanation_quality"), ndigits=2
+            ),
+        })
 
     for row in rows:
         row["cost_adjusted_score"] = _round_or_none(

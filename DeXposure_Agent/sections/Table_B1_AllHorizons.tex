@@ -1,32 +1,14 @@
-% B1 risk-metric forecasting across all horizons
-\begin{table}[t]
+% Pending regeneration after clean rerun.
+\begin{table*}[!t]
 \centering
-\small
-\begin{tabular}{cl ccc}
+\footnotesize
+\begin{tabular}{@{}lc@{}}
 \toprule
-$h$ & Metric & C0 (FM) & C7 (EvolveGCN) & C2 (Persistence) \\
+Artifact & Status \\
 \midrule
-\multirow{3}{*}{1}
-& RankCorr $\uparrow$ & 0.553 & \textbf{0.556} & 0.556 \\
-& TrendCons $\uparrow$ & \textbf{0.531} & 0.000 & 0.000 \\
-& HHI-MAE $\downarrow$ & 0.038 & 0.038 & \textbf{0.032} \\
-\midrule
-\multirow{3}{*}{4}
-& RankCorr $\uparrow$ & 0.565 & \textbf{0.570} & 0.570 \\
-& TrendCons $\uparrow$ & \textbf{0.586} & 0.000 & 0.000 \\
-& HHI-MAE $\downarrow$ & \textbf{0.032} & \textbf{0.032} & \textbf{0.032} \\
-\midrule
-\multirow{3}{*}{8}
-& RankCorr $\uparrow$ & 0.514 & 0.517 & \textbf{0.570} \\
-& TrendCons $\uparrow$ & \textbf{0.592} & 0.000 & 0.000 \\
-& HHI-MAE $\downarrow$ & 0.040 & 0.040 & \textbf{0.032} \\
-\midrule
-\multirow{3}{*}{12}
-& RankCorr $\uparrow$ & 0.523 & 0.525 & \textbf{0.570} \\
-& TrendCons $\uparrow$ & \textbf{0.571} & 0.000 & 0.000 \\
-& HHI-MAE $\downarrow$ & 0.039 & 0.039 & \textbf{0.032} \\
+B1 all-horizon forecasting & Pending clean rerun \\
 \bottomrule
 \end{tabular}
-\caption{B1 risk-metric forecasting across horizons $h\in\{1,4,8,12\}$ weeks. C0 is the only method with non-zero trend consistency across all horizons, demonstrating that the FM backbone captures temporal dynamics that neither EvolveGCN nor persistence can recover.}
+\caption{B1 all-horizon forecasting results. This table is intentionally blank until new results are generated from the cleaned experiment pipeline.}
 \label{tab:b1_all_horizons}
-\end{table}
+\end{table*}

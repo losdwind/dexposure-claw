@@ -154,7 +154,7 @@ def run_b5(
     """Run B5 benchmark for a given method.
 
     Args:
-        method_id: One of C0, C1, C2, C3 (agent-level methods with action output).
+        method_id: Decision method with rule-based tickets, typically C0 or C2.
         data_dir: Path to processed graph snapshots and ground-truth action labels.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         **kwargs: Extra method-specific config.
@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="B5: Decision Quality benchmark")
     parser.add_argument("--method", required=True,
-                        help="Method ID (e.g. C0, C1, C2, C3)")
+                        help="Method ID (e.g. C0 or C2)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

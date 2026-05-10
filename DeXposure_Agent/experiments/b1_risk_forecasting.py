@@ -34,20 +34,11 @@ from dexposure_agent.data_loader import SnapshotLoader, parse_date_range
 from dexposure_agent.monitor import compute_metrics, _pagerank
 from dexposure_agent.types import GraphSnapshot
 from experiments.exp_logger import ExpLogger
+from experiments.methods import METHOD_NAMES
+from experiments.predict_helper import predict_graph
 
 
 HORIZONS = [1, 4, 8, 12]  # weeks
-
-# Methods that use persistence as a proxy (everything except C2 which IS persistence)
-_PERSISTENCE_METHODS = {"C2"}
-_PROXY_METHODS = {"C0", "C1", "C4", "C5", "C6", "C7", "C8", "C9", "C10"}
-
-METHOD_NAMES = {
-    "C0": "DeXposure-Agent", "C1": "ROLAND-Agent", "C2": "Persistence-Agent",
-    "C3": "LLM-Agent", "C4": "DeXposure-FM", "C5": "ROLAND",
-    "C6": "GraphPFN-Frozen", "C7": "EvolveGCN", "C8": "DyRep",
-    "C9": "TGN", "C10": "Static GCN",
-}
 
 
 @dataclass
@@ -94,61 +85,6 @@ def _compute_pagerank_vector(graph: GraphSnapshot) -> dict[str, float]:
             )
 
     return _pagerank(nodes, adjacency)
-
-
-# ---------------------------------------------------------------------------
-# Helper: generate predicted graph for a method
-# ---------------------------------------------------------------------------
-
-_FM_PREDICTOR = None  # singleton, lazy-loaded
-
-
-def _get_fm_predictor():
-    """Get or create the singleton FMPredictor."""
-    global _FM_PREDICTOR
-    if _FM_PREDICTOR is None:
-        from dexposure_agent.fm_predictor import FMPredictor
-        _FM_PREDICTOR = FMPredictor()
-        if _FM_PREDICTOR.available:
-            logger.info("FM predictor initialized (checkpoints found)")
-        else:
-            logger.warning("FM predictor not available (no checkpoints)")
-    return _FM_PREDICTOR
-
-
-def _predict_graph(
-    method_id: str,
-    current_snapshot: GraphSnapshot,
-    horizon: int,
-    **kwargs,
-) -> GraphSnapshot:
-    """Generate the predicted graph G_{t+h} for a given method.
-
-    For the persistence baseline (C2), the prediction is G_t unchanged.
-    For C0/C4, attempts FM prediction first, falling back to persistence.
-    For all other methods, we use persistence as a proxy (with a warning).
-    """
-    if method_id in _PERSISTENCE_METHODS:
-        # Persistence: predict G_{t+h} = G_t
-        return current_snapshot
-
-    # Use FM backbone for C0 and C4
-    if method_id in ("C0", "C4"):
-        fm = _get_fm_predictor()
-        if fm.available:
-            return fm.predict(current_snapshot, horizon)
-        # Fall through to persistence proxy if FM not available
-
-    if method_id in _PROXY_METHODS:
-        # Proxy: use persistence but log a warning
-        logger.debug(
-            "B1 | method={} using persistence proxy for horizon h={} "
-            "(true model not yet integrated)",
-            method_id, horizon,
-        )
-        return current_snapshot
-
-    raise ValueError(f"Unknown method_id: {method_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -280,7 +216,7 @@ def run_b1(
     """Run B1 benchmark for a given method across all horizons.
 
     Args:
-        method_id: One of C0-C10.
+        method_id: Forecasting method ID registered in experiments.methods.
         data_dir: Path to processed graph snapshots.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         horizons: Override default horizons (default: [1, 4, 8, 12]).
@@ -299,12 +235,6 @@ def run_b1(
         "B1 | method={} ({}) | test_split={} | horizons={}",
         method_id, METHOD_NAMES.get(method_id, "?"), test_split, horizons,
     )
-
-    if method_id in _PROXY_METHODS and method_id not in ("C0", "C4"):
-        log.warning(
-            "B1 | method={} uses persistence proxy (model not yet integrated)",
-            method_id,
-        )
 
     # ------------------------------------------------------------------
     # Step 1: Load ALL snapshots (need future ground truth beyond test range)
@@ -375,7 +305,7 @@ def run_b1(
                 continue
 
             # Generate predicted graph
-            snap_pred = _predict_graph(method_id, snap_t, h, **kwargs)
+            snap_pred = predict_graph(method_id, snap_t, h, config=kwargs.get("config"))
 
             # Compute metrics for predicted graph
             # Always compute fresh: FM prediction has same date but different structure

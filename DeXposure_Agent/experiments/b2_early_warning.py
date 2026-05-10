@@ -56,8 +56,8 @@ STRESS_EVENTS = {
     },
 }
 
-# Methods applicable to B2 (from APPLICABILITY matrix in run_all.py)
-B2_APPLICABLE_METHODS = {"C0", "C1", "C2", "C3"}
+# B2 is a shared weighted-degree alert heuristic, not a model comparison.
+B2_APPLICABLE_METHODS = {"H0"}
 
 # Ground truth loss threshold: nodes that lost >30% edge weight are "stressed"
 GROUND_TRUTH_LOSS_THRESHOLD = 0.30
@@ -264,7 +264,8 @@ def run_b2(
     """Run B2 benchmark for a given method across all stress events and budgets.
 
     Args:
-        method_id: One of C0, C1, C2, C3 (see APPLICABILITY).
+        method_id: H0. B2 is method-agnostic and should not be reported as a
+                   C0/C2/C3 comparison.
         data_dir: Path to processed graph snapshots.
         test_split: Date range string -- NOTE: B2 also uses historical windows
                     pre-2025 (Terra/Luna, FTX, SVB); test_split gates C0 eval.
@@ -291,8 +292,8 @@ def run_b2(
     # Validate method applicability
     if method_id not in B2_APPLICABLE_METHODS:
         raise ValueError(
-            f"Method {method_id} is not applicable to B2. "
-            f"Applicable methods: {sorted(B2_APPLICABLE_METHODS)}"
+            "B2 currently evaluates a shared weighted-degree heuristic, not a "
+            f"model-specific method. Use method_id='H0'. Got {method_id!r}."
         )
 
     # Ensure repo root is on sys.path for imports
@@ -301,8 +302,6 @@ def run_b2(
         sys.path.insert(0, repo_root)
 
     from dexposure_agent.data_loader import SnapshotLoader
-    from dexposure_agent.monitor import compute_metrics
-
     loader = SnapshotLoader(data_dir=data_dir)
     results: list[B2Result] = []
 
@@ -492,7 +491,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="B2: Early Warning benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0, C1)")
+    parser.add_argument("--method", default="H0", help="Use H0 for the shared heuristic")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

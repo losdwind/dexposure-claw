@@ -449,15 +449,14 @@ class EvolveGCNPredictor:
     ) -> GraphSnapshot:
         """Predict the graph at t+horizon using EvolveGCN.
 
-        Falls back to persistence if model is unavailable for this horizon.
+        Raises RuntimeError if no trained model or input history is available.
         """
         # Find closest available horizon model
         h = horizon
         if h not in self.models:
             available_h = sorted(self.models.keys())
             if not available_h:
-                logger.warning("No EvolveGCN models available, using persistence")
-                return current_snapshot
+                raise RuntimeError("No trained EvolveGCN models available")
             h = min(available_h, key=lambda x: abs(x - horizon))
             logger.info(f"EvolveGCN: no model for h={horizon}, using h={h}")
 
@@ -469,8 +468,10 @@ class EvolveGCNPredictor:
         # Build input sequence from recent snapshots
         all_dates = self._loader.dates
         if current_snapshot.date not in all_dates:
-            logger.warning("Current date not in loader, using persistence")
-            return current_snapshot
+            raise RuntimeError(
+                f"Current snapshot date {current_snapshot.date} is not available "
+                "in the EvolveGCN loader history"
+            )
 
         t_idx = all_dates.index(current_snapshot.date)
         start_idx = max(0, t_idx - WINDOW_SIZE + 1)

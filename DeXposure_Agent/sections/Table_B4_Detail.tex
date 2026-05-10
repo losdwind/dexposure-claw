@@ -1,20 +1,14 @@
-% B4 stress-test scenario detail (C0)
-\begin{table}[t]
+% Pending regeneration after clean rerun.
+\begin{table}[!t]
 \centering
-\small
-\begin{tabular}{llcccc}
+\footnotesize
+\begin{tabular}{@{}lc@{}}
 \toprule
-ID & Scenario & Loss MAE $\downarrow$ & Overlap@10 $\uparrow$ \\
+Artifact & Status \\
 \midrule
-S1 & Single protocol failure  & 0.067 & 0.314 \\
-S2 & Bridge cluster failure   & 0.015 & 0.521 \\
-S3 & Stablecoin de-peg        & 0.008 & 0.445 \\
-S4 & Sector-wide lending shock & 0.010 & 0.536 \\
-S5 & Correlated stress        & 0.010 & \textbf{0.602} \\
-\midrule
-\multicolumn{2}{l}{Mean} & 0.022 & 0.484 \\
+B4 stress-test scenario detail & Pending clean rerun \\
 \bottomrule
 \end{tabular}
-\caption{B4 stress-test scenario results for C0 (DeXposure-Agent). Loss MAE measures the gap between predicted and realised systemic loss; Overlap@10 measures agreement on the top-10 most affected protocols. Results are consistent across C0, C7, and C2 since stress shocks are applied to the predicted graph, which retains the observed topology structure.}
+\caption{B4 stress-test scenario detail. This table is intentionally blank until new results are generated from the cleaned experiment pipeline.}
 \label{tab:b4_detail}
 \end{table}

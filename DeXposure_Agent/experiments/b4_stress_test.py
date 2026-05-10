@@ -95,7 +95,7 @@ def run_b4(
     """Run B4 benchmark for a given method across all stress scenarios.
 
     Args:
-        method_id: One of C0, C1, C2, C4, C5, C6, C7, C8, C9, C10.
+        method_id: Scenario-capable forecasting method registered in experiments.methods.
         data_dir: Path to processed graph snapshots and scenario configs.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         scenarios: Override default scenarios (default: S1-S5).

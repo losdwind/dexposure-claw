@@ -323,7 +323,7 @@ def run_b6(
     """Run B6 benchmark for a given method across all degradation regimes.
 
     Args:
-        method_id: One of C0, C1, C3, C4, C5, C6, C7, C8, C9.
+        method_id: Forecasting method registered in experiments.methods.
         data_dir: Path to processed graph snapshots.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         regimes: Override default regimes list.

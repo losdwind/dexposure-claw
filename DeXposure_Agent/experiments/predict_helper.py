@@ -1,9 +1,8 @@
-"""Shared prediction helper for B1-B6 benchmarks.
+"""Shared prediction helper for B1/B3/B4/B5/B6 benchmarks.
 
-Routes method_id to the appropriate prediction strategy:
-- C0/C4: DeXposure-FM backbone (local, requires GPU + checkpoints)
-- C2: Persistence (G_{t+h} = G_t)
-- Others: Persistence proxy with warning
+Routes method IDs through the canonical registry and fails closed when a
+requested predictor is unavailable. This prevents unimplemented baselines from
+silently producing persistence results.
 """
 from __future__ import annotations
 
@@ -15,7 +14,10 @@ _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from dexposure_agent.config import AgentConfig
 from dexposure_agent.types import GraphSnapshot
+from experiments.exceptions import PredictionUnavailable
+from experiments.methods import require_implemented
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +25,13 @@ _FM_PREDICTOR = None
 _EVOLVEGCN_PREDICTOR = None
 
 
-def _get_fm():
+def _get_fm(config: AgentConfig | None = None):
     global _FM_PREDICTOR
     if _FM_PREDICTOR is None:
         try:
             from dexposure_agent.fm_predictor import FMPredictor
-            _FM_PREDICTOR = FMPredictor()
+            cfg = config or AgentConfig()
+            _FM_PREDICTOR = FMPredictor(pi_min=cfg.pi_min)
             if _FM_PREDICTOR.available:
                 logger.info("FM predictor ready")
             else:
@@ -59,31 +62,39 @@ def predict_graph(
     method_id: str,
     current_snapshot: GraphSnapshot,
     horizon: int,
+    config: AgentConfig | None = None,
 ) -> GraphSnapshot:
-    """Generate predicted graph G_{t+h} for any method.
+    """Generate predicted graph G_{t+h} for a supported method.
 
     Returns a NEW GraphSnapshot for FM/GNN methods, or the same object for persistence.
-    Use `is` check to determine if prediction differs from input.
+    Raises PredictionUnavailable instead of substituting another method.
     """
-    # C2: persistence baseline
-    if method_id == "C2":
+    spec = require_implemented(method_id)
+
+    if spec.predictor == "persistence":
         return current_snapshot
 
-    # C0/C4: FM backbone
-    if method_id in ("C0", "C4"):
-        fm = _get_fm()
+    if spec.predictor == "fm":
+        fm = _get_fm(config)
         if fm is not None and fm.available:
             return fm.predict(current_snapshot, horizon)
-        logger.debug("FM not available for %s, using persistence", method_id)
-        return current_snapshot
+        raise PredictionUnavailable(
+            f"{method_id} ({spec.label}) requires FM checkpoints, but FM is unavailable"
+        )
 
-    # C7: EvolveGCN
-    if method_id == "C7":
+    if spec.predictor == "evolvegcn":
         egcn = _get_evolvegcn()
         if egcn is not None and egcn.available:
             return egcn.predict(current_snapshot, horizon)
-        logger.debug("EvolveGCN not available, using persistence")
-        return current_snapshot
+        raise PredictionUnavailable(
+            f"{method_id} ({spec.label}) requires trained EvolveGCN checkpoints"
+        )
 
-    # All others: persistence proxy
-    return current_snapshot
+    if spec.predictor == "current":
+        raise PredictionUnavailable(
+            f"{method_id} ({spec.label}) is not a graph-forecasting method"
+        )
+
+    raise PredictionUnavailable(
+        f"{method_id} ({spec.label}) has unsupported predictor={spec.predictor!r}"
+    )

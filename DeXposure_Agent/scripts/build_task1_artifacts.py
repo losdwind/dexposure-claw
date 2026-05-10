@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
 from pathlib import Path
 
 import matplotlib
@@ -18,7 +19,12 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 FIGURES = ROOT / "figures"
 SECTIONS = ROOT / "sections"
-RUN = RESULTS / "run_20260326_103217"
+
+def _resolve_run() -> Path:
+    configured = os.environ.get("DEXPOSURE_TASK1_RUN")
+    if configured:
+        return Path(configured)
+    return RESULTS / "latest"
 
 
 def _load(path: Path) -> dict:
@@ -38,13 +44,19 @@ def _fmt(v: float | None, nd: int = 3) -> str:
 
 
 def build_summary() -> dict:
-    b1_c0 = _load(RUN / "B1_C0.json")["results"]
-    b1_c2 = _load(RUN / "B1_C2.json")["results"]
-    b2_c0 = _load(RUN / "B2_C0.json")["results"]
-    b2_c2 = _load(RUN / "B2_C2.json")["results"]
-    b3_c0 = _load(RUN / "B3_C0.json")["results"][0]
-    b6_c0 = _load(RUN / "B6_C0.json")["results"]
-    b6_c2 = _load(RUN / "B6_C2.json")["results"]
+    run = _resolve_run()
+    if not run.exists():
+        raise FileNotFoundError(
+            f"Task I run directory not found: {run}. Set DEXPOSURE_TASK1_RUN "
+            "or run scripts/run_benchmarks_sequential.py first."
+        )
+
+    b1_c0 = _load(run / "B1_C0.json")["results"]
+    b1_c2 = _load(run / "B1_C2.json")["results"]
+    b2_h0 = _load(run / "B2_H0.json")["results"]
+    b3_c0 = _load(run / "B3_C0.json")["results"][0]
+    b6_c0 = _load(run / "B6_C0.json")["results"]
+    b6_c2 = _load(run / "B6_C2.json")["results"]
 
     def pick_h4(rows: list[dict]) -> dict:
         return next(r for r in rows if int(r["horizon"]) == 4)
@@ -57,9 +69,9 @@ def build_summary() -> dict:
             "b1_rank_corr_h4": b1_c0_h4["rank_correlation"],
             "b1_trend_consistency_h4": b1_c0_h4["trend_consistency"],
             "b1_hhi_mae_h4": b1_c0_h4["hhi_mae"],
-            "b2_precision_mean": _mean([r["precision"] for r in b2_c0]),
-            "b2_f1_mean": _mean([r["f1_warning"] for r in b2_c0]),
-            "b2_lead_time_mean": _mean([r["lead_time_weeks"] for r in b2_c0]),
+            "b2_precision_mean": _mean([r["precision"] for r in b2_h0]),
+            "b2_f1_mean": _mean([r["f1_warning"] for r in b2_h0]),
+            "b2_lead_time_mean": _mean([r["lead_time_weeks"] for r in b2_h0]),
             "b3_ece": b3_c0["ece"],
             "b3_pi_coverage": b3_c0["pi_coverage"],
             "b3_crps": b3_c0["crps"],
@@ -69,9 +81,9 @@ def build_summary() -> dict:
             "b1_rank_corr_h4": b1_c2_h4["rank_correlation"],
             "b1_trend_consistency_h4": b1_c2_h4["trend_consistency"],
             "b1_hhi_mae_h4": b1_c2_h4["hhi_mae"],
-            "b2_precision_mean": _mean([r["precision"] for r in b2_c2]),
-            "b2_f1_mean": _mean([r["f1_warning"] for r in b2_c2]),
-            "b2_lead_time_mean": _mean([r["lead_time_weeks"] for r in b2_c2]),
+            "b2_precision_mean": None,
+            "b2_f1_mean": None,
+            "b2_lead_time_mean": None,
             "b3_ece": None,
             "b3_pi_coverage": None,
             "b3_crps": None,
@@ -111,9 +123,9 @@ def write_table(summary: dict) -> None:
         f"B1 RankCorr@h4 & {_fmt(c0['b1_rank_corr_h4'])} & {_fmt(c2['b1_rank_corr_h4'])} \\\\",
         f"B1 TrendCons@h4 & {_fmt(c0['b1_trend_consistency_h4'])} & {_fmt(c2['b1_trend_consistency_h4'])} \\\\",
         f"B1 HHI-MAE@h4 (lower better) & {_fmt(c0['b1_hhi_mae_h4'])} & {_fmt(c2['b1_hhi_mae_h4'])} \\\\",
-        f"B2 Precision (mean) & {_fmt(c0['b2_precision_mean'])} & {_fmt(c2['b2_precision_mean'])} \\\\",
-        f"B2 F1-warning (mean) & {_fmt(c0['b2_f1_mean'])} & {_fmt(c2['b2_f1_mean'])} \\\\",
-        f"B2 Lead time (weeks, mean) & {_fmt(c0['b2_lead_time_mean'])} & {_fmt(c2['b2_lead_time_mean'])} \\\\",
+        f"B2 Precision (H0 mean) & {_fmt(c0['b2_precision_mean'])} & N/A \\\\",
+        f"B2 F1-warning (H0 mean) & {_fmt(c0['b2_f1_mean'])} & N/A \\\\",
+        f"B2 Lead time (H0 weeks) & {_fmt(c0['b2_lead_time_mean'])} & N/A \\\\",
         f"B3 ECE (C0 only) & {_fmt(c0['b3_ece'])} & N/A \\\\",
         f"B3 PI coverage (C0 only) & {_fmt(c0['b3_pi_coverage'])} & N/A \\\\",
         f"B6 Relative degradation (mean) & {_fmt(c0['b6_relative_degradation_mean'])} & {_fmt(c2['b6_relative_degradation_mean'])} \\\\",
@@ -128,8 +140,9 @@ def write_table(summary: dict) -> None:
 
 
 def write_figure() -> None:
-    b1_c0 = _load(RUN / "B1_C0.json")["results"]
-    b1_c2 = _load(RUN / "B1_C2.json")["results"]
+    run = _resolve_run()
+    b1_c0 = _load(run / "B1_C0.json")["results"]
+    b1_c2 = _load(run / "B1_C2.json")["results"]
     horizons = [int(r["horizon"]) for r in b1_c0]
     rc0 = [float(r["rank_correlation"]) for r in b1_c0]
     rc2 = [float(r["rank_correlation"]) for r in b1_c2]

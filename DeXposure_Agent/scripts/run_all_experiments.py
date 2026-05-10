@@ -203,9 +203,9 @@ def step5_full_suite():
         ("B1", run_b1), ("B2", run_b2), ("B3", run_b3),
         ("B4", run_b4), ("B5", run_b5), ("B6", run_b6),
     ]
-    methods = ["C0", "C2"]
 
     for bname, bfunc in benchmarks:
+        methods = ["H0"] if bname == "B2" else ["C0", "C2"]
         for method in methods:
             # B3 only runs for C0 (uncertainty method)
             if bname == "B3" and method == "C2":

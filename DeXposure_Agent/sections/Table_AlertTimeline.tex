@@ -1,26 +1,14 @@
-% Alert timeline: FM vs Persistence early warning on historical crises
-% Data source: results/run_alert_timeline/timeline_terra_luna.json, timeline_ftx.json
-\begin{table}[t]
+% Pending regeneration after clean rerun.
+\begin{table*}[!t]
 \centering
-\small
-\begin{tabular}{lrrrrrr}
+\footnotesize
+\begin{tabular}{@{}lc@{}}
 \toprule
-& \multicolumn{3}{c}{Terra/Luna (2022-05-09)} & \multicolumn{3}{c}{FTX (2022-11-07)} \\
-\cmidrule(lr){2-4} \cmidrule(lr){5-7}
-Metric & C0 (FM) & C2 (Pers.) & Ratio & C0 (FM) & C2 (Pers.) & Ratio \\
+Artifact & Status \\
 \midrule
-\multicolumn{7}{l}{\emph{Pre-event phase (alerts before crisis date)}} \\
-First alert (weeks before) & \textbf{$-$9} & $-$5 & --- & \textbf{$-$9} & $-$3 & --- \\
-Exclusive FM window (weeks) & \multicolumn{3}{c}{4} & \multicolumn{3}{c}{6} \\
-Total pre-event alerts     & \textbf{30} & 8  & 3.8$\times$ & \textbf{45} & 12 & 3.8$\times$ \\
-True positive targets      & \textbf{16} & 2  & 8.0$\times$ & \textbf{24} & 8  & 3.0$\times$ \\
-\midrule
-\multicolumn{7}{l}{\emph{During-event phase (event week $\pm$ 3 weeks)}} \\
-Total alerts               & \textbf{13} & 0  & $\infty$     & \textbf{20} & 4  & 5.0$\times$ \\
-True positive targets      & \textbf{17} & 0  & $\infty$     & \textbf{16} & 3  & 5.3$\times$ \\
-Alert on crash week?       & \checkmark~(prec\,=\,1.0)  & \ding{55} & --- & \checkmark~(prec\,=\,1.0) & \ding{55} & --- \\
+Early-warning timeline & Pending clean rerun \\
 \bottomrule
 \end{tabular}
-\caption{Early-warning timeline: C0 (DeXposure-FM) vs.\ C2 (persistence) alert generation relative to two major DeFi crises. C0 begins alerting 9~weeks before both events; C2 activates 4--6~weeks later. During the crash week itself, C2 generates zero alerts while C0 achieves perfect precision. Pre-event precision should be interpreted against a random baseline of 36--75\% (fraction of protocols experiencing $>$20\% weight loss in any given crisis-period week).}
+\caption{Early-warning timeline. This table is intentionally blank until new results are generated from the cleaned experiment pipeline.}
 \label{tab:alert_timeline}
-\end{table}
+\end{table*}

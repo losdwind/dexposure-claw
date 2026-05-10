@@ -13,7 +13,7 @@ Equivalently, $p$ is exposed to liabilities of $q$: if tokens issued by $q$ deva
 
 Figure~\ref{fig:exposure_example} shows how a single workflow can generate layered exposures. A user deposits ETH into Lido and receives stETH; stETH is wrapped into wstETH; wstETH is then deposited into Pendle, which splits it into PT-wstETH and YT-wstETH. On balance sheets, each step turns the upstream token into the downstream protocol's asset, so exposures stack: Pendle is exposed to the wstETH wrapper, which is exposed to Lido. If Lido suffers slashing or stETH de-pegs from ETH, losses can propagate through wstETH into Pendle and its PT/YT holders. This illustrates why DeFi exposures are naturally multi-layered and why DeXposure aims to measure them.
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \begin{tikzpicture}[node distance=1.8cm, auto, scale=0.65, transform shape]
         \tikzstyle{entity} = [rectangle, draw, fill=Apricot, minimum width=2.2cm, minimum height=0.9cm, font=\normalsize]
