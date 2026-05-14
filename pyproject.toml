@@ -3,9 +3,9 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "GraphPFN"
+name = "dexposure-agent"
 version = "0.0.1"
-description = "Official implementation of GraphPFN"
+description = "DeXposure-Agent: forecast-driven risk monitoring on DeFi exposure graphs"
 requires-python = "==3.12.9"
 dependencies = [
     # ==================================================================
@@ -92,7 +92,8 @@ exclude = [
     # Custom rules
     "cache",
     "data",
-    "exp",
+    "archive",
+    "checkpoints",
     "local",
 ]
 # venv = ".venv"
@@ -100,7 +101,7 @@ venvPath = "."
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["lib/limix", "lib/tabpfn"]
+extend-exclude = ["archive/**"]
 
 [tool.ruff.lint]
 extend-select = ["RUF", "UP", "E501", "E731"]
@@ -109,8 +110,8 @@ extend-select = ["RUF", "UP", "E501", "E731"]
 quote-style = "double"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["lib*", "dexposure_fm*"]
+where = ["DeXposure_Agent"]
+include = ["dexposure_agent*", "experiments*"]
 namespaces = true
 
 [tool.uv]

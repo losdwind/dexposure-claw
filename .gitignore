@@ -145,8 +145,15 @@ output/
 output/**
 
 # Large local data/checkpoints
-DeXposure/
 checkpoints/LimiX-16M.ckpt
+
+# Process locks
+.run_full_experiment.lock
+*.lock
+
+# Legacy AI tool state (now archived; ignore if recreated)
+.sisyphus/
+.serena/
 
 # macOS
 .DS_Store
