@@ -28,7 +28,7 @@ ssh gpu-server "cd /root/graph-dexposure/DeXposure_Agent && \
   DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
   python3 -u autoresearch/run_trial.py \
     --config '{\"pi_min\": 0.3}' \
-    --benchmarks B1,B5"
+    --benchmarks b1_forecast,b5_decision"
 ```
 
 ## Metric

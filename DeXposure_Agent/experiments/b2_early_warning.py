@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B2: Early Warning Detection (Section 3.3 of EXPERIMENT_PLAN)
+"""b2_warning: Early Warning Detection (Section 3.3 of EXPERIMENT_PLAN)
 
 Evaluates the ability to issue timely risk warnings before known stress events.
 
@@ -56,8 +56,8 @@ STRESS_EVENTS = {
     },
 }
 
-# B2 is a shared weighted-degree alert heuristic, not a model comparison.
-B2_APPLICABLE_METHODS = {"H0"}
+# b2_warning is a shared weighted-degree alert heuristic, not a model comparison.
+APPLICABLE_METHODS = {"h1_weighted_degree"}
 
 # Ground truth loss threshold: nodes that lost >30% edge weight are "stressed"
 GROUND_TRUTH_LOSS_THRESHOLD = 0.30
@@ -67,7 +67,7 @@ BASELINE_WINDOW_WEEKS = 26
 
 
 @dataclass
-class B2Result:
+class WarningResult:
     method: str
     stress_event: str               # 'terra_luna', 'ftx', 'svb_usdc'
     alert_budget: int
@@ -80,7 +80,7 @@ class B2Result:
 
     def __str__(self) -> str:
         return (
-            f"B2Result(method={self.method}, event={self.stress_event}, "
+            f"WarningResult(method={self.method}, event={self.stress_event}, "
             f"budget={self.alert_budget}, lead={self.lead_time_weeks:.1f}w, "
             f"P={self.precision_at_budget:.3f}, R={self.recall_at_budget:.3f}, "
             f"F1={self.f1_warning:.3f}, stability={self.alert_stability:.3f})"
@@ -260,21 +260,22 @@ def run_b2(
     alert_budgets: list[int] | None = None,
     stress_events: dict | None = None,
     **kwargs,
-) -> list[B2Result]:
-    """Run B2 benchmark for a given method across all stress events and budgets.
+) -> list[WarningResult]:
+    """Run b2_warning benchmark for a given method across all stress events and budgets.
 
     Args:
-        method_id: H0. B2 is method-agnostic and should not be reported as a
-                   C0/C2/C3 comparison.
+        method_id: h1_weighted_degree. b2_warning is method-agnostic and should
+                   not be reported as a model-vs-model comparison.
         data_dir: Path to processed graph snapshots.
-        test_split: Date range string -- NOTE: B2 also uses historical windows
-                    pre-2025 (Terra/Luna, FTX, SVB); test_split gates C0 eval.
+        test_split: Date range string -- NOTE: b2_warning also uses historical
+                    windows pre-2025 (Terra/Luna, FTX, SVB); test_split gates
+                    FM-method evaluation.
         alert_budgets: Override default budgets {5, 10, 20}.
         stress_events: Override default STRESS_EVENTS dict.
         **kwargs: Extra method-specific config.
 
     Returns:
-        List of B2Result, one per (stress_event, alert_budget) combination.
+        List of WarningResult, one per (stress_event, alert_budget) combination.
     """
     if alert_budgets is None:
         alert_budgets = ALERT_BUDGETS
@@ -282,18 +283,19 @@ def run_b2(
         stress_events = STRESS_EVENTS
 
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B2", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b2_warning", method=method_id, results_dir=results_dir)
 
     log.info(
-        f"B2 | method={method_id} | events={list(stress_events.keys())} | "
+        f"b2_warning |method={method_id} | events={list(stress_events.keys())} | "
         f"budgets={alert_budgets}"
     )
 
     # Validate method applicability
-    if method_id not in B2_APPLICABLE_METHODS:
+    if method_id not in APPLICABLE_METHODS:
         raise ValueError(
-            "B2 currently evaluates a shared weighted-degree heuristic, not a "
-            f"model-specific method. Use method_id='H0'. Got {method_id!r}."
+            "b2_warning currently evaluates a shared weighted-degree heuristic, "
+            "not a model-specific method. Use method_id='h1_weighted_degree'. "
+            f"Got {method_id!r}."
         )
 
     # Ensure repo root is on sys.path for imports
@@ -303,7 +305,7 @@ def run_b2(
 
     from dexposure_agent.data_loader import SnapshotLoader
     loader = SnapshotLoader(data_dir=data_dir)
-    results: list[B2Result] = []
+    results: list[WarningResult] = []
 
     for event_name, windows in log.progress(
         stress_events.items(), desc="Stress events", total=len(stress_events), unit="event"
@@ -312,7 +314,7 @@ def run_b2(
         event_start, event_end = windows["event"]
 
         log.info(
-            f"B2 | {event_name} | pre={pre_start}~{pre_end} | "
+            f"b2_warning |{event_name} | pre={pre_start}~{pre_end} | "
             f"event={event_start}~{event_end}"
         )
 
@@ -320,11 +322,11 @@ def run_b2(
         pre_snapshots = loader.load(start=pre_start, end=pre_end)
         if not pre_snapshots:
             log.warning(
-                f"B2 | {event_name} | No snapshots in pre-window "
+                f"b2_warning |{event_name} | No snapshots in pre-window "
                 f"{pre_start}~{pre_end}, skipping"
             )
             for budget in alert_budgets:
-                results.append(B2Result(
+                results.append(WarningResult(
                     method=method_id,
                     stress_event=event_name,
                     alert_budget=budget,
@@ -332,18 +334,18 @@ def run_b2(
             continue
 
         log.info(
-            f"B2 | {event_name} | Loaded {len(pre_snapshots)} pre-window snapshots"
+            f"b2_warning |{event_name} | Loaded {len(pre_snapshots)} pre-window snapshots"
         )
 
         # --- Load event-window snapshots (for ground truth) ---
         event_snapshots = loader.load(start=event_start, end=event_end)
         if not event_snapshots:
             log.warning(
-                f"B2 | {event_name} | No snapshots in event-window "
+                f"b2_warning |{event_name} | No snapshots in event-window "
                 f"{event_start}~{event_end}, skipping ground truth"
             )
             for budget in alert_budgets:
-                results.append(B2Result(
+                results.append(WarningResult(
                     method=method_id,
                     stress_event=event_name,
                     alert_budget=budget,
@@ -351,7 +353,7 @@ def run_b2(
             continue
 
         log.info(
-            f"B2 | {event_name} | Loaded {len(event_snapshots)} event-window snapshots"
+            f"b2_warning |{event_name} | Loaded {len(event_snapshots)} event-window snapshots"
         )
 
         # --- Build rolling baseline from snapshots before the pre-window ---
@@ -360,7 +362,7 @@ def run_b2(
             before=pre_start, window=BASELINE_WINDOW_WEEKS
         )
         log.info(
-            f"B2 | {event_name} | Baseline: {len(baseline_history)} snapshots "
+            f"b2_warning |{event_name} | Baseline: {len(baseline_history)} snapshots "
             f"before {pre_start}"
         )
 
@@ -371,13 +373,13 @@ def run_b2(
             pre_window_end_snap, event_snapshots
         )
         log.info(
-            f"B2 | {event_name} | Ground truth: {len(ground_truth_stressed)} "
+            f"b2_warning |{event_name} | Ground truth: {len(ground_truth_stressed)} "
             f"stressed protocols (>{GROUND_TRUTH_LOSS_THRESHOLD:.0%} loss)"
         )
 
         if not ground_truth_stressed:
             log.warning(
-                f"B2 | {event_name} | No protocols exceeded "
+                f"b2_warning |{event_name} | No protocols exceeded "
                 f"{GROUND_TRUTH_LOSS_THRESHOLD:.0%} loss threshold; "
                 f"recall will be undefined"
             )
@@ -386,7 +388,7 @@ def run_b2(
         for budget in log.progress(
             alert_budgets, desc=f"{event_name} budgets", total=len(alert_budgets), unit="budget"
         ):
-            log.info(f"B2 | {event_name} | budget={budget}")
+            log.info(f"b2_warning |{event_name} | budget={budget}")
 
             # Collect per-snapshot alert sets for the pre-window
             per_snapshot_alerted: list[set[str]] = []
@@ -432,7 +434,7 @@ def run_b2(
                 pre_snapshots, budget, baseline_history,
             )
 
-            result = B2Result(
+            result = WarningResult(
                 method=method_id,
                 stress_event=event_name,
                 alert_budget=budget,
@@ -483,15 +485,19 @@ def run_b2(
         for r in results
     ])
 
-    log.info(f"B2 | Completed: {len(results)} results for method={method_id}")
+    log.info(f"b2_warning |Completed: {len(results)} results for method={method_id}")
     return results
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="B2: Early Warning benchmark")
-    parser.add_argument("--method", default="H0", help="Use H0 for the shared heuristic")
+    parser = argparse.ArgumentParser(description="b2_warning: Early Warning benchmark")
+    parser.add_argument(
+        "--method",
+        default="h1_weighted_degree",
+        help="Use h1_weighted_degree for the shared heuristic",
+    )
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

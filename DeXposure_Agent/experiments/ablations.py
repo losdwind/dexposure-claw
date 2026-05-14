@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Ablation studies for DeXposure-Agent.
 
-Each ablation disables or degrades one component of DeXposure-Agent (C0) and
+Each ablation disables or degrades one component of DeXposure-Agent (m5_fm_rules) and
 evaluates on the appropriate benchmarks, measuring the performance drop.
 
-Ablation configs (applied as overrides to the C0 default config):
+Ablation configs (applied as overrides to the m5_fm_rules default config):
 - A1: tau_data=0.0         -- disable data-health gating
 - A2: tau_conf=0.0         -- disable confidence-based intervention control
 - A3: skip_scenario=True   -- skip scenario engine (no stress simulation)
@@ -42,10 +42,10 @@ ABLATION_DESCRIPTIONS = {
 
 # Which benchmarks each ablation should run
 ABLATION_BENCHMARKS: dict[str, list[str]] = {
-    "A1": ["B5"],        # data-health gate affects decision quality
-    "A2": ["B5"],        # confidence gate affects decision quality
-    "A3": ["B4", "B5"],  # scenario engine affects stress + decision
-    "A6": ["B1", "B5"],  # horizons affect forecasting + decision
+    "A1": ["b5_decision"],        # data-health gate affects decision quality
+    "A2": ["b5_decision"],        # confidence gate affects decision quality
+    "A3": ["b4_stress", "b5_decision"],  # scenario engine affects stress + decision
+    "A6": ["b1_forecast", "b5_decision"],  # horizons affect forecasting + decision
 }
 
 
@@ -55,19 +55,19 @@ class AblationResult:
     description: str
     config_override: dict[str, Any]
     benchmarks_run: list[str] = field(default_factory=list)
-    # B1 metrics (only for A6)
+    # b1_forecast metrics (only for A6)
     b1_rank_correlation: float = float("nan")
     b1_trend_consistency: float = float("nan")
     b1_hhi_mae: float = float("nan")
-    # B4 metrics (only for A3)
+    # b4_stress metrics (only for A3)
     b4_loss_mae: float = float("nan")
     b4_overlap_at_10: float = float("nan")
-    # B5 metrics (all ablations)
+    # b5_decision metrics (all ablations)
     b5_ticket_precision: float = float("nan")
     b5_target_stability: float = float("nan")
     b5_false_intervention_rate: float = float("nan")
     b5_suppression_rate: float = float("nan")
-    # Relative change vs C0 full model (positive = worse)
+    # Relative change vs m5_fm_rules full model (positive = worse)
     relative_drop: dict[str, float] = field(default_factory=dict)
 
     def __str__(self) -> str:
@@ -85,12 +85,12 @@ def run_ablation(
     data_dir: str = "data/",
     test_split: str = "2025-01~2025-08",
     results_dir: str = "",
-    c0_baseline: Optional[dict[str, Any]] = None,
+    baseline_metrics: Optional[dict[str, Any]] = None,
     **kwargs,
 ) -> AblationResult:
     """Run a single ablation study.
 
-    Runs C0 with the ablation's config override applied, then evaluates on
+    Runs m5_fm_rules with the ablation's config override applied, then evaluates on
     the benchmarks specified for that ablation.
 
     Args:
@@ -98,7 +98,7 @@ def run_ablation(
         data_dir: Path to processed graph snapshots.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         results_dir: Directory for saving results.
-        c0_baseline: Optional dict of C0 full-model metrics for computing relative drop.
+        baseline_metrics: Optional dict of m5_fm_rules full-model metrics for computing relative drop.
         **kwargs: Extra config overrides.
 
     Returns:
@@ -126,18 +126,18 @@ def run_ablation(
         benchmarks_run=benchmarks,
     )
 
-    # Run B1 if needed (A6)
-    if "B1" in benchmarks:
+    # Run b1_forecast if needed (A6)
+    if "b1_forecast" in benchmarks:
         from experiments.b1_risk_forecasting import run_b1
         b1_results = run_b1(
-            method_id="C0",
+            method_id="m5_fm_rules",
             data_dir=data_dir,
             test_split=test_split,
             results_dir=results_dir,
             **config_override,
         )
         if b1_results:
-            # B1 returns a list with per-horizon results; use h=4 for comparison
+            # b1_forecast returns a list with per-horizon results; use h=4 for comparison
             h4_results = [r for r in b1_results if r.horizon == 4]
             if h4_results:
                 r = h4_results[0]
@@ -145,11 +145,11 @@ def run_ablation(
                 result.b1_trend_consistency = r.trend_consistency
                 result.b1_hhi_mae = r.hhi_mae
 
-    # Run B4 if needed (A3)
-    if "B4" in benchmarks:
+    # Run b4_stress if needed (A3)
+    if "b4_stress" in benchmarks:
         from experiments.b4_stress_test import run_b4
         b4_results = run_b4(
-            method_id="C0",
+            method_id="m5_fm_rules",
             data_dir=data_dir,
             test_split=test_split,
             results_dir=results_dir,
@@ -162,11 +162,11 @@ def run_ablation(
             result.b4_loss_mae = float(sum(loss_maes) / len(loss_maes)) if loss_maes else float("nan")
             result.b4_overlap_at_10 = float(sum(overlaps) / len(overlaps)) if overlaps else float("nan")
 
-    # Run B5 (all ablations)
-    if "B5" in benchmarks:
+    # Run b5_decision (all ablations)
+    if "b5_decision" in benchmarks:
         from experiments.b5_decision_quality import run_b5
         b5_results = run_b5(
-            method_id="C0",
+            method_id="m5_fm_rules",
             data_dir=data_dir,
             test_split=test_split,
             results_dir=results_dir,
@@ -179,9 +179,9 @@ def run_ablation(
             result.b5_false_intervention_rate = r.false_intervention_rate
             result.b5_suppression_rate = r.suppression_rate
 
-    # Compute relative drop vs C0 baseline
-    if c0_baseline:
-        result.relative_drop = _compute_relative_drop(result, c0_baseline)
+    # Compute relative drop vs m5_fm_rules baseline
+    if baseline_metrics:
+        result.relative_drop = _compute_relative_drop(result, baseline_metrics)
 
     logger.info(f"Ablation {ablation_id} complete: {result}")
     return result
@@ -196,14 +196,14 @@ def _compute_relative_drop(
     ablation: AblationResult,
     baseline: dict[str, Any],
 ) -> dict[str, float]:
-    """Compute relative performance change vs C0 baseline.
+    """Compute relative performance change vs m5_fm_rules baseline.
 
     Positive values = worse than baseline.
     For metrics where lower is better (MAE, FIR), sign is inverted.
     """
     drops = {}
 
-    # B5 metrics (higher is better for precision/stability, lower for FIR)
+    # b5_decision metrics (higher is better for precision/stability, lower for FIR)
     if not _isnan(ablation.b5_ticket_precision) and "b5_ticket_precision" in baseline:
         base = baseline["b5_ticket_precision"]
         if base > 0:
@@ -221,7 +221,7 @@ def _compute_relative_drop(
         if base > 0:
             drops["b5_stability"] = (base - ablation.b5_target_stability) / base
 
-    # B1 metrics
+    # b1_forecast metrics
     if not _isnan(ablation.b1_rank_correlation) and "b1_rank_correlation" in baseline:
         base = baseline["b1_rank_correlation"]
         if base > 0:
@@ -238,17 +238,17 @@ def run_all_ablations(
 ) -> list[AblationResult]:
     """Run all (or a subset of) ablation studies.
 
-    First runs C0 full-model as baseline, then each ablation variant.
+    First runs m5_fm_rules full-model as baseline, then each ablation variant.
     """
     if ablation_ids is None:
         ablation_ids = list(ABLATION_CONFIGS.keys())
 
     logger.info(f"Running ablations: {ablation_ids}")
 
-    # Step 1: Run C0 baseline for reference
-    logger.info("Running C0 baseline for ablation reference...")
-    c0_baseline = _run_c0_baseline(data_dir, test_split, results_dir)
-    logger.info(f"C0 baseline: {c0_baseline}")
+    # Step 1: Run m5_fm_rules baseline for reference
+    logger.info("Running m5_fm_rules baseline for ablation reference...")
+    baseline_metrics = _run_baseline_metrics(data_dir, test_split, results_dir)
+    logger.info(f"m5_fm_rules baseline: {baseline_metrics}")
 
     # Step 2: Run each ablation
     results = []
@@ -259,7 +259,7 @@ def run_all_ablations(
                 data_dir=data_dir,
                 test_split=test_split,
                 results_dir=results_dir,
-                c0_baseline=c0_baseline,
+                baseline_metrics=baseline_metrics,
             )
             results.append(result)
         except Exception as exc:
@@ -274,21 +274,21 @@ def run_all_ablations(
 
     # Save summary
     if results_dir:
-        _save_ablation_summary(results, c0_baseline, results_dir)
+        _save_ablation_summary(results, baseline_metrics, results_dir)
 
     return results
 
 
-def _run_c0_baseline(
+def _run_baseline_metrics(
     data_dir: str,
     test_split: str,
     results_dir: str,
 ) -> dict[str, Any]:
-    """Run C0 with default config to get baseline metrics."""
+    """Run m5_fm_rules with default config to get baseline metrics."""
     baseline = {}
 
     from experiments.b1_risk_forecasting import run_b1
-    b1_results = run_b1("C0", data_dir, test_split, results_dir=results_dir)
+    b1_results = run_b1("m5_fm_rules", data_dir, test_split, results_dir=results_dir)
     h4 = [r for r in b1_results if r.horizon == 4]
     if h4:
         baseline["b1_rank_correlation"] = h4[0].rank_correlation
@@ -296,7 +296,7 @@ def _run_c0_baseline(
         baseline["b1_hhi_mae"] = h4[0].hhi_mae
 
     from experiments.b5_decision_quality import run_b5
-    b5_results = run_b5("C0", data_dir, test_split, results_dir=results_dir)
+    b5_results = run_b5("m5_fm_rules", data_dir, test_split, results_dir=results_dir)
     if b5_results:
         baseline["b5_ticket_precision"] = b5_results[0].ticket_precision
         baseline["b5_target_stability"] = b5_results[0].target_stability
@@ -317,7 +317,7 @@ def _save_ablation_summary(
 
     summary = {
         "timestamp": datetime.now().isoformat(),
-        "c0_baseline": baseline,
+        "baseline_metrics": baseline,
         "ablations": [asdict(r) for r in results],
     }
     out_path.write_text(json.dumps(summary, indent=2, default=str))

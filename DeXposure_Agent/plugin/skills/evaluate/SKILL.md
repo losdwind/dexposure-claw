@@ -13,7 +13,7 @@ The DeXposure-Agent includes three benchmarks for assessing model quality. These
 
 ## Available Benchmarks
 
-### B1: Risk Forecasting Accuracy
+### b1_forecast: Risk Forecasting Accuracy
 
 Tests whether the predicted graph (PredGraph at h=4) correctly anticipates which protocols will show elevated risk in the actual future snapshot.
 
@@ -30,7 +30,7 @@ POST /evaluate/b1
 }
 ```
 
-### B3: Uncertainty Calibration
+### b3_calibration: Uncertainty Calibration
 
 Tests whether the model's weight_stds are calibrated — i.e., does a predicted uncertainty of sigma=0.2 actually correspond to 68% of observations falling within one sigma of the mean?
 
@@ -47,7 +47,7 @@ POST /evaluate/b3
 }
 ```
 
-### B4: Stress-test Accuracy
+### b4_stress: Stress-test Accuracy
 
 Tests whether the stress-test module correctly identifies which protocols suffer the largest real losses when a major DeFi event occurs (using historical events as ground truth).
 
@@ -77,7 +77,7 @@ Benchmark results are returned as:
 
 ```json
 {
-  "benchmark": "B1",
+  "benchmark": "b1_forecast",
   "auroc": 0.74,
   "pass": true,
   "n_epochs_evaluated": 26,
@@ -87,10 +87,10 @@ Benchmark results are returned as:
 ```
 
 If a benchmark fails (falls below passing threshold):
-- B1 fail: Model may need fine-tuning on local protocol universe; check if protocol taxonomy matches training data
-- B3 fail: MC sampling count N may need to increase; check temperature scaling calibration
-- B4 fail: Stress scenario parameters (shock fractions) may need recalibration for local market conditions
+- b1_forecast fail: Model may need fine-tuning on local protocol universe; check if protocol taxonomy matches training data
+- b3_calibration fail: MC sampling count N may need to increase; check temperature scaling calibration
+- b4_stress fail: Stress scenario parameters (shock fractions) may need recalibration for local market conditions
 
-## Note on B2
+## Note on b2_warning
 
-Benchmark B2 (structural graph reconstruction) is a held-out test used during model development and is not exposed via the production API. Contact the DeXposure team for B2 evaluation if needed for academic benchmarking.
+Benchmark b2_warning (structural graph reconstruction) is a held-out test used during model development and is not exposed via the production API. Contact the DeXposure team for b2_warning evaluation if needed for academic benchmarking.

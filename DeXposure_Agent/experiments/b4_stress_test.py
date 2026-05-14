@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B4: Stress Test (Section 3.5 of EXPERIMENT_PLAN)
+"""b4_stress: Stress Test (Section 3.5 of EXPERIMENT_PLAN)
 
 Evaluates accuracy of simulated contagion outcomes under five stylised stress
 scenarios S1-S5 applied to the exposure network.
@@ -45,7 +45,7 @@ DEFAULT_TOP_K = 10  # for Target Overlap@K
 
 
 @dataclass
-class B4Result:
+class StressResult:
     method: str
     scenario: str
     loss_mae: float = float("nan")
@@ -57,7 +57,7 @@ class B4Result:
 
     def __str__(self) -> str:
         return (
-            f"B4Result(method={self.method}, scenario={self.scenario}, "
+            f"StressResult(method={self.method}, scenario={self.scenario}, "
             f"loss_mae={self.loss_mae:.4f}, dist_count_mae={self.distressed_count_mae:.4f}, "
             f"prop_depth_mae={self.propagation_depth_mae:.4f}, "
             f"overlap@{self.top_k}={self.target_overlap_at_k:.4f})"
@@ -91,8 +91,8 @@ def run_b4(
     scenarios: list[str] | None = None,
     top_k: int = DEFAULT_TOP_K,
     **kwargs,
-) -> list[B4Result]:
-    """Run B4 benchmark for a given method across all stress scenarios.
+) -> list[StressResult]:
+    """Run b4_stress benchmark for a given method across all stress scenarios.
 
     Args:
         method_id: Scenario-capable forecasting method registered in experiments.methods.
@@ -103,16 +103,16 @@ def run_b4(
         **kwargs: Extra method-specific config.
 
     Returns:
-        List of B4Result, one per scenario.
+        List of StressResult, one per scenario.
     """
     if scenarios is None:
         scenarios = SCENARIOS
 
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B4", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b4_stress", method=method_id, results_dir=results_dir)
 
     log.info(
-        f"B4 | method={method_id} | test_split={test_split} | "
+        f"b4_stress | method={method_id} | test_split={test_split} | "
         f"scenarios={scenarios} | top_k={top_k}"
     )
 
@@ -124,11 +124,11 @@ def run_b4(
     all_dates = loader.dates
 
     if len(test_snapshots) < 2:
-        log.warning("B4: fewer than 2 test snapshots, returning NaN results")
-        return [B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0)
+        log.warning("b4_stress: fewer than 2 test snapshots, returning NaN results")
+        return [StressResult(method=method_id, scenario=sid, top_k=top_k, n_simulations=0)
                 for sid in scenarios]
 
-    log.info(f"B4: loaded {len(test_snapshots)} test snapshots")
+    log.info(f"b4_stress: loaded {len(test_snapshots)} test snapshots")
 
     # Build date -> snapshot index
     date_to_snap: dict[str, GraphSnapshot] = {s.date: s for s in test_snapshots}
@@ -136,16 +136,16 @@ def run_b4(
     # Default horizon for stress test comparison
     horizon = kwargs.get("horizon", 4)
 
-    results: list[B4Result] = []
+    results: list[StressResult] = []
 
     for sid in log.progress(scenarios, desc="Scenarios", total=len(scenarios), unit="scenario"):
         if sid not in SCENARIO_LIBRARY:
-            log.warning(f"B4: scenario {sid} not in SCENARIO_LIBRARY, skipping")
-            results.append(B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
+            log.warning(f"b4_stress: scenario {sid} not in SCENARIO_LIBRARY, skipping")
+            results.append(StressResult(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
             continue
 
         spec = SCENARIO_LIBRARY[sid]
-        log.info(f"B4: evaluating scenario {sid} ({spec.get('name', '')})")
+        log.info(f"b4_stress: evaluating scenario {sid} ({spec.get('name', '')})")
 
         loss_errors: list[float] = []
         distressed_errors: list[float] = []
@@ -173,7 +173,7 @@ def run_b4(
                 try:
                     gt_graph = loader.load_single(future_date)
                 except KeyError:
-                    log.info(f"B4: no ground truth for {future_date}, skipping")
+                    log.info(f"b4_stress: no ground truth for {future_date}, skipping")
                     continue
 
             # --- Predicted path: shock on predicted graph ---
@@ -213,11 +213,11 @@ def run_b4(
             )
 
         if n_sims == 0:
-            log.warning(f"B4: no valid simulations for scenario {sid}")
-            results.append(B4Result(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
+            log.warning(f"b4_stress: no valid simulations for scenario {sid}")
+            results.append(StressResult(method=method_id, scenario=sid, top_k=top_k, n_simulations=0))
             continue
 
-        result = B4Result(
+        result = StressResult(
             method=method_id,
             scenario=sid,
             loss_mae=float(np.mean(loss_errors)),
@@ -228,7 +228,7 @@ def run_b4(
             n_simulations=n_sims,
         )
         results.append(result)
-        log.info(f"B4 scenario {sid}: {result}")
+        log.info(f"b4_stress scenario {sid}: {result}")
 
     # --- Summary ---
     valid_results = [r for r in results if r.n_simulations and r.n_simulations > 0]
@@ -254,15 +254,15 @@ def run_b4(
         for r in results
     ])
 
-    log.info(f"B4 complete: {len(results)} scenario results")
+    log.info(f"b4_stress complete: {len(results)} scenario results")
     return results
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="B4: Stress Test benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0, C4)")
+    parser = argparse.ArgumentParser(description="b4_stress: Stress Test benchmark")
+    parser.add_argument("--method", required=True, help="Method ID (e.g. m5_fm_rules, m4_fm_only)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

@@ -13,7 +13,7 @@
 #
 # Usage:
 #   bash DeXposure_Agent/scripts/run_llm_eval.sh
-#   bash DeXposure_Agent/scripts/run_llm_eval.sh --method C0-LLM
+#   bash DeXposure_Agent/scripts/run_llm_eval.sh --method m6_fm_llm
 #   bash DeXposure_Agent/scripts/run_llm_eval.sh --resume
 #   bash DeXposure_Agent/scripts/run_llm_eval.sh --model claude-haiku-4-5 --no-judge
 

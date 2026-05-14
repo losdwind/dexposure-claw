@@ -56,11 +56,12 @@ ax.text(legend_x + 0.8, 7.7, "Methods", fontsize=10, fontweight="bold",
         ha="center", color=NAVY)
 
 methods = [
-    ("C0-LLM", "FM + LLM", STEEL, "Proposed"),
-    ("C0",     "FM + Rules", GREEN_D, "Ablation"),
-    ("C2",     "Persist + Rules", SLATE, "Baseline"),
-    ("C3",     "Pure LLM", AMBER, "Ablation"),
-    ("C4-C10", "Model-only", TEAL, "FM baselines"),
+    ("m6_fm_llm", "FM + LLM", STEEL, "Proposed"),
+    ("m5_fm_rules",     "FM + Rules", GREEN_D, "Ablation"),
+    ("m1_persistence_rules",     "Persist + Rules", SLATE, "Baseline"),
+    ("m2_snapshot_llm",     "Pure LLM", AMBER, "Ablation"),
+    ("m4_fm_only",     "FM only",         TEAL,    "FM baseline"),
+    ("m3_evolvegcn",   "EvolveGCN",       TEAL,    "Temporal-GNN"),
 ]
 
 for i, (mid, desc, color, tag) in enumerate(methods):
@@ -98,10 +99,10 @@ ax.text(layer_x + 0.2, l1_y + l1_h/2 - 0.45,
         fontsize=7.5, color=SLATE, fontstyle="italic", zorder=3)
 
 benchmarks_l1 = [
-    ("B1", "Risk Forecasting", "MAE, Spearman rho,\ntrend consistency"),
-    ("B2", "Early Warning", "Lead time, precision,\nrecall on 3 crises"),
-    ("B3", "Uncertainty", "ECE, PI coverage,\nCRPS"),
-    ("B6", "Robustness", "B1 under 5\ndegradation regimes"),
+    ("b1_forecast", "Risk Forecasting", "MAE, Spearman rho,\ntrend consistency"),
+    ("b2_warning", "Early Warning", "Lead time, precision,\nrecall on 3 crises"),
+    ("b3_calibration", "Uncertainty", "ECE, PI coverage,\nCRPS"),
+    ("b6_robustness", "Robustness", "b1_forecast under 5\ndegradation regimes"),
 ]
 bx_start = layer_x + 0.3
 bx_w = 2.1
@@ -118,7 +119,7 @@ for i, (bid, bname, bmetrics) in enumerate(benchmarks_l1):
             va="center", color=SLATE, zorder=4, linespacing=1.2)
 
 ax.text(layer_x + layer_w - 0.3, l1_y + l1_h/2 - 0.2,
-        "C0  C2  C4-C10", fontsize=7, ha="right", color=SLATE,
+        "m5_fm_rules  m1_persistence_rules  m4_fm_only  m3_evolvegcn", fontsize=7, ha="right", color=SLATE,
         fontweight="bold", zorder=3)
 
 # ==============================================================
@@ -156,10 +157,10 @@ for i, (mname, mdesc) in enumerate(metrics_l2):
             va="center", color=SLATE, zorder=4, linespacing=1.2)
 
 ax.text(layer_x + layer_w - 0.3, l2_y + l2_h/2 - 0.2,
-        "C0-LLM  C3", fontsize=7, ha="right", color=SLATE,
+        "m6_fm_llm  m2_snapshot_llm", fontsize=7, ha="right", color=SLATE,
         fontweight="bold", zorder=3)
 ax.text(layer_x + layer_w - 0.3, l2_y + l2_h/2 - 0.45,
-        "Key: C0-LLM.Ground > C3.Ground -- FM reduces hallucination",
+        "Key: m6_fm_llm.Ground > m2_snapshot_llm.Ground -- FM reduces hallucination",
         fontsize=6.5, ha="right", color=NAVY, fontstyle="italic", zorder=3)
 
 # ==============================================================
@@ -180,8 +181,8 @@ ax.text(layer_x + 0.2, l3_y + l3_h/2 - 0.45,
         fontsize=7.5, color=SLATE, fontstyle="italic", zorder=3)
 
 metrics_l3 = [
-    ("B5: Decision Quality", "Precision, recall, severity rho,\nstability, FIR, cost-adjusted"),
-    ("B4: Stress Test", "Contagion loss MAE,\noverlap@10"),
+    ("b5_decision: Decision Quality", "Precision, recall, severity rho,\nstability, FIR, cost-adjusted"),
+    ("b4_stress: Stress Test", "Contagion loss MAE,\noverlap@10"),
     ("Explanation Quality", "LLM-as-Judge 1-5\n(rules = N/A by design)"),
 ]
 for i, (mname, mdesc) in enumerate(metrics_l3):
@@ -197,7 +198,7 @@ for i, (mname, mdesc) in enumerate(metrics_l3):
             va="center", color=SLATE, zorder=4, linespacing=1.2)
 
 ax.text(layer_x + layer_w - 0.3, l3_y + l3_h/2 - 0.2,
-        "C0-LLM  C0  C2  C3", fontsize=7, ha="right", color=SLATE,
+        "m6_fm_llm  m5_fm_rules  m1_persistence_rules  m2_snapshot_llm", fontsize=7, ha="right", color=SLATE,
         fontweight="bold", zorder=3)
 
 # ==============================================================
@@ -231,9 +232,9 @@ ax.text(6.5, claims_y + 0.25, "Three claims to prove:", fontsize=9,
         fontweight="bold", ha="center", color=NAVY)
 
 claims = [
-    "(1)  C0-LLM.Precision > C0.Precision    (LLM reasoning > rule engine)",
-    "(2)  C0-LLM.Groundedness > C3.Groundedness    (FM data reduces hallucination)",
-    "(3)  C0-LLM.Explanation > 0,  Rules = N/A    (LLM provides interpretability)",
+    "(1)  m6_fm_llm.Precision > m5_fm_rules.Precision    (LLM reasoning > rule engine)",
+    "(2)  m6_fm_llm.Groundedness > m2_snapshot_llm.Groundedness    (FM data reduces hallucination)",
+    "(3)  m6_fm_llm.Explanation > 0,  Rules = N/A    (LLM provides interpretability)",
 ]
 for i, claim in enumerate(claims):
     ax.text(6.5, claims_y - 0.15 - i * 0.28, claim, fontsize=7.5,

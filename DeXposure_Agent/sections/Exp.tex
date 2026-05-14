@@ -28,7 +28,7 @@ Test  & 2025-01 -- 2025-08 & $\sim$33  & Final evaluation \\
 %We additionally report expanding-window walk-forward results (15~folds, 4-week evaluation windows starting 2022-07) for robustness.
 
 \paragraph{Stress event windows.}
-For early-warning evaluation (B2), we define ground-truth stress periods around three major DeFi crises:
+For early-warning evaluation (b2_warning), we define ground-truth stress periods around three major DeFi crises:
 \begin{center}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -58,37 +58,37 @@ For each triggered alert, we rank contributing edges by marginal contribution: $
 \paragraph{Evaluation protocol.}
 Figure~\ref{fig:eval_framework} summarises the evaluation framework. We evaluate Task~I along three axes:
 \begin{enumerate}[leftmargin=*,itemsep=1pt]
-    \item \emph{Risk-metric forecasting (B1):} predicted vs.\ realised metrics using MAE and Spearman rank correlation, for each $h\in\{1,4,8,12\}$.
-    \item \emph{Early-warning quality (B2):} lead time to stress events, precision/recall under alert budgets $\{5,10,20\}$, alert stability (flip rate), and F1-warning.
-    \item \emph{Uncertainty calibration (B3):} expected calibration error (ECE), prediction interval coverage (target 90\%), PI width, and CRPS. We apply split conformal prediction on the validation set to ensure asymptotically valid coverage.
+    \item \emph{Risk-metric forecasting (b1_forecast):} predicted vs.\ realised metrics using MAE and Spearman rank correlation, for each $h\in\{1,4,8,12\}$.
+    \item \emph{Early-warning quality (b2_warning):} lead time to stress events, precision/recall under alert budgets $\{5,10,20\}$, alert stability (flip rate), and F1-warning.
+    \item \emph{Uncertainty calibration (b3_calibration):} expected calibration error (ECE), prediction interval coverage (target 90\%), PI width, and CRPS. We apply split conformal prediction on the validation set to ensure asymptotically valid coverage.
 \end{enumerate}
 
 \begin{figure*}[!t]
     \centering
     \includegraphics[width=0.82\textwidth]{figures/fig3_evaluation_framework}
-    \caption{Evaluation framework: six benchmarks (B1--B6) covering risk forecasting, early warning, uncertainty calibration, stress testing, decision quality, and robustness.}
+    \caption{Evaluation framework: six benchmarks (b1_forecast--b6_robustness) covering risk forecasting, early warning, uncertainty calibration, stress testing, decision quality, and robustness.}
     \label{fig:eval_framework}
 \end{figure*}
 
 \paragraph{Reproducibility.}
 All hyperparameters ($\pi_{\min}$, $L$, $z$, $K$, $M$, $\tau_{\mathrm{data}}$) are selected on the validation split and fixed for test evaluation. Random seeds are fixed for MC sampling; we report mean $\pm$ standard deviation over $R=3$ independent runs.
-All benchmark results in this section are pending regeneration after the experiment-audit cleanup. The cleaned pipeline uses fail-closed predictor routing: unavailable FM or EvolveGCN checkpoints now abort the corresponding run rather than falling back to persistence. B2 is reported as a shared weighted-degree heuristic (H0) rather than as a method-specific comparison. Final runtime and hardware details will be filled in after the clean rerun.
+All benchmark results in this section are pending regeneration after the experiment-audit cleanup. The cleaned pipeline uses fail-closed predictor routing: unavailable FM or EvolveGCN checkpoints now abort the corresponding run rather than falling back to persistence. b2_warning is reported as a shared weighted-degree heuristic (h1_weighted_degree) rather than as a method-specific comparison. Final runtime and hardware details will be filled in after the clean rerun.
 
 \subsubsection{Empirical Results}
-Table~\ref{tab:task1_summary} and Table~\ref{tab:b1_all_horizons} are placeholders until the clean rerun completes. The regenerated Task~I comparison will report C0 (FM+Rules), C2 (Persistence+Rules), H0 for B2, and C7 only if trained EvolveGCN checkpoints are present.
+Table~\ref{tab:task1_summary} and Table~\ref{tab:b1_all_horizons} are placeholders until the clean rerun completes. The regenerated Task~I comparison will report m5_fm_rules (FM+Rules), m1_persistence_rules (Persistence+Rules), h1_weighted_degree for b2_warning, and m3_evolvegcn only if trained EvolveGCN checkpoints are present.
 
 \input{sections/Table_TaskI_Summary.tex}
 
-\input{sections/Table_B1_AllHorizons.tex}
+\input{sections/Table_b1_forecast_AllHorizons.tex}
 
 \begin{figure}[!t]
     \centering
     \includegraphics[width=0.85\linewidth]{figures/fig5_task1_b1_rankcorr}
-    \caption{Task~I B1 rank correlation across forecast horizons.}
+    \caption{Task~I b1_forecast rank correlation across forecast horizons.}
     \label{fig:task1_b1_rankcorr}
 \end{figure}
 
-The previous numerical Task~I discussion has been removed because it was tied to stale artifacts, including a C7 run that matched persistence after metadata removal. We will restore this paragraph only after the new result manifest passes the audit script.
+The previous numerical Task~I discussion has been removed because it was tied to stale artifacts, including a m3_evolvegcn run that matched persistence after metadata removal. We will restore this paragraph only after the new result manifest passes the audit script.
 
 \subsection{Task II: Decision-Making}
 
@@ -110,15 +110,15 @@ For intervention tickets, targets are selected from the union of top-$K$ attribu
 \paragraph{Evaluation protocol.}
 We evaluate Task~II using both offline and scenario-based criteria:
 \begin{enumerate}[leftmargin=*,itemsep=1pt]
-    \item \emph{Offline (B5):} ticket precision (fraction followed by real stress), target stability (Jaccard between adjacent epochs), audit completeness (evidence bundle coverage), suppression rate (safe-mode activation), and false intervention rate.
-    \item \emph{Scenario-based (B4):} stress-test contagion prediction accuracy---loss MAE, distressed count MAE, propagation depth MAE, and target overlap@$K$ between predicted and actual networks under scenarios S1--S5.
+    \item \emph{Offline (b5_decision):} ticket precision (fraction followed by real stress), target stability (Jaccard between adjacent epochs), audit completeness (evidence bundle coverage), suppression rate (safe-mode activation), and false intervention rate.
+    \item \emph{Scenario-based (b4_stress):} stress-test contagion prediction accuracy---loss MAE, distressed count MAE, propagation depth MAE, and target overlap@$K$ between predicted and actual networks under scenarios S1--S5.
 \end{enumerate}
 
 \paragraph{Reproducibility.}
 All decision hyperparameters ($K$, $N$, $\tau_{\mathrm{data}}$, $\tau_{\mathrm{conf}}$, $\lambda$) are tuned on the validation split and fixed for testing. MC components use fixed seeds; we report mean $\pm$ standard deviation over $R=3$ runs.
 
 \subsubsection{Empirical Results}
-Table~\ref{tab:task2_table3} is pending clean regeneration. The rerun will compare C2 (Persistence+Rules), C0 (FM+Rules), C3 (CurrentSnapshot+LLM), C0-LLM (FM+LLM), and C0-LLM-GATED (FM+LLM+RulesGate). The gated LLM variant is included to separate FM-conditioned target selection from unconstrained LLM intervention severity.
+Table~\ref{tab:task2_table3} is pending clean regeneration. The rerun will compare m1_persistence_rules (Persistence+Rules), m5_fm_rules (FM+Rules), m2_snapshot_llm (CurrentSnapshot+LLM), m6_fm_llm (FM+LLM), and m7_fm_llm_gated (FM+LLM+RulesGate). The gated LLM variant is included to separate FM-conditioned target selection from unconstrained LLM intervention severity.
 
 \input{sections/Table3_MethodComparison.tex}
 
@@ -132,16 +132,16 @@ Figure~\ref{fig:task2_method_comparison} visualises the key metrics (precision, 
 
 The previous Task~II numerical discussion has been removed because the LLM checkpoint files and raw assessments disagreed, and because the ungated FM+LLM policy was not comparable to the conservative rule engine. We will restore this paragraph after the clean LLM and rule-based reruns pass the audit script.
 
-\input{sections/Table_B5_CrisisPeriod.tex}
+\input{sections/Table_b5_decision_CrisisPeriod.tex}
 
 \paragraph{Early-warning timeline analysis.}
 To determine whether FM alerts constitute genuine \emph{early warnings} or merely post-hoc damage reports, we conduct a per-week alert timeline analysis around the Terra/Luna (2022-05-09) and FTX (2022-11-07) events. Table~\ref{tab:alert_timeline} summarises the results.
 
 \input{sections/Table_AlertTimeline.tex}
 
-The early-warning timeline and B4 stress-test discussion are also pending clean regeneration. We keep the table hooks in place so the new artifacts can be inserted directly after rerun.
+The early-warning timeline and b4_stress stress-test discussion are also pending clean regeneration. We keep the table hooks in place so the new artifacts can be inserted directly after rerun.
 
-\input{sections/Table_B4_Detail.tex}
+\input{sections/Table_b4_stress_Detail.tex}
 
 \subsection{Ablation Study}
 

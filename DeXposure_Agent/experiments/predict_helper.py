@@ -1,4 +1,4 @@
-"""Shared prediction helper for B1/B3/B4/B5/B6 benchmarks.
+"""Shared prediction helper for b1_forecast/b3_calibration/b4_stress/b5_decision/b6_robustness.
 
 Routes method IDs through the canonical registry and fails closed when a
 requested predictor is unavailable. This prevents unimplemented baselines from

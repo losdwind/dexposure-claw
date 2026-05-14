@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""C3: Pure LLM-Agent competitor (no FM backbone).
+"""m2_snapshot_llm: Pure LLM-Agent competitor (no FM backbone).
 
 Calls Claude with a text-only description of the current DeFi network.
 No forward-looking FM predictions, no predicted graph, no scenario analysis
 on predicted graph. The LLM must reason from the raw current snapshot alone.
 
-Used by llm_eval_b5.py for the C3 vs C0-LLM comparison.
+Used by llm_eval_b5.py for the m2_snapshot_llm vs m6_fm_llm comparison.
 Can also be called standalone for single-week analysis.
 
 Usage:
@@ -38,7 +38,7 @@ class LLMAgentConfig:
 @dataclass
 class LLMAgentPrediction:
     """Output format shared across all agent-level competitors."""
-    method_id: str = "C3"
+    method_id: str = "m2_snapshot_llm"
     horizon: int = 4
     risk_level: str = ""
     risk_scores: dict[str, float] = field(default_factory=dict)
@@ -145,7 +145,7 @@ def run_llm_agent(
     config: LLMAgentConfig | None = None,
     date: str = "",
 ) -> LLMAgentPrediction:
-    """Run the pure LLM agent (C3) on a raw snapshot dict.
+    """Run the pure LLM agent (m2_snapshot_llm) on a raw snapshot dict.
 
     Args:
         snapshot: Raw snapshot dict from /snapshot API (nodes, edges).
@@ -216,7 +216,7 @@ def run_llm_agent(
         })
 
     return LLMAgentPrediction(
-        method_id="C3",
+        method_id="m2_snapshot_llm",
         horizon=config.horizon,
         risk_level=parsed.get("risk_level", "unknown"),
         risk_scores=risk_scores,
@@ -232,7 +232,7 @@ def run_llm_agent(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="C3: Pure LLM-Agent (no FM)")
+    parser = argparse.ArgumentParser(description="m2_snapshot_llm: Pure LLM-Agent (no FM)")
     parser.add_argument("--date", required=True, help="Snapshot date (YYYY-MM-DD)")
     parser.add_argument("--horizon", type=int, default=4)
     parser.add_argument("--model", default="claude-sonnet-4-6")

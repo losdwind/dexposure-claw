@@ -39,7 +39,7 @@ from dexposure_agent.monitor import compute_metrics, detect_alerts, _compute_rol
 from dexposure_agent.scenario import run_scenarios
 from dexposure_agent.types import Edge, GraphSnapshot, NodeFeatures
 
-DATA_DIR = str(_REPO_ROOT / "DeXposure" / "data")
+DATA_DIR = str(_REPO_ROOT / "data")
 RESULTS_DIR = str(_AGENT_DIR / "results" / "run_a1_isolated")
 STRESS_LOOKAHEAD = 4
 MC_NOISE_SIGMA = 2.0  # from calibration
@@ -145,7 +145,7 @@ def run_one(regime_name, regime_cfg, tau_data, tau_conf, label, test_split, load
         dh_scores.append(dh.score)
         safe_modes.append(dh.safe_mode)
 
-        pred = predict_graph("C0", deg, horizon=STRESS_LOOKAHEAD)
+        pred = predict_graph("m5_fm_rules", deg, horizon=STRESS_LOOKAHEAD)
         metrics = compute_metrics(pred)
         baseline = _compute_rolling_baseline(baseline_history, config.rolling_window)
         alerts = detect_alerts(metrics, baseline, horizon=STRESS_LOOKAHEAD, config=config)

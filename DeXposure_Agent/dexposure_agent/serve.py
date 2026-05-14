@@ -100,7 +100,7 @@ def _get_loader():
         from dexposure_agent.data_loader import SnapshotLoader
         data_dir = os.environ.get(
             "DEXPOSURE_DATA_DIR",
-            str(Path(_PROJECT_ROOT) / "DeXposure" / "data"),
+            str(Path(_PROJECT_ROOT) / "data"),
         )
         _snapshot_loader = SnapshotLoader(data_dir=data_dir)
         logger.info("SnapshotLoader initialized: %d dates", len(_snapshot_loader.dates))
@@ -241,7 +241,7 @@ def create_app() -> FastAPI:
         """Return raw snapshot (no FM prediction) for a given date.
 
         Used by the LLM agent for ground truth comparison and
-        C3 (pure LLM) prompts that need the current network state.
+        m2_snapshot_llm (pure LLM) prompts that need the current network state.
         """
         loader = _get_loader()
         try:

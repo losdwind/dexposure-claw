@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Sequential benchmark runner for B1-B6 experiments.
+"""Sequential benchmark runner for b1_forecast-b6_robustness experiments.
 
 Runs each benchmark with available methods, saves results to results/ directory.
-Designed to run on GPU server with full data in ../../DeXposure/data/.
+Designed to run on GPU server with full data in ../data/.
 
 Features:
 - Overall progress bar showing benchmark completion
@@ -52,7 +52,7 @@ logger.add(
 )
 
 # Data directory
-DATA_DIR = str(Path(_REPO_ROOT).parent / "DeXposure" / "data")
+DATA_DIR = str(Path(_REPO_ROOT).parent / "data")
 TEST_SPLIT = "2025-01~2025-08"
 
 
@@ -102,12 +102,12 @@ def main():
 
     # Define all benchmark-method pairs
     benchmark_plan = [
-        ("B1", "experiments.b1_risk_forecasting", "run_b1", ["C2", "C0"]),
-        ("B2", "experiments.b2_early_warning", "run_b2", ["H0"]),
-        ("B3", "experiments.b3_uncertainty_calibration", "run_b3", ["C0"]),
-        ("B4", "experiments.b4_stress_test", "run_b4", ["C2", "C0"]),
-        ("B5", "experiments.b5_decision_quality", "run_b5", ["C2", "C0"]),
-        ("B6", "experiments.b6_robustness", "run_b6", ["C2", "C0"]),
+        ("b1_forecast", "experiments.b1_risk_forecasting", "run_b1", ["m1_persistence_rules", "m5_fm_rules"]),
+        ("b2_warning", "experiments.b2_early_warning", "run_b2", ["h1_weighted_degree"]),
+        ("b3_calibration", "experiments.b3_uncertainty_calibration", "run_b3", ["m5_fm_rules"]),
+        ("b4_stress", "experiments.b4_stress_test", "run_b4", ["m1_persistence_rules", "m5_fm_rules"]),
+        ("b5_decision", "experiments.b5_decision_quality", "run_b5", ["m1_persistence_rules", "m5_fm_rules"]),
+        ("b6_robustness", "experiments.b6_robustness", "run_b6", ["m1_persistence_rules", "m5_fm_rules"]),
     ]
 
     # Count total tasks

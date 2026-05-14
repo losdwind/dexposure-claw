@@ -14,23 +14,23 @@ The FM backbone (GraphPFN) cannot be the contribution. Instead, the contribution
 
 1. DeFi exposure network as a new temporal graph data type + 43.7M-entry dataset
 2. Forecast-to-risk-signal transformation framework (predicted graph -> metrics -> alerts -> recommendations)
-3. Standardized evaluation benchmark for temporal graph risk monitoring (B1-B8)
+3. Standardized evaluation benchmark for temporal graph risk monitoring (b1_forecast-B8)
 4. Safety gating mechanism with automatic service degradation
 
 This means the experiments must prove the FRAMEWORK works, not that the MODEL is good.
 
 ---
 
-## Experiment Overview (B1-B8)
+## Experiment Overview (b1_forecast-B8)
 
 | ID | TKDE Name | Old Name | Change Level | Purpose |
 |----|-----------|----------|-------------|---------|
-| B1 | Temporal Graph Prediction Quality | Risk Forecasting | Medium | Does FM predict graph structure accurately? |
-| B2 | Streaming Anomaly Detection | Early Warning | **Large** | Does prediction-based monitoring beat observation-based? |
-| B3 | Prediction Interval Quality | Uncertainty Calibration | Medium | Are MC intervals useful for decision support? |
-| B4 | What-if Query Fidelity | Stress Testing | Small (narrative) | Are scenario queries on predicted graphs reliable? |
-| B5 | Recommendation Precision | Decision Quality | Medium | Do generated tickets target actually-stressed protocols? |
-| B6 | Data Quality Sensitivity | Robustness | Medium | How does the system degrade under imperfect data? |
+| b1_forecast | Temporal Graph Prediction Quality | Risk Forecasting | Medium | Does FM predict graph structure accurately? |
+| b2_warning | Streaming Anomaly Detection | Early Warning | **Large** | Does prediction-based monitoring beat observation-based? |
+| b3_calibration | Prediction Interval Quality | Uncertainty Calibration | Medium | Are MC intervals useful for decision support? |
+| b4_stress | What-if Query Fidelity | Stress Testing | Small (narrative) | Are scenario queries on predicted graphs reliable? |
+| b5_decision | Recommendation Precision | Decision Quality | Medium | Do generated tickets target actually-stressed protocols? |
+| b6_robustness | Data Quality Sensitivity | Robustness | Medium | How does the system degrade under imperfect data? |
 | B7 | Scalability | **NEW** | New | Runtime vs graph size, horizons, MC samples |
 | B8 | Crisis Case Study | **NEW** | New | Qualitative walkthrough of 3 real DeFi crises |
 
@@ -40,16 +40,16 @@ This means the experiments must prove the FRAMEWORK works, not that the MODEL is
 
 ### Current state (broken)
 
-Only C0 and C2 are implemented. C0 ~ C2 on most metrics because hybrid FM
+Only m5_fm_rules and m1_persistence_rules are implemented. m5_fm_rules ~ m1_persistence_rules on most metrics because hybrid FM
 preserves too much structure. No model-only or statistical baselines.
 
 ### TKDE baseline set
 
 | ID | Name | Type | What it tests | Priority |
 |----|------|------|---------------|----------|
-| C0 | DeXposure-Framework | FM backbone + full pipeline | The complete system | Must have |
-| C2 | Persistence-Framework | G_{t+h} = G_t + full pipeline | Is forecasting needed at all? | Must have |
-| C4 | DeXposure-FM-only | FM backbone, no pipeline | Does the pipeline add value beyond raw FM? | **Must have** |
+| m5_fm_rules | DeXposure-Framework | FM backbone + full pipeline | The complete system | Must have |
+| m1_persistence_rules | Persistence-Framework | G_{t+h} = G_t + full pipeline | Is forecasting needed at all? | Must have |
+| m4_fm_only | DeXposure-FM-only | FM backbone, no pipeline | Does the pipeline add value beyond raw FM? | **Must have** |
 | C_stat | Statistical Monitor | No prediction; EWMA/CUSUM on observed G_t metrics | Do we even need a forecast model? | **Must have** |
 | C_curr | Current-Graph Query | Run pipeline on G_t instead of G_hat_{t+h} | Does forecasting improve queries? | **Must have** |
 | C5 | ROLAND | Trained ROLAND backbone + pipeline | Alternative temporal GNN | Nice to have |
@@ -77,11 +77,11 @@ Drop A4 (top_k attribution) -- it's an output formatting detail, not a system de
 
 ## Detailed Experiment Specifications
 
-### B1: Temporal Graph Prediction Quality
+### b1_forecast: Temporal Graph Prediction Quality
 
 **TKDE question:** How well does the FM backbone predict the evolution of the exposure graph?
 
-**What stays from current B1:**
+**What stays from current b1_forecast:**
 - Multi-horizon evaluation h in {1, 4, 8, 12}
 - Aggregate metric MAE (HHI, Density, Gini)
 - Spearman rank correlation on PageRank
@@ -107,8 +107,8 @@ Drop A4 (top_k attribution) -- it's an output formatting detail, not a system de
    - Edge set Jaccard: |E_pred intersect E_actual| / |E_pred union E_actual|
    - Weight distribution KL divergence (discretized)
 
-**Baselines for B1:** C0, C2, C4, C5 (if available)
-C_stat and C_curr do not apply to B1 (they don't produce predicted graphs).
+**Baselines for b1_forecast:** m5_fm_rules, m1_persistence_rules, m4_fm_only, C5 (if available)
+C_stat and C_curr do not apply to b1_forecast (they don't produce predicted graphs).
 
 **Code changes:**
 - Create: experiments/metrics_ranking.py
@@ -118,13 +118,13 @@ C_stat and C_curr do not apply to B1 (they don't produce predicted graphs).
 
 ---
 
-### B2: Streaming Anomaly Detection (MAJOR REDESIGN)
+### b2_warning: Streaming Anomaly Detection (MAJOR REDESIGN)
 
 **TKDE question:** Does prediction-based monitoring detect anomalies earlier and more precisely than observation-based monitoring?
 
-**Current B2 problem:** Alerts are generated from current-graph node ranking, not from predicted graphs. C0 and C2 produce identical results. Three hardcoded historical events are in the training period.
+**Current b2_warning problem:** Alerts are generated from current-graph node ranking, not from predicted graphs. m5_fm_rules and m1_persistence_rules produce identical results. Three hardcoded historical events are in the training period.
 
-**New B2 design:**
+**New b2_warning design:**
 
 1. **Ground truth redefinition**
    - Primary: "anomalous week" = test week where any monitored metric changes by more than the 90th percentile of historical week-to-week changes
@@ -138,8 +138,8 @@ C_stat and C_curr do not apply to B1 (they don't produce predicted graphs).
    c. Evaluate: did the alert correctly precede an anomalous week within the next h weeks?
 
 3. **Method-specific alert generation:**
-   - C0 (our framework): alert from predicted G_{t+h} metrics vs rolling baseline (current design, but actually using predictions)
-   - C2 (persistence): alert from G_t metrics vs rolling baseline (equivalent to assuming nothing changes)
+   - m5_fm_rules (our framework): alert from predicted G_{t+h} metrics vs rolling baseline (current design, but actually using predictions)
+   - m1_persistence_rules (persistence): alert from G_t metrics vs rolling baseline (equivalent to assuming nothing changes)
    - C_stat (EWMA): alert when EWMA(metric_t) exceeds control limits (classic statistical process control)
    - C_curr (current-graph query): alert when current metrics exceed z-score threshold (no forecasting)
 
@@ -151,7 +151,7 @@ C_stat and C_curr do not apply to B1 (they don't produce predicted graphs).
    - Alert stability: 1 - flip_rate (consistency across consecutive weeks)
 
 **Key hypothesis for paper:**
-C0 (prediction-based monitoring) achieves higher lead time than C_stat and C_curr
+m5_fm_rules (prediction-based monitoring) achieves higher lead time than C_stat and C_curr
 because it can detect emerging anomalies in the PREDICTED future graph before they
 manifest in the OBSERVED current graph. This is the core value proposition.
 
@@ -163,13 +163,13 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 
 ---
 
-### B3: Prediction Interval Quality (MEDIUM REDESIGN)
+### b3_calibration: Prediction Interval Quality (MEDIUM REDESIGN)
 
 **TKDE question:** Are the MC-based prediction intervals useful for risk decision support?
 
-**Current B3 problem:** MC noise sigma=0.1 is too small, giving ~1-2% PI coverage vs target 90%. ECE is computed but meaningless without heterogeneous confidence.
+**Current b3_calibration problem:** MC noise sigma=0.1 is too small, giving ~1-2% PI coverage vs target 90%. ECE is computed but meaningless without heterogeneous confidence.
 
-**New B3 design:**
+**New b3_calibration design:**
 
 1. **Replace MC noise with empirical residual calibration**
    - On validation set: compute residuals (predicted_metric - actual_metric) for each metric and horizon
@@ -186,9 +186,9 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 3. **Practical value demonstration:**
    - Show that when PI is wide (high uncertainty), the confidence score C_t(a) in Eq.4 correctly downweights alerts
    - Correlation between PI width and actual prediction error (should be positive)
-   - This connects B3 to the safety gating story (contribution #4)
+   - This connects b3_calibration to the safety gating story (contribution #4)
 
-**Baselines for B3:** C0 only (C2 has no meaningful uncertainty; C_stat can use EWMA prediction intervals as comparison)
+**Baselines for b3_calibration:** m5_fm_rules only (m1_persistence_rules has no meaningful uncertainty; C_stat can use EWMA prediction intervals as comparison)
 
 **Code changes:**
 - Modify: experiments/b3_uncertainty_calibration.py
@@ -196,11 +196,11 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 
 ---
 
-### B4: What-if Query Fidelity (SMALL CHANGE, NARRATIVE REFRAME)
+### b4_stress: What-if Query Fidelity (SMALL CHANGE, NARRATIVE REFRAME)
 
 **TKDE question:** When we run stress scenarios on the predicted graph, how close are the results to running them on the actual future graph?
 
-**Current B4 is mostly fine.** The experimental design (apply shock to predicted vs actual, compare losses) directly answers this question.
+**Current b4_stress is mostly fine.** The experimental design (apply shock to predicted vs actual, compare losses) directly answers this question.
 
 **Changes:**
 
@@ -223,16 +223,16 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 
 ---
 
-### B5: Recommendation Precision (MEDIUM REDESIGN)
+### b5_decision: Recommendation Precision (MEDIUM REDESIGN)
 
 **TKDE question:** Do the framework's recommendation tickets correctly identify protocols that will actually experience stress?
 
-**Current B5 problems (from recovery plan):**
+**Current b5_decision problems (from recovery plan):**
 - STRESS_THRESHOLD=0.20 makes ~3000-8000 protocols "stressed" -> audit_completeness near zero
 - risk_reduction has no intervention simulator
-- C2 outperforms C0 on ticket precision (persistence is more stable)
+- m1_persistence_rules outperforms m5_fm_rules on ticket precision (persistence is more stable)
 
-**New B5 design:**
+**New b5_decision design:**
 
 1. **Tighten ground truth:**
    - Raise STRESS_THRESHOLD from 0.20 to 0.50 (protocols losing >50% edge weight)
@@ -245,7 +245,7 @@ manifest in the OBSERVED current graph. This is the core value proposition.
    - Replace risk_reduction with: score_discrimination (mean ticket score for stressed targets vs non-stressed targets; higher gap is better)
 
 3. **Add ablation connection:**
-   - Show B5 results with vs without safety gating (A1, A2)
+   - Show b5_decision results with vs without safety gating (A1, A2)
    - This connects to contribution #4 (safety gating mechanism)
 
 **Code changes:**
@@ -255,15 +255,15 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 
 ---
 
-### B6: Data Quality Sensitivity (MEDIUM REDESIGN)
+### b6_robustness: Data Quality Sensitivity (MEDIUM REDESIGN)
 
 **TKDE question:** How does the framework's output quality degrade as input data quality decreases?
 
-**Current B6 problems:**
+**Current b6_robustness problems:**
 - low_data_10pct and low_data_25pct pretend to be training data ablations but only subsample eval snapshots
 - Doesn't connect to the data-health gating mechanism
 
-**New B6 design:**
+**New b6_robustness design:**
 
 1. **Remove fake low-data regimes:**
    Drop low_data_10pct and low_data_25pct entirely.
@@ -280,14 +280,14 @@ manifest in the OBSERVED current graph. This is the core value proposition.
    For each regime:
    a. Compute DH_t (data health score) on the degraded input
    b. Report whether safe_mode activates
-   c. Report B1 metrics on degraded input
-   d. Report B5 metrics (does safe_mode correctly suppress bad recommendations?)
+   c. Report b1_forecast metrics on degraded input
+   d. Report b5_decision metrics (does safe_mode correctly suppress bad recommendations?)
 
    This is the KEY contribution for TKDE: the system KNOWS when its data is bad and
    automatically degrades service. Show the correlation between DH_t and actual prediction error.
 
 4. **Graph sparsity analysis (new):**
-   Split test period by graph size (number of nodes/edges) and report B1 metrics per quartile.
+   Split test period by graph size (number of nodes/edges) and report b1_forecast metrics per quartile.
    Hypothesis: system performs better on denser, more-established networks.
 
 **Code changes:**
@@ -316,7 +316,7 @@ manifest in the OBSERVED current graph. This is the core value proposition.
 
 4. **MC sample scaling:**
    Run with mc_samples = {1, 10, 25, 50, 100}
-   Report B3 PI coverage AND wall-clock time.
+   Report b3_calibration PI coverage AND wall-clock time.
    Show the quality-cost tradeoff curve.
 
 5. **Graph size effect:**
@@ -365,11 +365,11 @@ and output quality, not its predictive accuracy on unseen events.
 
 ## Applicability Matrix (TKDE version)
 
-| Method | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 |
+| Method | b1_forecast | b2_warning | b3_calibration | b4_stress | b5_decision | b6_robustness | B7 | B8 |
 |--------|----|----|----|----|----|----|----|----|
-| C0 DeXposure-Framework | Y | Y | Y | Y | Y | Y | Y | Y |
-| C2 Persistence-Framework | Y | Y | - | Y | Y | Y | - | - |
-| C4 FM-only | Y | - | - | - | - | Y | - | - |
+| m5_fm_rules DeXposure-Framework | Y | Y | Y | Y | Y | Y | Y | Y |
+| m1_persistence_rules Persistence-Framework | Y | Y | - | Y | Y | Y | - | - |
+| m4_fm_only FM-only | Y | - | - | - | - | Y | - | - |
 | C_stat EWMA | - | Y | - | - | - | - | - | - |
 | C_curr Current-Graph | - | Y | - | Y | - | - | - | - |
 | C5 ROLAND (if available) | Y | - | - | - | - | Y | - | - |
@@ -380,20 +380,20 @@ and output quality, not its predictive accuracy on unseen events.
 
 ### Phase 1: Minimum submittable (must do)
 
-- [ ] 1a. B1 expansion: add edge-level + node ranking metrics (metrics_ranking.py, metrics_edge.py)
-- [ ] 1b. C4 baseline: route FM-only through B1 (trivial: predict_helper already supports it)
-- [ ] 1c. B2 redesign: streaming protocol + new ground truth + C_stat/C_curr baselines
-- [ ] 1d. B5 fix: tighten stress threshold + replace degenerate metrics
+- [ ] 1a. b1_forecast expansion: add edge-level + node ranking metrics (metrics_ranking.py, metrics_edge.py)
+- [ ] 1b. m4_fm_only baseline: route FM-only through b1_forecast (trivial: predict_helper already supports it)
+- [ ] 1c. b2_warning redesign: streaming protocol + new ground truth + C_stat/C_curr baselines
+- [ ] 1d. b5_decision fix: tighten stress threshold + replace degenerate metrics
 - [ ] 1e. B8 case study: run pipeline on 3 crisis windows (mostly scripting)
 - [ ] 1f. Paper text: rewrite Intro contributions + Exp sections for TKDE framing
 
 ### Phase 2: Significantly stronger
 
-- [ ] 2a. B6 redesign: data quality sensitivity + DH gate connection
+- [ ] 2a. b6_robustness redesign: data quality sensitivity + DH gate connection
 - [ ] 2b. B7 scalability: component timing + scaling curves
-- [ ] 2c. B3 fix: empirical residual calibration or conformal prediction
-- [ ] 2d. B4 enhancement: add C_curr baseline
-- [ ] 2e. Ablations A1-A8: connect to B5 results
+- [ ] 2c. b3_calibration fix: empirical residual calibration or conformal prediction
+- [ ] 2d. b4_stress enhancement: add C_curr baseline
+- [ ] 2e. Ablations A1-A8: connect to b5_decision results
 
 ### Phase 3: Polish
 
@@ -409,9 +409,9 @@ and output quality, not its predictive accuracy on unseen events.
 1. "Agent" framing in title/abstract/contributions
    -> Replace with "framework" or "system"
 2. "Significantly outperforming SOTA" (no evidence)
-3. C6-C10 from applicability matrix (not implementing these)
+3. Drop ROLAND/GraphPFN-Frozen/DyRep/TGN/Static-GCN from applicability matrix (not implementing these; see methods.py for the trimmed registry)
 4. Low-data robustness claims (fake regime)
-5. ECE from B3 (meaningless without real probabilities)
+5. ECE from b3_calibration (meaningless without real probabilities)
 6. FM architecture details (put in appendix, 1 paragraph max in main text)
 7. Algorithm 1 title "DeXposure-Agent: one epoch" -> "DeXposure: Risk Monitoring Pipeline"
 
@@ -428,10 +428,10 @@ and output quality, not its predictive accuracy on unseen events.
 
 ## Exit Criteria
 
-- C0 beats C_stat and C_curr on B2 lead time (core claim: prediction helps)
-- C0 beats C4 on B5 (pipeline adds value beyond raw FM)
-- C0 beats C2 on B1 edge-level and node-ranking metrics (FM predicts structure)
-- B6 shows correlation between DH_t and prediction error (safety gating works)
+- m5_fm_rules beats C_stat and C_curr on b2_warning lead time (core claim: prediction helps)
+- m5_fm_rules beats m4_fm_only on b5_decision (pipeline adds value beyond raw FM)
+- m5_fm_rules beats m1_persistence_rules on b1_forecast edge-level and node-ranking metrics (FM predicts structure)
+- b6_robustness shows correlation between DH_t and prediction error (safety gating works)
 - B7 shows sub-minute pipeline time for realistic graph sizes (system is practical)
 - B8 produces interpretable crisis timelines (framework is useful)
 - No paper sentence claims something the experiments don't support

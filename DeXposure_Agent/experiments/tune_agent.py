@@ -11,7 +11,7 @@ Search grid (from EXPERIMENT_PLAN Section 2.5):
   mc_samples: {20, 50, 100}
   top_k: {5, 10, 20}
 
-Optimizes a composite objective from B1 (Rank Correlation) + B2 (F1-warning) + B5 (Ticket Precision).
+Optimizes a composite objective from b1_forecast (Rank Correlation) + b2_warning (F1-warning) + b5_decision (Ticket Precision).
 Saves best config to results/best_agent_config.json.
 """
 from __future__ import annotations
@@ -51,7 +51,7 @@ def objective(trial) -> float:
     )
     logger.info(f"Trial {trial.number}: {config.model_dump()}")
 
-    # TODO: Run B1, B2, B5 on validation split with this config
+    # TODO: Run b1_forecast, b2_warning, b5_decision on validation split with this config
     # rank_corr = run_b1_on_val(config)
     # f1_warning = run_b2_on_val(config)
     # ticket_prec = run_b5_on_val(config)

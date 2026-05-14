@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run a single autoresearch trial: evaluate one AgentConfig on the validation split.
 
-Runs B1 (rank correlation @ h=4), B2 (F1-warning), and B5 (ticket precision)
+Runs b1_forecast (rank correlation @ h=4), b2_warning (F1-warning), and b5_decision (ticket precision)
 on the validation period (2024-07 ~ 2024-12).  Outputs a single composite
 score and per-benchmark breakdown in a deterministic format that the
 autoresearch loop can parse.
@@ -34,16 +34,16 @@ from dexposure_agent.config import AgentConfig
 # Validation split (strict: no overlap with test 2025-01 ~ 2025-08)
 # ---------------------------------------------------------------------------
 VAL_SPLIT = "2024-07~2024-12"
-DATA_DIR = "/root/graph-dexposure/DeXposure/data/"
+DATA_DIR = "/workspace/graph-dexposure/data/"
 RESULTS_DIR = "/tmp/autoresearch_trial/"
-METHOD = "C0"
+METHOD = "m5_fm_rules"
 
 
 # ---------------------------------------------------------------------------
-# B1: Rank Correlation @ h=4 (primary forecasting quality)
+# b1_forecast: Rank Correlation @ h=4 (primary forecasting quality)
 # ---------------------------------------------------------------------------
 def eval_b1(config: AgentConfig) -> dict:
-    """Run B1 on validation split, return mean Spearman rho and trend consistency."""
+    """Run b1_forecast on validation split, return mean Spearman rho and trend consistency."""
     from experiments import b1_risk_forecasting
     from experiments.b1_risk_forecasting import run_b1
 
@@ -70,12 +70,12 @@ def eval_b1(config: AgentConfig) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# B2: F1-Warning (early warning quality)
+# b2_warning: F1-Warning (early warning quality)
 # ---------------------------------------------------------------------------
 def eval_b2(config: AgentConfig) -> dict:
-    """Run B2 early warning, return mean F1 score across events.
+    """Run b2_warning early warning, return mean F1 score across events.
 
-    NOTE: B2 evaluates on fixed historical stress events (Terra/Luna, FTX, SVB)
+    NOTE: b2_warning evaluates on fixed historical stress events (Terra/Luna, FTX, SVB)
     with its own hardcoded baseline window.  It does NOT use the val split or
     most AgentConfig params.  Include it for completeness but it won't vary
     much across configs.
@@ -96,10 +96,10 @@ def eval_b2(config: AgentConfig) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# B5: Ticket Precision (decision quality)
+# b5_decision: Ticket Precision (decision quality)
 # ---------------------------------------------------------------------------
 def eval_b5(config: AgentConfig) -> dict:
-    """Run B5 on validation split, return ticket precision."""
+    """Run b5_decision on validation split, return ticket precision."""
     from experiments.b5_decision_quality import run_b5
 
     results = run_b5(
@@ -140,9 +140,9 @@ def main():
     parser = argparse.ArgumentParser(description="Run one autoresearch trial")
     parser.add_argument("--config", type=str, default="{}", help="JSON config overrides")
     parser.add_argument("--config-file", type=str, default=None, help="Path to JSON config file")
-    parser.add_argument("--benchmarks", type=str, default="B1,B5",
-                        help="Comma-separated benchmarks to run (B1,B2,B5). "
-                             "Default: B1,B5 (B2 uses fixed historical events, "
+    parser.add_argument("--benchmarks", type=str, default="b1_forecast,b5_decision",
+                        help="Comma-separated benchmarks to run (b1_forecast,b2_warning,b5_decision). "
+                             "Default: b1_forecast,b5_decision (b2_warning uses fixed historical events, "
                              "not val split, so less useful for tuning)")
     args = parser.parse_args()
 
@@ -166,11 +166,11 @@ def main():
     # Run selected benchmarks
     for bm in benchmarks:
         try:
-            if bm == "B1":
+            if bm == "b1_forecast":
                 metrics.update(eval_b1(config))
-            elif bm == "B2":
+            elif bm == "b2_warning":
                 metrics.update(eval_b2(config))
-            elif bm == "B5":
+            elif bm == "b5_decision":
                 metrics.update(eval_b5(config))
             else:
                 logger.warning(f"Unknown benchmark {bm}, skipping")

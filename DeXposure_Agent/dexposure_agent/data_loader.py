@@ -407,7 +407,7 @@ class SnapshotLoader:
 
         For each test snapshot at date t, the baseline is the preceding
         `baseline_window` snapshots' metric dicts. This is the main entry point
-        for benchmark runners (B1-B6).
+        for benchmark runners (b1_forecast..b6_robustness).
 
         Yields:
             (GraphSnapshot, list[dict[str, float]]) tuples.

@@ -3,9 +3,9 @@
 
 Addresses two reviewer concerns:
 1. A1 (data-health gate) shows no effect under clean test conditions
-   → Re-run under B6-style degraded conditions where safe_mode activates
-2. A6 (multi-horizon) shows no effect because B5 only uses h=4
-   → Create multi-horizon B5 matching agent_loop.py, test on crisis periods
+   → Re-run under b6_robustness-style degraded conditions where safe_mode activates
+2. A6 (multi-horizon) shows no effect because b5_decision only uses h=4
+   → Create multi-horizon b5_decision matching agent_loop.py, test on crisis periods
 
 Also re-runs B6_C0 as fresh baseline on this server.
 
@@ -41,12 +41,12 @@ from dexposure_agent.monitor import compute_metrics, detect_alerts, _compute_rol
 from dexposure_agent.scenario import run_scenarios
 from dexposure_agent.types import Edge, GraphSnapshot, NodeFeatures
 
-DATA_DIR = str(_REPO_ROOT / "DeXposure" / "data")
+DATA_DIR = str(_REPO_ROOT / "data")
 RESULTS_DIR = str(_AGENT_DIR / "results" / "run_supplementary_ablations")
 STRESS_LOOKAHEAD = 4
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Degradation helpers (from B6, extended)
+# Degradation helpers (from b6_robustness, extended)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _mask_edges(graph: GraphSnapshot, mask_fraction: float, rng: np.random.Generator) -> GraphSnapshot:
@@ -96,7 +96,7 @@ def apply_degradation(graph: GraphSnapshot, regime: str, rng: np.random.Generato
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# MC sample helper (from B5)
+# MC sample helper (from b5_decision)
 # ──────────────────────────────────────────────────────────────────────────────
 
 MC_NOISE_SIGMA = 0.1
@@ -166,7 +166,7 @@ def run_a1_degraded(
     For each (regime, tau_data) pair:
     1. Load test snapshots
     2. Apply degradation to each input snapshot
-    3. Run B5-style pipeline: data_health → predict → monitor → scenario → decide
+    3. Run b5_decision-style pipeline: data_health → predict → monitor → scenario → decide
     4. Measure: DH_t scores, safe_mode rate, ticket precision, FIR
     """
     if degradation_regimes is None:
@@ -230,7 +230,7 @@ def run_a1_degraded(
                 safe_modes.append(dh.safe_mode)
 
                 # Predict on degraded input
-                pred_graph = predict_graph("C0", degraded_snap, horizon=STRESS_LOOKAHEAD)
+                pred_graph = predict_graph("m5_fm_rules", degraded_snap, horizon=STRESS_LOOKAHEAD)
                 current_metrics = compute_metrics(pred_graph)
                 rolling_baseline = _compute_rolling_baseline(baseline_history, config.rolling_window)
                 alerts = detect_alerts(current_metrics, rolling_baseline, horizon=STRESS_LOOKAHEAD, config=config)
@@ -321,7 +321,7 @@ def run_a6_crisis(
 ) -> list[A6CrisisResult]:
     """Run A6 ablation: multi-horizon vs single-horizon on crisis periods.
 
-    Key difference from standard B5: this mimics agent_loop.py by iterating
+    Key difference from standard b5_decision: this mimics agent_loop.py by iterating
     over ALL horizons and aggregating alerts before generating tickets.
     """
     if crisis_periods is None:
@@ -381,7 +381,7 @@ def run_a6_crisis(
                 all_scenario_losses = []
 
                 for h in horizons:
-                    pred_graph = predict_graph("C0", snap_t, horizon=h)
+                    pred_graph = predict_graph("m5_fm_rules", snap_t, horizon=h)
                     current_metrics = compute_metrics(pred_graph)
                     rolling_baseline = _compute_rolling_baseline(baseline_history, config.rolling_window)
                     alerts_h = detect_alerts(current_metrics, rolling_baseline, horizon=h, config=config)
@@ -453,10 +453,10 @@ def run_a6_crisis(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def run_b6_fresh() -> list:
-    """Run fresh B6 for C0 on this server."""
+    """Run fresh b6_robustness for m5_fm_rules on this server."""
     from experiments.b6_robustness import run_b6
-    logger.info("Running fresh B6 for C0...")
-    return run_b6("C0", data_dir=DATA_DIR, results_dir=RESULTS_DIR)
+    logger.info("Running fresh b6_robustness for m5_fm_rules...")
+    return run_b6("m5_fm_rules", data_dir=DATA_DIR, results_dir=RESULTS_DIR)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -479,7 +479,7 @@ def save_results(a1_results: list, a6_results: list, b6_results: list):
         a6_data.append(asdict(r))
     (out_dir / "A6_crisis.json").write_text(json.dumps(a6_data, indent=2, default=str))
 
-    # B6-fresh
+    # b6_robustness-fresh
     if b6_results:
         b6_data = [
             {
@@ -491,7 +491,7 @@ def save_results(a1_results: list, a6_results: list, b6_results: list):
             }
             for r in b6_results
         ]
-        (out_dir / "B6_C0_fresh.json").write_text(json.dumps(b6_data, indent=2, default=str))
+        (out_dir / "b6_robustness__m5_fm_rules_fresh.json").write_text(json.dumps(b6_data, indent=2, default=str))
 
     # Combined summary
     summary = {
@@ -515,7 +515,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Supplementary ablation experiments")
     parser.add_argument("--skip-a1", action="store_true", help="Skip A1-degraded experiments")
     parser.add_argument("--skip-a6", action="store_true", help="Skip A6-crisis experiments")
-    parser.add_argument("--skip-b6", action="store_true", help="Skip B6 fresh baseline")
+    parser.add_argument("--skip-b6", action="store_true", help="Skip b6_robustness fresh baseline")
     args = parser.parse_args()
 
     logger.info("=" * 70)
@@ -545,14 +545,14 @@ if __name__ == "__main__":
     else:
         logger.info("Skipping A6-crisis")
 
-    # ── Experiment 3: B6 fresh baseline ──
+    # ── Experiment 3: b6_robustness fresh baseline ──
     if not args.skip_b6:
         logger.info("\n" + "=" * 70)
         logger.info("EXPERIMENT 3: B6_C0 fresh baseline")
         logger.info("=" * 70)
         b6_results = run_b6_fresh()
     else:
-        logger.info("Skipping B6-fresh")
+        logger.info("Skipping b6_robustness-fresh")
 
     # ── Save ──
     save_results(a1_results, a6_results, b6_results)

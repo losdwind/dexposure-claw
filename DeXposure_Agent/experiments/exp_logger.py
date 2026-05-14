@@ -74,9 +74,15 @@ class ExpLogger:
         self._step_times: list[float] = []
         self._step_metrics: list[dict[str, Any]] = []
 
-        # Setup loguru: file + stderr
+        # Setup loguru: file + stderr.
+        # Filenames use "__" between benchmark and method so the segments stay
+        # parseable even though the IDs themselves contain single underscores.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file = self.results_dir / f"{benchmark}_{method}_{timestamp}.log" if method else self.results_dir / f"{benchmark}_{timestamp}.log"
+        self.log_file = (
+            self.results_dir / f"{benchmark}__{method}__{timestamp}.log"
+            if method
+            else self.results_dir / f"{benchmark}__{timestamp}.log"
+        )
 
         # Remove default logger, add our handlers
         # Note: we don't remove global handlers to avoid interfering with other loggers
@@ -214,7 +220,11 @@ class ExpLogger:
     def save_results(self, results: Any, filename: str | None = None):
         """Save results to JSON with metadata."""
         if filename is None:
-            filename = f"{self.benchmark}_{self.method}.json" if self.method else f"{self.benchmark}.json"
+            filename = (
+                f"{self.benchmark}__{self.method}.json"
+                if self.method
+                else f"{self.benchmark}.json"
+            )
 
         out_path = self.results_dir / filename
         total_elapsed = time.time() - self._start_time

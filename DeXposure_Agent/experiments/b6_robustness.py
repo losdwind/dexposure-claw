@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B6: Robustness Under Distribution Shift (Section 3.7 of EXPERIMENT_PLAN)
+"""b6_robustness: Robustness Under Distribution Shift (Section 3.7 of EXPERIMENT_PLAN)
 
 Evaluates model performance under five data-degradation regimes to measure
 robustness to missing / noisy inputs representative of real-world data issues.
@@ -11,7 +11,7 @@ Regimes:
 - noisy_features_01   -- Gaussian noise N(0, 0.1) added to all node features
 - missing_features_20 -- 20% of node feature values randomly set to zero
 
-For each regime, we report the same core metrics as B1 (h=4 fixed) plus a
+For each regime, we report the same core metrics as b1_forecast (h=4 fixed) plus a
 relative degradation score compared to the clean baseline.
 """
 from __future__ import annotations
@@ -51,14 +51,14 @@ REGIME_CONFIGS = {
     "missing_features_20": {"train_fraction": 1.0,  "edge_mask": 0.0,  "noise_sigma": 0.0, "feature_drop": 0.20},
 }
 
-FIXED_HORIZON = 4  # weeks; same as B1 but single horizon for tractability
+FIXED_HORIZON = 4  # weeks; same as b1_forecast but single horizon for tractability
 
-# Metric IDs used for B1-style evaluation
+# Metric IDs used for b1_forecast-style evaluation
 METRIC_IDS = ["M1", "M3", "M4", "M6", "M7"]
 
 
 @dataclass
-class B6Result:
+class RobustnessResult:
     method: str
     regime: str
     horizon: int = FIXED_HORIZON
@@ -73,7 +73,7 @@ class B6Result:
 
     def __str__(self) -> str:
         return (
-            f"B6Result(method={self.method}, regime={self.regime}, h={self.horizon}, "
+            f"RobustnessResult(method={self.method}, regime={self.regime}, h={self.horizon}, "
             f"pr_mae={self.pagerank_mae:.4f}, hhi_mae={self.hhi_mae:.4f}, "
             f"rel_degrad={self.relative_degradation:+.3f})"
         )
@@ -174,7 +174,7 @@ def _subsample_snapshots(
 
 
 # ---------------------------------------------------------------------------
-# B1-style metric evaluation
+# b1_forecast-style metric evaluation
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +184,7 @@ def _compute_b1_metrics(
     prev_pred_metrics: list[dict[str, float]] | None = None,
     prev_gt_metrics: list[dict[str, float]] | None = None,
 ) -> dict[str, float]:
-    """Compute B1-style metrics (MAE, Rank Correlation, Trend Consistency).
+    """Compute b1_forecast-style metrics (MAE, Rank Correlation, Trend Consistency).
 
     Args:
         pred_snapshots: Predicted snapshots (persistence, possibly degraded).
@@ -293,7 +293,7 @@ def _compute_b1_metrics(
 
 
 def _aggregate_metric(metrics: dict[str, float]) -> float:
-    """Compute a single scalar from B1-style metrics for degradation comparison.
+    """Compute a single scalar from b1_forecast-style metrics for degradation comparison.
 
     Uses mean of the four MAE values (lower is better).
     """
@@ -319,8 +319,8 @@ def run_b6(
     regimes: list[str] | None = None,
     horizon: int = FIXED_HORIZON,
     **kwargs,
-) -> list[B6Result]:
-    """Run B6 benchmark for a given method across all degradation regimes.
+) -> list[RobustnessResult]:
+    """Run b6_robustness benchmark for a given method across all degradation regimes.
 
     Args:
         method_id: Forecasting method registered in experiments.methods.
@@ -331,16 +331,16 @@ def run_b6(
         **kwargs: Extra method-specific config.
 
     Returns:
-        List of B6Result, one per regime.
+        List of RobustnessResult, one per regime.
     """
     if regimes is None:
         regimes = REGIMES
 
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B6", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b6_robustness", method=method_id, results_dir=results_dir)
 
     log.info(
-        f"B6 | method={method_id} | test_split={test_split} | "
+        f"b6_robustness | method={method_id} | test_split={test_split} | "
         f"regimes={regimes} | horizon={horizon}"
     )
 
@@ -352,11 +352,11 @@ def run_b6(
     all_dates = loader.dates
 
     if len(test_snapshots) < 2:
-        log.warning("B6: fewer than 2 test snapshots, returning NaN results")
-        return [B6Result(method=method_id, regime=r, horizon=horizon, n_test_snapshots=0)
+        log.warning("b6_robustness: fewer than 2 test snapshots, returning NaN results")
+        return [RobustnessResult(method=method_id, regime=r, horizon=horizon, n_test_snapshots=0)
                 for r in regimes]
 
-    log.info(f"B6: loaded {len(test_snapshots)} test snapshots")
+    log.info(f"b6_robustness: loaded {len(test_snapshots)} test snapshots")
 
     # Build date -> snapshot index for GT lookups
     all_snaps = loader.load()
@@ -390,20 +390,20 @@ def run_b6(
         clean_gt.append(gt_graph)
 
     if not clean_pred:
-        log.warning("B6: no valid (pred, gt) pairs")
-        return [B6Result(method=method_id, regime=r, horizon=horizon, n_test_snapshots=0)
+        log.warning("b6_robustness: no valid (pred, gt) pairs")
+        return [RobustnessResult(method=method_id, regime=r, horizon=horizon, n_test_snapshots=0)
                 for r in regimes]
 
     n_pairs = len(clean_pred)
-    log.info(f"B6: {n_pairs} valid (pred, gt) pairs for horizon={horizon}")
+    log.info(f"b6_robustness: {n_pairs} valid (pred, gt) pairs for horizon={horizon}")
 
-    # --- Step 2: Clean (reference) B1-style evaluation ---
+    # --- Step 2: Clean (reference) b1_forecast-style evaluation ---
     with log.timer("clean baseline evaluation"):
         clean_metrics = _compute_b1_metrics(clean_pred, clean_gt)
         clean_aggregate = _aggregate_metric(clean_metrics)
 
     log.info(
-        f"B6 clean baseline: pr_mae={clean_metrics['pagerank_mae']:.4f} "
+        f"b6_robustness clean baseline: pr_mae={clean_metrics['pagerank_mae']:.4f} "
         f"hhi_mae={clean_metrics['hhi_mae']:.4f} "
         f"density_mae={clean_metrics['density_mae']:.4f} "
         f"gini_mae={clean_metrics['gini_mae']:.4f} "
@@ -411,16 +411,16 @@ def run_b6(
     )
 
     # --- Step 3: Evaluate each regime ---
-    results: list[B6Result] = []
+    results: list[RobustnessResult] = []
 
     for regime in log.progress(regimes, desc="Regimes", total=len(regimes), unit="regime"):
         if regime not in REGIME_CONFIGS:
-            log.warning(f"B6: unknown regime {regime}, skipping")
-            results.append(B6Result(method=method_id, regime=regime, horizon=horizon, n_test_snapshots=0))
+            log.warning(f"b6_robustness: unknown regime {regime}, skipping")
+            results.append(RobustnessResult(method=method_id, regime=regime, horizon=horizon, n_test_snapshots=0))
             continue
 
         regime_cfg = REGIME_CONFIGS[regime]
-        log.info(f"B6: evaluating regime {regime} with config {regime_cfg}")
+        log.info(f"b6_robustness: evaluating regime {regime} with config {regime_cfg}")
 
         train_fraction = regime_cfg.get("train_fraction", 1.0)
 
@@ -441,10 +441,10 @@ def run_b6(
             degraded_gt = clean_gt  # GT is never degraded
 
         if not degraded_pred:
-            results.append(B6Result(method=method_id, regime=regime, horizon=horizon, n_test_snapshots=0))
+            results.append(RobustnessResult(method=method_id, regime=regime, horizon=horizon, n_test_snapshots=0))
             continue
 
-        # Compute B1-style metrics on degraded data
+        # Compute b1_forecast-style metrics on degraded data
         degraded_metrics = _compute_b1_metrics(degraded_pred, degraded_gt)
         degraded_aggregate = _aggregate_metric(degraded_metrics)
 
@@ -456,7 +456,7 @@ def run_b6(
         else:
             rel_degrad = float("nan")
 
-        result = B6Result(
+        result = RobustnessResult(
             method=method_id,
             regime=regime,
             horizon=horizon,
@@ -511,15 +511,15 @@ def run_b6(
         for r in results
     ])
 
-    log.info(f"B6 complete: {len(results)} regime results")
+    log.info(f"b6_robustness complete: {len(results)} regime results")
     return results
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="B6: Robustness benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0, C4)")
+    parser = argparse.ArgumentParser(description="b6_robustness: Robustness benchmark")
+    parser.add_argument("--method", required=True, help="Method ID (e.g. m5_fm_rules, m4_fm_only)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

@@ -1,14 +1,15 @@
 """Competitor model wrappers for DeXposure-Agent benchmarks.
 
-C0: DeXposure-Agent (reference)
-C1: ROLAND-Agent
-C2: Persistence-Agent
-C3: LLM-Agent
-C4: DeXposure-FM
-C5: ROLAND
-C6: GraphPFN-Frozen
-C7: EvolveGCN
-C8: DyRep
-C9: TGN
-C10: Static GCN
+Implemented methods (see experiments/methods.py for the canonical registry):
+
+  m1_persistence_rules  Persistence + rule engine (no learned predictor).
+  m2_snapshot_llm       Pure LLM baseline reading the current snapshot only.
+  m3_evolvegcn          EvolveGCN-O/H (Pareja et al., KDD 2020).
+  m4_fm_only            FM predictor without the agent decision layer.
+  m5_fm_rules           DeXposure-Agent (FM predictor + rule engine).
+  m6_fm_llm             FM predictor + LLM decision agent.
+  m7_fm_llm_gated       FM predictor + LLM with rule-based safety gating.
+
+Heuristics:
+  h1_weighted_degree    Shared weighted-degree early-warning ranker.
 """

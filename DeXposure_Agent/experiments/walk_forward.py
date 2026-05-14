@@ -6,7 +6,7 @@ Protocol (from EXPERIMENT_PLAN Section 1.2):
   - Expand training window by ~4 weeks per fold
   - Evaluate on next 4 weeks
   - 15 folds total, covering 2022-07 ~ 2025-08
-  - Report mean +/- std across folds for B1 key metrics
+  - Report mean +/- std across folds for b1_forecast key metrics
 """
 from __future__ import annotations
 import argparse
@@ -54,16 +54,16 @@ def generate_folds() -> list[FoldResult]:
     return folds
 
 
-def run_fold(fold: FoldResult, method_id: str = "C0") -> FoldResult:
+def run_fold(fold: FoldResult, method_id: str = "m5_fm_rules") -> FoldResult:
     """Run a single fold of walk-forward evaluation."""
     logger.info(f"Fold {fold.fold}: train={fold.train_start}~{fold.train_end}, eval={fold.eval_start}~{fold.eval_end}")
-    # TODO: load data for fold, train/eval, compute B1 metrics
+    # TODO: load data for fold, train/eval, compute b1_forecast metrics
     raise NotImplementedError("Walk-forward fold evaluation not yet connected")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Walk-forward cross-validation")
-    parser.add_argument("--method", default="C0")
+    parser.add_argument("--method", default="m5_fm_rules")
     parser.add_argument("--output", default="results/walk_forward.json")
     parser.add_argument("--folds", type=int, default=NUM_FOLDS)
     args = parser.parse_args()

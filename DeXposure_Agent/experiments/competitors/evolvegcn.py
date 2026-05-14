@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""C7: EvolveGCN baseline (Pareja et al., KDD 2020).
+"""m3_evolvegcn: EvolveGCN baseline (Pareja et al., KDD 2020).
 
 Trains an EvolveGCN-O model on the DeXposure weekly graph sequence and
 produces link-weight predictions for the risk forecasting benchmarks.
 
 This baseline is a non-agent method: it produces predicted graphs but
 does not generate alerts, scenarios, or decision tickets.  It is
-assessed on B1 (risk forecasting), B4 (stress test), and B6 (robustness).
+assessed on b1_forecast (risk forecasting), b4_stress (stress test),
+and b6_robustness (robustness).
 
 Architecture:
     - EvolveGCN-O uses an LSTM to update GCN weight matrices over time.
@@ -527,7 +528,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description="C7: EvolveGCN baseline")
+    parser = argparse.ArgumentParser(description="m3_evolvegcn: EvolveGCN baseline")
     parser.add_argument("--mode", choices=["train", "predict"], required=True)
     parser.add_argument("--data-dir", default="data/")
     parser.add_argument("--horizon", type=int, default=4)

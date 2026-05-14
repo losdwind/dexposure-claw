@@ -6,7 +6,7 @@ Figures (from EXPERIMENT_PLAN Section 5, Phase 5):
   2. Calibration reliability diagrams: predicted confidence vs actual alert precision
   3. Scenario loss heatmaps: scenarios (rows) x horizons (cols), color by expected loss
   4. Decision ticket examples: qualitative samples showing full evidence bundles
-  5. Robustness degradation plots: B6 metrics across regimes
+  5. Robustness degradation plots: b6_robustness metrics across regimes
 
 Usage:
     python experiments/figures.py --results results/ --output results/figures/
@@ -31,7 +31,7 @@ STRESS_EVENTS = {
 def plot_alert_timeline(results_dir: Path, output_dir: Path):
     """Fig 1: Timeline of alerts vs actual stress events."""
     logger.info("Generating alert timeline plot...")
-    # TODO: Load B2 results, plot alerts with event windows
+    # TODO: Load b2_warning results, plot alerts with event windows
     # Use matplotlib with stress event shaded regions
     raise NotImplementedError("Alert timeline plot not yet implemented")
 
@@ -39,28 +39,28 @@ def plot_alert_timeline(results_dir: Path, output_dir: Path):
 def plot_calibration_diagram(results_dir: Path, output_dir: Path):
     """Fig 2: Reliability diagram for alert confidence calibration."""
     logger.info("Generating calibration reliability diagram...")
-    # TODO: Load B3 results, plot predicted confidence vs observed frequency
+    # TODO: Load b3_calibration results, plot predicted confidence vs observed frequency
     raise NotImplementedError("Calibration diagram not yet implemented")
 
 
 def plot_scenario_heatmap(results_dir: Path, output_dir: Path):
     """Fig 3: Heatmap of scenario losses (scenarios x horizons)."""
     logger.info("Generating scenario loss heatmap...")
-    # TODO: Load B4 results, create heatmap with seaborn/matplotlib
+    # TODO: Load b4_stress results, create heatmap with seaborn/matplotlib
     raise NotImplementedError("Scenario heatmap not yet implemented")
 
 
 def generate_ticket_examples(results_dir: Path, output_dir: Path):
     """Fig 4: Qualitative examples of decision tickets with evidence."""
     logger.info("Generating ticket example displays...")
-    # TODO: Load B5 results, select representative tickets, format as LaTeX table
+    # TODO: Load b5_decision results, select representative tickets, format as LaTeX table
     raise NotImplementedError("Ticket examples not yet implemented")
 
 
 def plot_robustness_degradation(results_dir: Path, output_dir: Path):
     """Fig 5: Robustness metrics across data regimes."""
     logger.info("Generating robustness degradation plots...")
-    # TODO: Load B6 results, plot metric deltas across regimes
+    # TODO: Load b6_robustness results, plot metric deltas across regimes
     raise NotImplementedError("Robustness plot not yet implemented")
 
 

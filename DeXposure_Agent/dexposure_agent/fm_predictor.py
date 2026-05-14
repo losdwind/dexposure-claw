@@ -2,7 +2,7 @@
 
 Loads fine-tuned GraphPFN checkpoints and generates graph predictions
 (edge existence probabilities + edge weight predictions) for use in
-B1-B6 benchmarks.
+b1_forecast..b6_robustness benchmarks.
 
 Checkpoints:
     dexposure-fm-h1.pt   -> horizon 1 week

@@ -68,20 +68,20 @@ def build_rows() -> list[dict]:
     llm_run = _resolve_llm_run()
     if not b5_run.exists():
         raise FileNotFoundError(
-            f"B5 run directory not found: {b5_run}. Set DEXPOSURE_B5_RUN "
+            f"b5_decision run directory not found: {b5_run}. Set DEXPOSURE_B5_RUN "
             "or run scripts/run_benchmarks_sequential.py first."
         )
 
-    b5_c2 = _load_json(b5_run / "B5_C2.json")["results"][0]
-    b5_c0 = _load_json(b5_run / "B5_C0.json")["results"][0]
+    b5_c2 = _load_json(b5_run / "b5_decision__m1_persistence_rules.json")["results"][0]
+    b5_c0 = _load_json(b5_run / "b5_decision__m5_fm_rules.json")["results"][0]
     llm_cmp = _load_json(llm_run / "comparison.json")["methods"]
-    c0llm = llm_cmp["C0-LLM"]
-    c0llm_gated = llm_cmp.get("C0-LLM-GATED")
-    c3 = llm_cmp["C3"]
+    c0llm = llm_cmp["m6_fm_llm"]
+    c0llm_gated = llm_cmp.get("m7_fm_llm_gated")
+    c3 = llm_cmp["m2_snapshot_llm"]
 
     rows = [
         {
-            "method_id": "C2",
+            "method_id": "m1_persistence_rules",
             "method_name": "Persist+Rules",
             "ticket_precision": _round_or_none(b5_c2.get("ticket_precision")),
             "audit_completeness": _round_or_none(b5_c2.get("audit_completeness")),
@@ -93,7 +93,7 @@ def build_rows() -> list[dict]:
             "explanation_quality": None,
         },
         {
-            "method_id": "C0",
+            "method_id": "m5_fm_rules",
             "method_name": "FM+Rules",
             "ticket_precision": _round_or_none(b5_c0.get("ticket_precision")),
             "audit_completeness": _round_or_none(b5_c0.get("audit_completeness")),
@@ -105,7 +105,7 @@ def build_rows() -> list[dict]:
             "explanation_quality": None,
         },
         {
-            "method_id": "C3",
+            "method_id": "m2_snapshot_llm",
             "method_name": "Pure LLM",
             "ticket_precision": _round_or_none(c3.get("ticket_precision")),
             "audit_completeness": _round_or_none(c3.get("audit_completeness")),
@@ -117,7 +117,7 @@ def build_rows() -> list[dict]:
             "explanation_quality": _round_or_none(c3.get("explanation_quality"), ndigits=2),
         },
         {
-            "method_id": "C0-LLM",
+            "method_id": "m6_fm_llm",
             "method_name": "FM+LLM",
             "ticket_precision": _round_or_none(c0llm.get("ticket_precision")),
             "audit_completeness": _round_or_none(c0llm.get("audit_completeness")),
@@ -131,7 +131,7 @@ def build_rows() -> list[dict]:
     ]
     if c0llm_gated is not None:
         rows.append({
-            "method_id": "C0-LLM-GATED",
+            "method_id": "m7_fm_llm_gated",
             "method_name": "FM+LLM+RulesGate",
             "ticket_precision": _round_or_none(c0llm_gated.get("ticket_precision")),
             "audit_completeness": _round_or_none(c0llm_gated.get("audit_completeness")),

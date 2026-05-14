@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LLM Decision Evaluation Pipeline -- Layer 2 + Layer 3 for B5.
+"""LLM Decision Evaluation Pipeline -- Layer 2 + Layer 3 for b5_decision.
 
 Runs LOCALLY (not on GPU server). Architecture:
   - FM predictions: fetched from GPU server via SSH tunnel (localhost:8000)
@@ -7,11 +7,11 @@ Runs LOCALLY (not on GPU server). Architecture:
   - Ground truth:   raw snapshots fetched from GPU /snapshot endpoint
 
 Tests four methods:
-  C2      Persistence + Rules   (loaded from existing B5 results)
-  C0      FM + Rules            (loaded from existing B5 results)
-  C3      Pure LLM, no FM       (text-only snapshot -> Claude)
-  C0-LLM  FM + LLM              (FM predictions + metrics + scenarios -> Claude)
-  C0-LLM-GATED
+  m1_persistence_rules  (loaded from existing b5_decision results)
+  m5_fm_rules           (loaded from existing b5_decision results)
+  m2_snapshot_llm       (text-only snapshot -> Claude)
+  m6_fm_llm             (FM predictions + metrics + scenarios -> Claude)
+  m7_fm_llm_gated
           FM + LLM + RulesGate  (same prompt, conservative post-hoc action gate)
 
 Layer 2 metrics (LLM reasoning quality):
@@ -33,7 +33,7 @@ Prerequisites:
 
 Usage:
     python DeXposure_Agent/experiments/llm_eval_b5.py
-    python DeXposure_Agent/experiments/llm_eval_b5.py --method C0-LLM --method C3
+    python DeXposure_Agent/experiments/llm_eval_b5.py --method m6_fm_llm --method m2_snapshot_llm
     python DeXposure_Agent/experiments/llm_eval_b5.py --resume   # skip completed weeks
 """
 from __future__ import annotations
@@ -77,7 +77,7 @@ MODEL_COSTS = {
     "claude-opus-4-6": {"input": 5.0, "output": 25.0},
 }
 SEVERITY_ORDER = {"Monitor": 1, "Investigate": 2, "Recommend-Reduce": 3, "Contingency": 4}
-GATED_LLM_METHODS = {"C0-LLM-GATED"}
+GATED_LLM_METHODS = {"m7_fm_llm_gated"}
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ def build_prompt(method: str, date: str, horizon: int,
                  metrics: dict, scenarios: list[dict] | None) -> tuple[str, str]:
     system = SYSTEM_PROMPT.format(horizon=horizon)
 
-    if method in ("C0-LLM", "C0-LLM-GATED"):
+    if method in ("m6_fm_llm", "m7_fm_llm_gated"):
         assert forecast is not None
         user = C0_LLM_USER_TEMPLATE.format(
             date=date, horizon=horizon,
@@ -474,7 +474,7 @@ def build_prompt(method: str, date: str, horizon: int,
             metrics=_format_metrics(metrics),
             scenarios=_format_scenarios(scenarios or []),
         )
-    elif method == "C3":
+    elif method == "m2_snapshot_llm":
         assert snapshot is not None
         edges = snapshot.get("edges", [])
         user = C3_USER_TEMPLATE.format(
@@ -943,11 +943,11 @@ def run_pipeline(
             # Collect data for prompt
             forecast = None
             scenarios = None
-            if method in ("C0-LLM", "C0-LLM-GATED"):
+            if method in ("m6_fm_llm", "m7_fm_llm_gated"):
                 forecast = get_forecast(date_str, horizon)
                 metrics = compute_metrics(forecast)
                 scenarios = run_scenarios(forecast)
-            elif method == "C3":
+            elif method == "m2_snapshot_llm":
                 metrics = compute_metrics(snap_current)
 
             system, user = build_prompt(
@@ -1129,7 +1129,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="LLM Decision Evaluation Pipeline (runs locally)")
     parser.add_argument("--method", action="append", default=[],
-                        help="C0-LLM, C0-LLM-GATED, and/or C3 (can repeat; default: all three)")
+                        help="m6_fm_llm, m7_fm_llm_gated, and/or m2_snapshot_llm (can repeat; default: all three)")
     parser.add_argument("--test-split", default="2025-01~2025-08")
     parser.add_argument("--horizon", type=int, default=STRESS_LOOKAHEAD)
     parser.add_argument("--consistency-runs", type=int, default=CONSISTENCY_RUNS)
@@ -1144,7 +1144,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.method:
-        args.method = ["C0-LLM", "C0-LLM-GATED", "C3"]
+        args.method = ["m6_fm_llm", "m7_fm_llm_gated", "m2_snapshot_llm"]
     if args.model:
         DECISION_MODEL = args.model
     if args.judge_model:

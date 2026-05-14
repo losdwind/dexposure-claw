@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Reproducible master runner for DeXposure-Agent experiments.
 
-This runner covers the graph/rules benchmarks B1-B6. LLM decision-quality
-methods (C3, C0-LLM, C0-LLM-GATED) intentionally run through
-experiments/llm_eval_b5.py so API prompts, judge artifacts, and costs stay
-separate from the FM benchmark suite.
+This runner covers the graph/rules benchmarks b1_forecast..b6_robustness.
+LLM decision-quality methods (m2_snapshot_llm, m6_fm_llm, m7_fm_llm_gated)
+intentionally run through experiments/llm_eval_b5.py so API prompts, judge
+artifacts, and costs stay separate from the FM benchmark suite.
 
 Usage:
-    python experiments/run_all.py --benchmarks B1,B2,B3,B4,B5,B6 --methods all
-    python experiments/run_all.py --benchmarks B1 --methods C0,C4
+    python experiments/run_all.py --benchmarks b1_forecast,b2_warning,b3_calibration,b4_stress,b5_decision,b6_robustness --methods all
+    python experiments/run_all.py --benchmarks b1_forecast --methods m5_fm_rules,m4_fm_only
     python experiments/run_all.py --ablations --output results/
 """
 from __future__ import annotations
@@ -105,7 +105,6 @@ if str(AGENT_ROOT) not in sys.path:
     sys.path.insert(0, str(AGENT_ROOT))
 
 from experiments.methods import (  # noqa: E402
-    LEGACY_UNIMPLEMENTED_METHODS,
     METHOD_NAMES,
     METHODS,
     get_method,
@@ -115,34 +114,34 @@ from experiments.exceptions import PredictionUnavailable  # noqa: E402
 
 
 BENCHMARK_MODULES = {
-    "B1": "experiments.b1_risk_forecasting",
-    "B2": "experiments.b2_early_warning",
-    "B3": "experiments.b3_uncertainty_calibration",
-    "B4": "experiments.b4_stress_test",
-    "B5": "experiments.b5_decision_quality",
-    "B6": "experiments.b6_robustness",
+    "b1_forecast": "experiments.b1_risk_forecasting",
+    "b2_warning": "experiments.b2_early_warning",
+    "b3_calibration": "experiments.b3_uncertainty_calibration",
+    "b4_stress": "experiments.b4_stress_test",
+    "b5_decision": "experiments.b5_decision_quality",
+    "b6_robustness": "experiments.b6_robustness",
 }
 
 BENCHMARK_FUNCS = {
-    "B1": "run_b1",
-    "B2": "run_b2",
-    "B3": "run_b3",
-    "B4": "run_b4",
-    "B5": "run_b5",
-    "B6": "run_b6",
+    "b1_forecast": "run_b1",
+    "b2_warning": "run_b2",
+    "b3_calibration": "run_b3",
+    "b4_stress": "run_b4",
+    "b5_decision": "run_b5",
+    "b6_robustness": "run_b6",
 }
 
-# Applicability is benchmark-first so B2's H0-only contract is visible.
+# Applicability is benchmark-first so b2_warning's heuristic-only contract is visible.
 BENCHMARK_APPLICABILITY = {
-    "B1": {"C0", "C2", "C4", "C7"},
-    "B2": {"H0"},
-    "B3": {"C0", "C4"},
-    "B4": {"C0", "C2", "C4", "C7"},
-    "B5": {"C0", "C2"},
-    "B6": {"C0", "C2", "C4", "C7"},
+    "b1_forecast": {"m5_fm_rules", "m1_persistence_rules", "m4_fm_only", "m3_evolvegcn"},
+    "b2_warning": {"h1_weighted_degree"},
+    "b3_calibration": {"m5_fm_rules", "m4_fm_only"},
+    "b4_stress": {"m5_fm_rules", "m1_persistence_rules", "m4_fm_only", "m3_evolvegcn"},
+    "b5_decision": {"m5_fm_rules", "m1_persistence_rules"},
+    "b6_robustness": {"m5_fm_rules", "m1_persistence_rules", "m4_fm_only", "m3_evolvegcn"},
 }
 
-LLM_PIPELINE_METHODS = {"C3", "C0-LLM", "C0-LLM-GATED"}
+LLM_PIPELINE_METHODS = {"m2_snapshot_llm", "m6_fm_llm", "m7_fm_llm_gated"}
 RUN_ALL_METHODS = [
     method_id for method_id in METHODS if method_id not in LLM_PIPELINE_METHODS
 ]
@@ -346,7 +345,6 @@ def _collect_metadata(args: argparse.Namespace, log_file: Path) -> dict[str, Any
         "methods": {
             method_id: dataclasses.asdict(spec) for method_id, spec in METHODS.items()
         },
-        "legacy_unimplemented_methods": LEGACY_UNIMPLEMENTED_METHODS,
         "benchmark_applicability": {
             benchmark: sorted(methods)
             for benchmark, methods in BENCHMARK_APPLICABILITY.items()
@@ -370,15 +368,6 @@ def _parse_request(args: argparse.Namespace) -> tuple[list[str], list[str]]:
     unknown_methods = [m for m in methods if m not in METHOD_NAMES]
     if unknown_methods:
         raise ValueError(f"Unknown methods: {unknown_methods}")
-
-    legacy_methods = [m for m in methods if m in LEGACY_UNIMPLEMENTED_METHODS]
-    if legacy_methods:
-        raise NotImplementedError(
-            "Legacy baselines are not implemented in this stack: "
-            + ", ".join(
-                f"{m} ({LEGACY_UNIMPLEMENTED_METHODS[m]})" for m in legacy_methods
-            )
-        )
 
     llm_methods = [m for m in methods if m in LLM_PIPELINE_METHODS]
     if llm_methods:
@@ -496,15 +485,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="DeXposure-Agent Experiment Runner")
     parser.add_argument(
         "--benchmarks",
-        default="B1,B2,B3,B4,B5,B6",
-        help="Comma-separated benchmarks (e.g. B1,B2)",
+        default="b1_forecast,b2_warning,b3_calibration,b4_stress,b5_decision,b6_robustness",
+        help="Comma-separated benchmarks (e.g. b1_forecast,b2_warning)",
     )
     parser.add_argument(
         "--methods",
         default="all",
         help=(
             "Comma-separated method IDs or 'all'. run_all.py excludes "
-            "C3/C0-LLM/C0-LLM-GATED; use experiments/llm_eval_b5.py for those."
+            "m2_snapshot_llm/m6_fm_llm/m7_fm_llm_gated; "
+            "use experiments/llm_eval_b5.py for those."
         ),
     )
     parser.add_argument("--ablations", action="store_true", help="Run ablations")
@@ -562,7 +552,7 @@ def main(argv: list[str] | None = None) -> int:
         stop_requested = False
         for bench in benchmarks:
             for method in methods:
-                key = f"{bench}_{method}"
+                key = f"{bench}__{method}"
                 if method not in BENCHMARK_APPLICABILITY[bench]:
                     state["results"][key] = _skip_result(bench, method)
                     state["summary"] = _summarize(state["results"])

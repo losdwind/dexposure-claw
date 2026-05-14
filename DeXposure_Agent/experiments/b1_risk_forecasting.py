@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B1: Risk Forecasting (Section 3.2 of EXPERIMENT_PLAN)
+"""b1_forecast: Risk Forecasting (Section 3.2 of EXPERIMENT_PLAN)
 
 Evaluates multi-horizon systemic risk metric forecasting across
 prediction horizons h in {1, 4, 8, 12} weeks.
@@ -42,7 +42,7 @@ HORIZONS = [1, 4, 8, 12]  # weeks
 
 
 @dataclass
-class B1Result:
+class ForecastResult:
     method: str
     horizon: int
     pagerank_mae: float = float("nan")
@@ -55,7 +55,7 @@ class B1Result:
 
     def __str__(self) -> str:
         return (
-            f"B1Result(method={self.method}, h={self.horizon}, "
+            f"ForecastResult(method={self.method}, h={self.horizon}, "
             f"pr_mae={self.pagerank_mae:.4f}, hhi_mae={self.hhi_mae:.4f}, "
             f"density_mae={self.density_mae:.4f}, gini_mae={self.gini_mae:.4f}, "
             f"spearman={self.rank_correlation:.4f}, trend={self.trend_consistency:.4f})"
@@ -212,8 +212,8 @@ def run_b1(
     test_split: str = "2025-01~2025-08",
     horizons: list[int] | None = None,
     **kwargs,
-) -> list[B1Result]:
-    """Run B1 benchmark for a given method across all horizons.
+) -> list[ForecastResult]:
+    """Run b1_forecast benchmark for a given method across all horizons.
 
     Args:
         method_id: Forecasting method ID registered in experiments.methods.
@@ -223,16 +223,16 @@ def run_b1(
         **kwargs: Extra method-specific config passed through.
 
     Returns:
-        List of B1Result, one per horizon.
+        List of ForecastResult, one per horizon.
     """
     if horizons is None:
         horizons = HORIZONS
 
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B1", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b1_forecast", method=method_id, results_dir=results_dir)
 
     log.info(
-        "B1 | method={} ({}) | test_split={} | horizons={}",
+        "b1_forecast |method={} ({}) | test_split={} | horizons={}",
         method_id, METHOD_NAMES.get(method_id, "?"), test_split, horizons,
     )
 
@@ -241,16 +241,16 @@ def run_b1(
     # ------------------------------------------------------------------
     loader = SnapshotLoader(data_dir=data_dir)
     all_snapshots = loader.load()  # no date filter -> load everything
-    log.info("B1 | loaded {} total snapshots", len(all_snapshots))
+    log.info("b1_forecast |loaded {} total snapshots", len(all_snapshots))
 
     if not all_snapshots:
-        log.error("B1 | no snapshots found in {} -- aborting", data_dir)
-        return [B1Result(method=method_id, horizon=h, n_test_snapshots=0) for h in horizons]
+        log.error("b1_forecast |no snapshots found in {} -- aborting", data_dir)
+        return [ForecastResult(method=method_id, horizon=h, n_test_snapshots=0) for h in horizons]
 
     # Build lookup structures
     date_to_snapshot: dict[str, GraphSnapshot] = {s.date: s for s in all_snapshots}
     sorted_dates = sorted(date_to_snapshot.keys())
-    log.info("B1 | date range: {} ~ {}", sorted_dates[0], sorted_dates[-1])
+    log.info("b1_forecast |date range: {} ~ {}", sorted_dates[0], sorted_dates[-1])
 
     # ------------------------------------------------------------------
     # Step 2: Identify test snapshots within test_split
@@ -261,11 +261,11 @@ def run_b1(
         if dt_start <= datetime.strptime(s.date, "%Y-%m-%d") <= dt_end
     ]
     test_snapshots.sort(key=lambda s: s.date)
-    log.info("B1 | {} test snapshots in {}", len(test_snapshots), test_split)
+    log.info("b1_forecast |{} test snapshots in {}", len(test_snapshots), test_split)
 
     if not test_snapshots:
-        log.error("B1 | no test snapshots in {} -- aborting", test_split)
-        return [B1Result(method=method_id, horizon=h, n_test_snapshots=0) for h in horizons]
+        log.error("b1_forecast |no test snapshots in {} -- aborting", test_split)
+        return [ForecastResult(method=method_id, horizon=h, n_test_snapshots=0) for h in horizons]
 
     # ------------------------------------------------------------------
     # Step 3: Pre-compute metrics and PageRank for all snapshots (cache)
@@ -277,15 +277,15 @@ def run_b1(
         metrics_cache[snap.date] = compute_metrics(snap)
         pagerank_cache[snap.date] = _compute_pagerank_vector(snap)
 
-    log.info("B1 | metrics/PageRank cache built for {} dates", len(metrics_cache))
+    log.info("b1_forecast |metrics/PageRank cache built for {} dates", len(metrics_cache))
 
     # ------------------------------------------------------------------
     # Step 4: Evaluate per horizon
     # ------------------------------------------------------------------
-    results: list[B1Result] = []
+    results: list[ForecastResult] = []
 
     for h in horizons:
-        log.info("B1 | evaluating horizon h={} weeks ...", h)
+        log.info("b1_forecast |evaluating horizon h={} weeks ...", h)
 
         pr_mae_list: list[float] = []
         hhi_mae_list: list[float] = []
@@ -352,11 +352,11 @@ def run_b1(
 
         # Aggregate results for this horizon
         if n_evaluated == 0:
-            log.warning("B1 | h={} | no valid test pairs found", h)
-            results.append(B1Result(method=method_id, horizon=h, n_test_snapshots=0))
+            log.warning("b1_forecast |h={} | no valid test pairs found", h)
+            results.append(ForecastResult(method=method_id, horizon=h, n_test_snapshots=0))
             continue
 
-        result = B1Result(
+        result = ForecastResult(
             method=method_id,
             horizon=h,
             pagerank_mae=float(np.mean(pr_mae_list)),
@@ -367,7 +367,7 @@ def run_b1(
             trend_consistency=float(np.mean(trend_list)),
             n_test_snapshots=n_evaluated,
         )
-        log.info("B1 | {}", result)
+        log.info("b1_forecast |{}", result)
         results.append(result)
 
     # ------------------------------------------------------------------
@@ -400,7 +400,7 @@ def run_b1(
     log.save_results(serialized)
 
     log.info(
-        "B1 | method={} completed: {} horizons, {} total results",
+        "b1_forecast |method={} completed: {} horizons, {} total results",
         method_id, len(horizons), len(results),
     )
     return results
@@ -415,8 +415,12 @@ if __name__ == "__main__":
     import json as _json
     from datetime import datetime as _dt
 
-    parser = argparse.ArgumentParser(description="B1: Risk Forecasting benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0, C2, C4)")
+    parser = argparse.ArgumentParser(description="b1_forecast: Risk Forecasting benchmark")
+    parser.add_argument(
+        "--method",
+        required=True,
+        help="Method ID (e.g. m5_fm_rules, m1_persistence_rules, m4_fm_only)",
+    )
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")
@@ -436,7 +440,7 @@ if __name__ == "__main__":
             retention="30 days",
             format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
         )
-        logger.info("B1 log file: {}", args.log_file)
+        logger.info("b1_forecast log file: {}", args.log_file)
 
     horizons = [int(h) for h in args.horizons.split(",")]
     results = run_b1(
@@ -468,7 +472,7 @@ if __name__ == "__main__":
                 "n_test_snapshots": r.n_test_snapshots,
             })
         payload = {
-            "benchmark": "B1",
+            "benchmark": "b1_forecast",
             "method": args.method,
             "method_name": METHOD_NAMES.get(args.method, "?"),
             "test_split": args.test_split,
@@ -477,4 +481,4 @@ if __name__ == "__main__":
             "results": serialized,
         }
         out_path.write_text(_json.dumps(payload, indent=2))
-        logger.info("B1 | results saved to {}", out_path)
+        logger.info("b1_forecast |results saved to {}", out_path)

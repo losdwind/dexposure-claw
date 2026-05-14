@@ -1,8 +1,11 @@
 """Canonical method registry for DeXposure-Agent experiments.
 
-The paper may still show compact legacy IDs, but experiment code should route
-through explicit method compositions so unavailable models cannot silently
-masquerade as persistence baselines.
+IDs are sortable slugs. Methods sort alphanumerically in the order they appear
+in the paper: persistence baselines < FM-only < FM+rules < FM+LLM variants.
+Heuristics use the ``h`` namespace; learned methods use ``m``.
+
+There is no legacy alias here on purpose: this file is the only place ID
+strings are defined, and every other module imports from it.
 """
 from __future__ import annotations
 
@@ -21,54 +24,22 @@ class MethodSpec:
 
 
 METHODS: dict[str, MethodSpec] = {
-    "C0": MethodSpec(
-        method_id="C0",
-        label="FM+Rules",
-        predictor="fm",
-        policy="rules",
-        implemented=True,
-        gpu_required=True,
-    ),
-    "C2": MethodSpec(
-        method_id="C2",
+    "m1_persistence_rules": MethodSpec(
+        method_id="m1_persistence_rules",
         label="Persistence+Rules",
         predictor="persistence",
         policy="rules",
         implemented=True,
     ),
-    "C3": MethodSpec(
-        method_id="C3",
+    "m2_snapshot_llm": MethodSpec(
+        method_id="m2_snapshot_llm",
         label="CurrentSnapshot+LLM",
         predictor="current",
         policy="llm",
         implemented=True,
     ),
-    "C0-LLM": MethodSpec(
-        method_id="C0-LLM",
-        label="FM+LLM",
-        predictor="fm",
-        policy="llm",
-        implemented=True,
-        gpu_required=True,
-    ),
-    "C0-LLM-GATED": MethodSpec(
-        method_id="C0-LLM-GATED",
-        label="FM+LLM+RulesGate",
-        predictor="fm",
-        policy="llm_rules_gate",
-        implemented=True,
-        gpu_required=True,
-    ),
-    "C4": MethodSpec(
-        method_id="C4",
-        label="FMOnly",
-        predictor="fm",
-        policy="none",
-        implemented=True,
-        gpu_required=True,
-    ),
-    "C7": MethodSpec(
-        method_id="C7",
+    "m3_evolvegcn": MethodSpec(
+        method_id="m3_evolvegcn",
         label="EvolveGCN",
         predictor="evolvegcn",
         policy="none",
@@ -76,30 +47,51 @@ METHODS: dict[str, MethodSpec] = {
         gpu_required=True,
         notes="Requires trained EvolveGCN checkpoints; fail closed if absent.",
     ),
-    "H0": MethodSpec(
-        method_id="H0",
+    "m4_fm_only": MethodSpec(
+        method_id="m4_fm_only",
+        label="FMOnly",
+        predictor="fm",
+        policy="none",
+        implemented=True,
+        gpu_required=True,
+    ),
+    "m5_fm_rules": MethodSpec(
+        method_id="m5_fm_rules",
+        label="FM+Rules",
+        predictor="fm",
+        policy="rules",
+        implemented=True,
+        gpu_required=True,
+    ),
+    "m6_fm_llm": MethodSpec(
+        method_id="m6_fm_llm",
+        label="FM+LLM",
+        predictor="fm",
+        policy="llm",
+        implemented=True,
+        gpu_required=True,
+    ),
+    "m7_fm_llm_gated": MethodSpec(
+        method_id="m7_fm_llm_gated",
+        label="FM+LLM+RulesGate",
+        predictor="fm",
+        policy="llm_rules_gate",
+        implemented=True,
+        gpu_required=True,
+    ),
+    "h1_weighted_degree": MethodSpec(
+        method_id="h1_weighted_degree",
         label="WeightedDegreeHeuristic",
         predictor="current",
         policy="heuristic",
         implemented=True,
-        notes="Method-agnostic B2 early-warning heuristic.",
+        notes="Method-agnostic b2_warning early-warning heuristic.",
     ),
 }
 
 
-LEGACY_UNIMPLEMENTED_METHODS: dict[str, str] = {
-    "C1": "ROLAND-Agent",
-    "C5": "ROLAND",
-    "C6": "GraphPFN-Frozen",
-    "C8": "DyRep",
-    "C9": "TGN",
-    "C10": "Static GCN",
-}
-
-
 METHOD_NAMES: dict[str, str] = {
-    **{method_id: spec.label for method_id, spec in METHODS.items()},
-    **LEGACY_UNIMPLEMENTED_METHODS,
+    method_id: spec.label for method_id, spec in METHODS.items()
 }
 
 
@@ -107,12 +99,7 @@ def get_method(method_id: str) -> MethodSpec:
     try:
         return METHODS[method_id]
     except KeyError as exc:
-        if method_id in LEGACY_UNIMPLEMENTED_METHODS:
-            raise NotImplementedError(
-                f"{method_id} ({LEGACY_UNIMPLEMENTED_METHODS[method_id]}) is listed "
-                "as a paper baseline but is not implemented in this experiment stack."
-            ) from exc
-        raise ValueError(f"Unknown method_id: {method_id}") from exc
+        raise ValueError(f"Unknown method_id: {method_id!r}") from exc
 
 
 def require_implemented(method_id: str) -> MethodSpec:

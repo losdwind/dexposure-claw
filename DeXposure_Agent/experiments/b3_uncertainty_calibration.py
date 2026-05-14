@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B3: Uncertainty Calibration (Section 3.4 of EXPERIMENT_PLAN)
+"""b3_calibration: Uncertainty Calibration (Section 3.4 of EXPERIMENT_PLAN)
 
 Evaluates the quality of predictive uncertainty estimates.
 Methods that do not produce distributional outputs are not applicable (see APPLICABILITY).
@@ -39,7 +39,7 @@ CONFORMAL_VAL_SPLIT = "2024-07~2024-12"  # validation period for conformal calib
 
 
 @dataclass
-class B3Result:
+class CalibrationResult:
     method: str
     ece: float = float("nan")
     pi_coverage: float = float("nan")   # fraction, target = TARGET_COVERAGE
@@ -49,7 +49,7 @@ class B3Result:
 
     def __str__(self) -> str:
         return (
-            f"B3Result(method={self.method}, ECE={self.ece:.4f}, "
+            f"CalibrationResult(method={self.method}, ECE={self.ece:.4f}, "
             f"PI_cov={self.pi_coverage:.3f} (target={TARGET_COVERAGE}), "
             f"PI_width={self.pi_width:.4f}, CRPS={self.crps:.4f})"
         )
@@ -79,7 +79,7 @@ def _calibrate_mc_sigma(
                    if datetime.strptime(d, "%Y-%m-%d") < dt_start]
 
     if len(train_dates) < 3:
-        logger.warning("B3 calibration: too few training dates, using default sigma")
+        logger.warning("b3_calibration: too few training dates, using default sigma")
         return MC_NOISE_SIGMA_DEFAULT
 
     # Compute relative edge weight changes across consecutive pairs
@@ -101,7 +101,7 @@ def _calibrate_mc_sigma(
         prev_snap = snap
 
     if not relative_changes:
-        logger.warning("B3 calibration: no relative changes computed, using default sigma")
+        logger.warning("b3_calibration: no relative changes computed, using default sigma")
         return MC_NOISE_SIGMA_DEFAULT
 
     sigma = float(np.std(relative_changes))
@@ -111,7 +111,7 @@ def _calibrate_mc_sigma(
     sigma = max(0.01, min(sigma, 2.0))
 
     logger.info(
-        f"B3 calibrated sigma={sigma:.4f} from {len(relative_changes)} "
+        f"b3_calibration sigma={sigma:.4f} from {len(relative_changes)} "
         f"edge-weight changes over {len(train_dates)} training weeks"
     )
     return sigma
@@ -307,24 +307,24 @@ def run_b3(
     test_split: str = "2025-01~2025-08",
     target_coverage: float = TARGET_COVERAGE,
     **kwargs,
-) -> list[B3Result]:
-    """Run B3 benchmark for a given method.
+) -> list[CalibrationResult]:
+    """Run b3_calibration benchmark for a given method.
 
     Args:
-        method_id: Forecasting method ID with uncertainty output, typically C0 or C4.
+        method_id: Forecasting method ID with uncertainty output, typically m5_fm_rules or m4_fm_only.
         data_dir: Path to processed graph snapshots.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         target_coverage: Nominal PI coverage level (default 0.90).
         **kwargs: Extra method-specific config.
 
     Returns:
-        List containing a single B3Result.
+        List containing a single CalibrationResult.
     """
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B3", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b3_calibration", method=method_id, results_dir=results_dir)
 
     log.info(
-        f"B3 | method={method_id} | test_split={test_split} | "
+        f"b3_calibration | method={method_id} | test_split={test_split} | "
         f"target_coverage={target_coverage}"
     )
 
@@ -338,10 +338,10 @@ def run_b3(
     all_dates = loader.dates
 
     if len(test_snapshots) < 2:
-        log.warning("B3: fewer than 2 test snapshots, returning NaN result")
-        return [B3Result(method=method_id, n_predictions=0)]
+        log.warning("b3_calibration: fewer than 2 test snapshots, returning NaN result")
+        return [CalibrationResult(method=method_id, n_predictions=0)]
 
-    log.info(f"B3: loaded {len(test_snapshots)} test snapshots")
+    log.info(f"b3_calibration: loaded {len(test_snapshots)} test snapshots")
 
     # Build a date -> snapshot index for horizon lookup
     date_to_snap: dict[str, GraphSnapshot] = {s.date: s for s in test_snapshots}
@@ -353,7 +353,7 @@ def run_b3(
 
     # Calibrate MC noise sigma from training data
     mc_sigma = _calibrate_mc_sigma(loader, test_split, horizon=horizon)
-    log.info(f"B3: calibrated MC sigma = {mc_sigma:.4f}")
+    log.info(f"b3_calibration: calibrated MC sigma = {mc_sigma:.4f}")
 
     # Conformal calibration on validation set
     conformal_margin = _conformal_calibrate(
@@ -361,7 +361,7 @@ def run_b3(
         target_coverage, horizon=horizon,
         rng=np.random.default_rng(seed=123),
     )
-    log.info(f"B3: conformal margin = {conformal_margin:.6f}")
+    log.info(f"b3_calibration: conformal margin = {conformal_margin:.6f}")
 
     # --- Accumulators ---
     all_coverages: list[bool] = []       # was actual inside PI?
@@ -392,7 +392,7 @@ def run_b3(
             try:
                 gt_graph = loader.load_single(future_date)
             except KeyError:
-                log.info(f"B3: no ground truth for {future_date}, skipping")
+                log.info(f"b3_calibration: no ground truth for {future_date}, skipping")
                 continue
 
         # Generate prediction via the shared fail-closed method router.
@@ -447,8 +447,8 @@ def run_b3(
         )
 
     if n_predictions == 0:
-        log.warning("B3: no valid predictions computed")
-        return [B3Result(method=method_id, n_predictions=0)]
+        log.warning("b3_calibration: no valid predictions computed")
+        return [CalibrationResult(method=method_id, n_predictions=0)]
 
     # --- Aggregate metrics ---
     pi_coverage = float(np.mean(all_coverages))
@@ -459,7 +459,7 @@ def run_b3(
     # so ECE reduces to |target_coverage - actual_coverage|)
     ece = _compute_ece(all_predicted_probs, all_actual_inside, n_bins=10)
 
-    result = B3Result(
+    result = CalibrationResult(
         method=method_id,
         ece=ece,
         pi_coverage=pi_coverage,
@@ -485,15 +485,15 @@ def run_b3(
         "n_predictions": n_predictions,
     }])
 
-    log.info(f"B3 complete: {result}")
+    log.info(f"b3_calibration complete: {result}")
     return [result]
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="B3: Uncertainty Calibration benchmark")
-    parser.add_argument("--method", required=True, help="Method ID (e.g. C0 or C4)")
+    parser = argparse.ArgumentParser(description="b3_calibration: Uncertainty Calibration benchmark")
+    parser.add_argument("--method", required=True, help="Method ID (e.g. m5_fm_rules or m4_fm_only)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

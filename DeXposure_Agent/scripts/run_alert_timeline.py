@@ -38,7 +38,7 @@ from dexposure_agent.types import Edge, GraphSnapshot
 from dexposure_agent.agent_loop import _aggregate_scenarios
 from experiments.predict_helper import predict_graph
 
-DATA_DIR = str(_REPO_ROOT / "DeXposure" / "data")
+DATA_DIR = str(_REPO_ROOT / "data")
 RESULTS_DIR = str(_AGENT_DIR / "results" / "run_alert_timeline")
 MC_NOISE_SIGMA = 2.0
 HORIZONS = [1, 4, 8, 12]
@@ -57,7 +57,7 @@ CRISIS_EVENTS = {
     },
 }
 
-METHODS = ["C0", "C2"]
+METHODS = ["m5_fm_rules", "m1_persistence_rules"]
 
 
 def _node_weights(g):

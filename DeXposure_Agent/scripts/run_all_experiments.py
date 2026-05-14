@@ -2,11 +2,11 @@
 """Run all supplementary experiments for the paper.
 
 Execution order (designed for continuous GPU utilization):
-  1. Train EvolveGCN (C7) for h={1,4,8,12}          ~60 min
-  2. Run C7 on B1 + B4 + B6                          ~15 min
-  3. Re-run B3 with conformal calibration fix         ~10 min
+  1. Train EvolveGCN (m3_evolvegcn) for h={1,4,8,12}          ~60 min
+  2. Run m3_evolvegcn on b1_forecast + b4_stress + b6_robustness                          ~15 min
+  3. Re-run b3_calibration with conformal calibration fix         ~10 min
   4. Run 4 ablation experiments (A1,A2,A3,A6)         ~30 min
-  5. Re-run full B1-B6 for C0 (with all fixes)        ~40 min
+  5. Re-run full b1_forecast-b6_robustness for m5_fm_rules (with all fixes)        ~40 min
 
 Total estimated GPU time: ~2.5 hours
 
@@ -35,7 +35,7 @@ from loguru import logger
 
 # ── Configuration ──────────────────────────────────────────────────────
 
-DATA_DIR = str(_REPO_ROOT.parent / "DeXposure" / "data")
+DATA_DIR = str(_REPO_ROOT.parent / "data")
 TEST_SPLIT = "2025-01~2025-08"
 TRAIN_SPLIT = "2020-03~2024-06"
 VAL_SPLIT = "2024-07~2024-12"
@@ -66,7 +66,7 @@ def _record(step: str, status: str, duration: float, details: dict = None):
 
 def step1_train_evolvegcn():
     logger.info("=" * 60)
-    logger.info("STEP 1: Train EvolveGCN (C7) for all horizons")
+    logger.info("STEP 1: Train EvolveGCN (m3_evolvegcn) for all horizons")
     logger.info("=" * 60)
 
     from experiments.competitors.evolvegcn import train_evolvegcn
@@ -89,58 +89,58 @@ def step1_train_evolvegcn():
     _record("step1_train_evolvegcn", "done", time.time() - t0)
 
 
-# ── Step 2: Run C7 benchmarks ────────────────────────────────────────
+# ── Step 2: Run m3_evolvegcn benchmarks ────────────────────────────────────────
 
 def step2_evolvegcn_benchmarks():
     logger.info("=" * 60)
-    logger.info("STEP 2: Run EvolveGCN (C7) on B1 + B4 + B6")
+    logger.info("STEP 2: Run EvolveGCN (m3_evolvegcn) on b1_forecast + b4_stress + b6_robustness")
     logger.info("=" * 60)
 
     t0 = time.time()
     results_dir = str(RESULTS_DIR)
 
-    # B1
+    # b1_forecast
     try:
         from experiments.b1_risk_forecasting import run_b1
-        b1 = run_b1("C7", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
-        logger.info(f"  B1 C7: {len(b1)} results")
+        b1 = run_b1("m3_evolvegcn", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
+        logger.info(f"  b1_forecast m3_evolvegcn: {len(b1)} results")
     except Exception as e:
-        logger.error(f"  B1 C7 FAILED: {e}")
+        logger.error(f"  b1_forecast m3_evolvegcn FAILED: {e}")
 
-    # B4
+    # b4_stress
     try:
         from experiments.b4_stress_test import run_b4
-        b4 = run_b4("C7", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
-        logger.info(f"  B4 C7: {len(b4)} results")
+        b4 = run_b4("m3_evolvegcn", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
+        logger.info(f"  b4_stress m3_evolvegcn: {len(b4)} results")
     except Exception as e:
-        logger.error(f"  B4 C7 FAILED: {e}")
+        logger.error(f"  b4_stress m3_evolvegcn FAILED: {e}")
 
-    # B6
+    # b6_robustness
     try:
         from experiments.b6_robustness import run_b6
-        b6 = run_b6("C7", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
-        logger.info(f"  B6 C7: {len(b6)} results")
+        b6 = run_b6("m3_evolvegcn", DATA_DIR, TEST_SPLIT, results_dir=results_dir)
+        logger.info(f"  b6_robustness m3_evolvegcn: {len(b6)} results")
     except Exception as e:
-        logger.error(f"  B6 C7 FAILED: {e}")
+        logger.error(f"  b6_robustness m3_evolvegcn FAILED: {e}")
 
     _record("step2_evolvegcn_benchmarks", "done", time.time() - t0)
 
 
-# ── Step 3: Re-run B3 with conformal calibration ─────────────────────
+# ── Step 3: Re-run b3_calibration with conformal calibration ─────────────────────
 
 def step3_b3_conformal():
     logger.info("=" * 60)
-    logger.info("STEP 3: Re-run B3 with conformal calibration fix")
+    logger.info("STEP 3: Re-run b3_calibration with conformal calibration fix")
     logger.info("=" * 60)
 
     t0 = time.time()
     try:
         from experiments.b3_uncertainty_calibration import run_b3
-        b3 = run_b3("C0", DATA_DIR, TEST_SPLIT, results_dir=str(RESULTS_DIR))
+        b3 = run_b3("m5_fm_rules", DATA_DIR, TEST_SPLIT, results_dir=str(RESULTS_DIR))
         if b3:
             r = b3[0]
             logger.info(
-                f"  B3 C0 (conformal): ECE={r.ece:.4f} "
+                f"  b3_calibration m5_fm_rules (conformal): ECE={r.ece:.4f} "
                 f"PI_cov={r.pi_coverage:.3f} PI_width={r.pi_width:.4f} "
                 f"CRPS={r.crps:.4f}"
             )
@@ -151,7 +151,7 @@ def step3_b3_conformal():
         else:
             _record("step3_b3_conformal", "no_results", time.time() - t0)
     except Exception as e:
-        logger.error(f"  B3 FAILED: {e}")
+        logger.error(f"  b3_calibration FAILED: {e}")
         _record("step3_b3_conformal", "failed", time.time() - t0, {"error": str(e)})
 
 
@@ -182,11 +182,11 @@ def step4_ablations():
         _record("step4_ablations", "failed", time.time() - t0, {"error": str(e)})
 
 
-# ── Step 5: Re-run full C0+C2 suite ──────────────────────────────────
+# ── Step 5: Re-run full m5_fm_rules+m1_persistence_rules suite ──────────────────────────────────
 
 def step5_full_suite():
     logger.info("=" * 60)
-    logger.info("STEP 5: Re-run full B1-B6 for C0+C2 (with all fixes)")
+    logger.info("STEP 5: Re-run full b1_forecast-b6_robustness for m5_fm_rules+m1_persistence_rules (with all fixes)")
     logger.info("=" * 60)
 
     t0 = time.time()
@@ -200,15 +200,15 @@ def step5_full_suite():
     from experiments.b6_robustness import run_b6
 
     benchmarks = [
-        ("B1", run_b1), ("B2", run_b2), ("B3", run_b3),
-        ("B4", run_b4), ("B5", run_b5), ("B6", run_b6),
+        ("b1_forecast", run_b1), ("b2_warning", run_b2), ("b3_calibration", run_b3),
+        ("b4_stress", run_b4), ("b5_decision", run_b5), ("b6_robustness", run_b6),
     ]
 
     for bname, bfunc in benchmarks:
-        methods = ["H0"] if bname == "B2" else ["C0", "C2"]
+        methods = ["h1_weighted_degree"] if bname == "b2_warning" else ["m5_fm_rules", "m1_persistence_rules"]
         for method in methods:
-            # B3 only runs for C0 (uncertainty method)
-            if bname == "B3" and method == "C2":
+            # b3_calibration only runs for m5_fm_rules (uncertainty method)
+            if bname == "b3_calibration" and method == "m1_persistence_rules":
                 continue
             try:
                 logger.info(f"  Running {bname} {method}...")

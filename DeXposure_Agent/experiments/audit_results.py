@@ -120,32 +120,40 @@ def _scrub_for_method_compare(value: Any) -> Any:
 
 
 def audit_identical_method_results(results_dir: Path) -> list[dict[str, Any]]:
+    """Flag predictor-driven methods that produce byte-identical results to
+    the persistence baseline (m1_persistence_rules), which usually means the
+    predictor silently fell back to persistence.
+    """
     issues: list[dict[str, Any]] = []
     search_dirs = [results_dir] + [p for p in results_dir.iterdir() if p.is_dir()]
+    # Methods that MUST differ from persistence; if equal, they likely fell back.
+    SUSPECT_METHODS = ("m3_evolvegcn", "m4_fm_only", "m5_fm_rules")
+    BASELINE_METHOD = "m1_persistence_rules"
     for run_dir in sorted(search_dirs):
-        for c7_path in sorted(run_dir.glob("B*_C7.json")):
-            benchmark = c7_path.name.split("_", 1)[0]
-            c2_path = run_dir / f"{benchmark}_C2.json"
-            if not c2_path.exists():
-                continue
-            c7_data = _scrub_for_method_compare(_load_json(c7_path))
-            c2_data = _scrub_for_method_compare(_load_json(c2_path))
-            if c7_data == c2_data:
-                issues.append({
-                    "code": "identical_method_results",
-                    "severity": "error",
-                    "path": str(run_dir),
-                    "message": (
-                        f"{benchmark} C7 results are identical to C2 after "
-                        "removing metadata; this usually means C7 fell back to "
-                        "persistence."
-                    ),
-                    "details": {
-                        "benchmark": benchmark,
-                        "method_a": str(c7_path),
-                        "method_b": str(c2_path),
-                    },
-                })
+        for suspect in SUSPECT_METHODS:
+            for suspect_path in sorted(run_dir.glob(f"b*__{suspect}.json")):
+                benchmark = suspect_path.stem.split("__", 1)[0]
+                baseline_path = run_dir / f"{benchmark}__{BASELINE_METHOD}.json"
+                if not baseline_path.exists():
+                    continue
+                suspect_data = _scrub_for_method_compare(_load_json(suspect_path))
+                baseline_data = _scrub_for_method_compare(_load_json(baseline_path))
+                if suspect_data == baseline_data:
+                    issues.append({
+                        "code": "identical_method_results",
+                        "severity": "error",
+                        "path": str(run_dir),
+                        "message": (
+                            f"{benchmark} {suspect} results are identical to "
+                            f"{BASELINE_METHOD} after removing metadata; "
+                            f"this usually means {suspect} fell back to persistence."
+                        ),
+                        "details": {
+                            "benchmark": benchmark,
+                            "method_a": str(suspect_path),
+                            "method_b": str(baseline_path),
+                        },
+                    })
     return issues
 
 

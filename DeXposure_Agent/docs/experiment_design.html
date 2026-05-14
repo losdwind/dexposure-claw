@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DeXposure-Agent 实验设计可视化</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #283449;
+    --border: #334155;
+    --ink: #e2e8f0;
+    --ink-dim: #94a3b8;
+    --ink-faint: #64748b;
+    --accent: #38bdf8;
+    --accent-2: #a78bfa;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+
+    /* method tiers */
+    --baseline: #64748b;       /* h1, m1, m2 */
+    --gnn: #f97316;            /* m3 */
+    --fm-only: #14b8a6;        /* m4 */
+    --fm-rules: #3b82f6;       /* m5 */
+    --fm-llm: #a78bfa;         /* m6, m7 */
+
+    /* benchmarks */
+    --b-color-1: #fbbf24; /* forecast */
+    --b-color-2: #f472b6; /* warning */
+    --b-color-3: #60a5fa; /* calibration */
+    --b-color-4: #f87171; /* stress */
+    --b-color-5: #34d399; /* decision */
+    --b-color-6: #a78bfa; /* robustness */
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "PingFang SC",
+                 "Helvetica Neue", "Segoe UI", sans-serif;
+    margin: 0; padding: 0; line-height: 1.55; }
+  body { padding: 32px clamp(16px, 4vw, 64px); }
+  a { color: var(--accent); }
+  h1, h2, h3, h4 { color: var(--ink); margin: 0; }
+  h1 { font-size: 28px; font-weight: 700; }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+  h3 { font-size: 15px; font-weight: 600; }
+  p  { color: var(--ink-dim); margin: 6px 0; }
+  small { color: var(--ink-faint); }
+  code { background: rgba(148,163,184,0.12); padding: 1px 6px;
+    border-radius: 4px; font-size: 0.9em; }
+
+  .container { max-width: 1280px; margin: 0 auto; }
+  .hero { display: flex; flex-direction: column; gap: 6px;
+    padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .hero .tag { color: var(--accent); font-size: 12px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 700; }
+  .hero h1 { font-size: 30px; }
+  .hero .sub { color: var(--ink-dim); max-width: 880px; }
+
+  section.block { margin-top: 32px; }
+  .block-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 14px; }
+  .block-head .num { color: var(--accent); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.18em; text-transform: uppercase; }
+  .block-head .note { color: var(--ink-faint); font-size: 13px; }
+
+  /* generic card */
+  .card { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; }
+  .row { display: grid; gap: 12px; }
+
+  /* TASK overview */
+  .task-grid { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 880px) { .task-grid { grid-template-columns: 1fr; } }
+  .task { padding: 16px 18px; }
+  .task .pill { display: inline-block; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase; padding: 3px 8px;
+    border-radius: 999px; }
+  .task.t1 .pill { background: rgba(56,189,248,0.12); color: var(--accent); }
+  .task.t2 .pill { background: rgba(167,139,250,0.18); color: var(--accent-2); }
+  .task h3 { margin: 6px 0 6px 0; font-size: 17px; }
+  .task ul { margin: 8px 0 0 0; padding-left: 20px; color: var(--ink-dim); }
+  .task li { margin: 2px 0; }
+
+  /* METHODS ladder */
+  .methods { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 1100px) { .methods { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px)  { .methods { grid-template-columns: 1fr; } }
+  .method { padding: 14px 14px; position: relative; overflow: hidden; }
+  .method::before { content: ""; position: absolute; left: 0; top: 0;
+    height: 100%; width: 4px; background: var(--mc, var(--accent)); }
+  .method .mid { font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 12px; color: var(--ink-faint); letter-spacing: 0.04em; }
+  .method .name { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .method .what { font-size: 13px; color: var(--ink-dim); margin-top: 6px; }
+  .method .meta { font-size: 11px; color: var(--ink-faint); margin-top: 8px;
+    display: flex; gap: 8px; flex-wrap: wrap; }
+  .method .meta span { background: rgba(148,163,184,0.1); padding: 2px 6px;
+    border-radius: 4px; }
+  .method.tier-baseline { --mc: var(--baseline); }
+  .method.tier-gnn      { --mc: var(--gnn); }
+  .method.tier-fmonly   { --mc: var(--fm-only); }
+  .method.tier-fmrules  { --mc: var(--fm-rules); }
+  .method.tier-fmllm    { --mc: var(--fm-llm); }
+  .method .role { font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--mc); }
+
+  /* BENCHMARKS */
+  .benchmarks { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 1100px) { .benchmarks { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px)  { .benchmarks { grid-template-columns: 1fr; } }
+  .bench { padding: 14px 14px; border-top: 3px solid var(--bc); }
+  .bench.b1 { --bc: var(--b-color-1); }
+  .bench.b2 { --bc: var(--b-color-2); }
+  .bench.b3 { --bc: var(--b-color-3); }
+  .bench.b4 { --bc: var(--b-color-4); }
+  .bench.b5 { --bc: var(--b-color-5); }
+  .bench.b6 { --bc: var(--b-color-6); }
+  .bench .bid { font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--bc); letter-spacing: 0.06em; }
+  .bench .bname { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .bench .bq { font-size: 12px; color: var(--ink-dim); font-style: italic;
+    margin-top: 6px; }
+  .bench ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px;
+    color: var(--ink); }
+  .bench li { margin: 2px 0; }
+  .bench .layer-tag { display: inline-block; margin-top: 8px; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.06);
+    color: var(--ink-dim); }
+
+  /* APPLICABILITY MATRIX */
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix { border-collapse: separate; border-spacing: 0; width: 100%;
+    min-width: 720px; font-size: 13px; }
+  .matrix th, .matrix td { padding: 8px 10px; text-align: center;
+    border-bottom: 1px solid var(--border); }
+  .matrix thead th { background: var(--panel); color: var(--ink);
+    font-weight: 600; position: sticky; top: 0; }
+  .matrix tbody th { background: var(--panel); text-align: left; font-weight: 600;
+    color: var(--ink); min-width: 200px; position: sticky; left: 0; z-index: 1; }
+  .matrix td.yes { color: var(--good); font-size: 16px; }
+  .matrix td.no  { color: var(--ink-faint); }
+  .matrix td.heur { color: var(--warn); font-weight: 700; font-size: 13px; }
+  .matrix .colhdr { writing-mode: vertical-rl; transform: rotate(180deg);
+    white-space: nowrap; font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 14px 4px; min-width: 28px; }
+  .matrix th.bcol { background: var(--panel); font-family: ui-monospace, monospace;
+    font-size: 11px; }
+  .matrix tbody tr:hover td, .matrix tbody tr:hover th { background: var(--panel-2); }
+
+  /* THREE LAYERS pipeline */
+  .layers { grid-template-columns: 1fr; gap: 18px; }
+  .layer { display: grid; grid-template-columns: 200px 1fr; gap: 18px;
+    align-items: stretch; }
+  @media (max-width: 720px) { .layer { grid-template-columns: 1fr; } }
+  .layer .label { background: var(--ll); border-radius: 10px; padding: 16px;
+    border: 1px solid rgba(255,255,255,0.06); }
+  .layer .label .num { font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; opacity: 0.85; }
+  .layer .label .t { font-size: 17px; font-weight: 700; margin-top: 4px;
+    color: white; }
+  .layer .label .q { margin-top: 8px; font-size: 12px; line-height: 1.5;
+    color: rgba(255,255,255,0.82); font-style: italic; }
+  .layer.l1 .label { --ll: linear-gradient(135deg,#b45309 0%,#92400e 100%); }
+  .layer.l2 .label { --ll: linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%); }
+  .layer.l3 .label { --ll: linear-gradient(135deg,#0e7490 0%,#155e75 100%); }
+  .layer .body { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; }
+  .layer .body .row-bench { display: flex; gap: 8px; flex-wrap: wrap; }
+  .layer .body .bchip { padding: 6px 10px; border-radius: 6px; font-size: 12px;
+    font-weight: 600; background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+  .layer .body .bchip .name { color: var(--ink); }
+  .layer .body .bchip .sub { color: var(--ink-faint); font-size: 11px;
+    font-weight: 400; margin-left: 4px; }
+  .layer .body p { margin-top: 10px; }
+  .layer .body .compared { font-size: 12px; color: var(--ink-dim);
+    margin-top: 10px; }
+  .layer .body .compared b { color: var(--ink); }
+
+  /* PIPELINE flow */
+  .pipeline { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; }
+  .pipeline .flow { display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: center;
+    gap: 8px; }
+  @media (max-width: 980px) { .pipeline .flow { grid-template-columns: 1fr;
+    text-align: center; } .pipeline .arrow { transform: rotate(90deg);
+    margin: 8px auto; } }
+  .pipeline .step { background: var(--panel-2); border-radius: 8px;
+    padding: 10px 12px; border: 1px solid var(--border); text-align: center; }
+  .pipeline .step .top { font-size: 11px; color: var(--ink-faint);
+    letter-spacing: 0.12em; text-transform: uppercase; }
+  .pipeline .step .m { font-size: 14px; color: var(--ink); font-weight: 700;
+    margin-top: 4px; }
+  .pipeline .step .s { font-size: 12px; color: var(--ink-dim); margin-top: 4px; }
+  .pipeline .arrow { color: var(--accent); font-size: 22px; }
+
+  /* DATA / EVENTS */
+  .data-grid { grid-template-columns: 1.2fr 1fr; gap: 16px; }
+  @media (max-width: 880px) { .data-grid { grid-template-columns: 1fr; } }
+  .data .stat { display: flex; gap: 16px; align-items: baseline; }
+  .data .stat .n { font-size: 24px; font-weight: 800; color: var(--ink); }
+  .data .stat .l { font-size: 13px; color: var(--ink-dim); }
+  .events table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .events th, .events td { padding: 6px 8px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .events th { color: var(--ink-dim); font-weight: 500; font-size: 12px; }
+
+  /* INFRA diagram */
+  .infra { background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; }
+  .infra .stage { display: grid;
+    grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: stretch; }
+  @media (max-width: 880px) { .infra .stage { grid-template-columns: 1fr; } }
+  .infra .box { background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; min-height: 130px; }
+  .infra .box.gpu    { border-color: rgba(20,184,166,0.45); }
+  .infra .box.bridge { border-color: rgba(56,189,248,0.4); }
+  .infra .box.local  { border-color: rgba(167,139,250,0.45); }
+  .infra .box .role { font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-faint); }
+  .infra .box h4 { margin-top: 2px; font-size: 15px; }
+  .infra .box ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-dim);
+    font-size: 12px; }
+  .infra .legend { margin-top: 14px; font-size: 12px; color: var(--ink-faint); }
+  .infra code { font-size: 12px; }
+
+  /* CLAIM verdict */
+  .claims { grid-template-columns: 1fr; gap: 10px; }
+  .claim { display: grid; grid-template-columns: 90px 1fr 96px; gap: 14px;
+    align-items: center; padding: 12px 14px; background: var(--panel);
+    border-radius: 10px; border: 1px solid var(--border); }
+  @media (max-width: 720px) { .claim { grid-template-columns: 1fr; } }
+  .claim .id { font-family: ui-monospace, monospace; font-weight: 700;
+    color: var(--ink); font-size: 13px; }
+  .claim .what { font-size: 14px; color: var(--ink-dim); }
+  .claim .verdict { font-size: 12px; font-weight: 700; padding: 4px 10px;
+    border-radius: 6px; text-align: center; }
+  .verdict.bad  { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .verdict.mid  { background: rgba(251,191,36,0.15); color: var(--warn); }
+  .verdict.todo { background: rgba(148,163,184,0.18); color: var(--ink-dim); }
+  .verdict.good { background: rgba(52,211,153,0.18); color: var(--good); }
+
+  .legend-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px;
+    color: var(--ink-faint); margin-top: 8px; }
+  .legend-row .dot { display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--border);
+    color: var(--ink-faint); font-size: 12px; }
+
+  /* sectioning helpers */
+  .lead { background: linear-gradient(135deg, rgba(56,189,248,0.08),
+    rgba(167,139,250,0.06)); border: 1px solid rgba(56,189,248,0.18); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="tag">DeXposure-Agent · 实验设计</div>
+    <h1>整体框架 + 实现方法的可视化</h1>
+    <p class="sub">论文要回答两个问题：(1) FM 骨干能不能给出准确、有校准、有时效的<b>风险信号</b>；
+      (2) 在 FM 信号之上做出来的<b>决策建议</b>，是不是比 naïve / 纯 LLM 基线更靠谱。
+      为此我们设计了 2 个任务、6 个 benchmark、8 个 method，并按"FM 预测质量 → LLM 推理 → 端到端决策"分三层评估。</p>
+  </div>
+
+  <!-- §1 TASKS -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§1</span><h2>两个任务</h2>
+      <span class="note">论文 Section 4 的双轴划分</span>
+    </div>
+    <div class="row task-grid">
+      <div class="card task t1">
+        <span class="pill">Task I · 风险监控</span>
+        <h3>FM 骨干能不能产出可用的风险信号？</h3>
+        <p>把当前网络 G<sub>t</sub> 喂给 FM，预测未来 G<sub>t+h</sub>，从中提取系统性风险指标（HHI / Gini / PageRank / 密度），以及不确定性。看这些信号本身合不合理。</p>
+        <ul>
+          <li>评估对象：FM 预测的<b>图结构 + 网络指标</b>本身</li>
+          <li>下属 benchmark：b1_forecast、b2_warning、b3_calibration、b6_robustness</li>
+          <li>对照基线：persistence（G<sub>t+h</sub> = G<sub>t</sub>）、EvolveGCN、FM-only</li>
+        </ul>
+      </div>
+      <div class="card task t2">
+        <span class="pill">Task II · 决策建议</span>
+        <h3>在 FM 信号之上做的 ticket 推荐质量怎么样？</h3>
+        <p>把 FM 预测 + 风险指标 + stress scenario 一起喂给"决策者"（规则引擎或 LLM），让它生成 top-N 行动 ticket，再评估这些 ticket 在真实未来里是否命中了被冲击的协议。</p>
+        <ul>
+          <li>评估对象：<b>action ticket</b>（target 协议 + severity + rationale）</li>
+          <li>下属 benchmark：b4_stress、b5_decision</li>
+          <li>对照基线：persistence+rules、纯 LLM(无 FM)、FM+rules、FM+LLM、FM+LLM+gate</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- §2 METHODS -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§2</span><h2>八个方法（按复杂度递进）</h2>
+      <span class="note">字典序 = 论文 baseline → FM → FM+LLM 的逻辑顺序</span>
+    </div>
+    <div class="row methods">
+      <div class="card method tier-baseline">
+        <div class="role">Heuristic</div>
+        <div class="mid">h1_weighted_degree</div>
+        <div class="name">加权度启发式</div>
+        <div class="what">不学习，按当前 G<sub>t</sub> 的加权度排序作为风险榜。用作 b2 的<b>方法无关</b>预警基线。</div>
+        <div class="meta"><span>predictor: current</span><span>policy: heuristic</span></div>
+      </div>
+
+      <div class="card method tier-baseline">
+        <div class="role">Baseline</div>
+        <div class="mid">m1_persistence_rules</div>
+        <div class="name">Persistence + Rules</div>
+        <div class="what">假设网络不变（G<sub>t+h</sub> = G<sub>t</sub>），用规则引擎产 ticket。是最朴素的基线。</div>
+        <div class="meta"><span>predictor: persistence</span><span>policy: rules</span></div>
+      </div>
+
+      <div class="card method tier-baseline">
+        <div class="role">Pure LLM</div>
+        <div class="mid">m2_snapshot_llm</div>
+        <div class="name">CurrentSnapshot + LLM</div>
+        <div class="what">没有 FM 预测，只把当前 snapshot 的文字描述塞给 Claude，让 LLM 自己推。验证"FM 信号是不是必要的"。</div>
+        <div class="meta"><span>predictor: current</span><span>policy: llm</span></div>
+      </div>
+
+      <div class="card method tier-gnn">
+        <div class="role">Temporal GNN</div>
+        <div class="mid">m3_evolvegcn</div>
+        <div class="name">EvolveGCN</div>
+        <div class="what">同期对比的时序图神经网络基线（Pareja et al. KDD 2020）。需要本地训练 checkpoint，缺失则 fail-closed（不退化到 persistence）。</div>
+        <div class="meta"><span>predictor: evolvegcn</span><span>policy: none</span><span>GPU</span></div>
+      </div>
+
+      <div class="card method tier-fmonly">
+        <div class="role">FM only</div>
+        <div class="mid">m4_fm_only</div>
+        <div class="name">FMOnly</div>
+        <div class="what">只用 FM 给出预测图，没有规则引擎也没有 LLM。作为<b>规则/LLM 的消融对照</b>。</div>
+        <div class="meta"><span>predictor: fm</span><span>policy: none</span><span>GPU</span></div>
+      </div>
+
+      <div class="card method tier-fmrules">
+        <div class="role">FM + Rules</div>
+        <div class="mid">m5_fm_rules</div>
+        <div class="name">FM + Rules</div>
+        <div class="what">FM 预测 + 规则引擎（z-score 触发、playbook 分级），是论文的<b>主体方法</b>。</div>
+        <div class="meta"><span>predictor: fm</span><span>policy: rules</span><span>GPU</span></div>
+      </div>
+
+      <div class="card method tier-fmllm">
+        <div class="role">FM + LLM</div>
+        <div class="mid">m6_fm_llm</div>
+        <div class="name">FM + LLM</div>
+        <div class="what">FM 预测 + 指标 + scenario 喂给 Claude 做决策推理。验证"LLM 推理是否比规则更好"。</div>
+        <div class="meta"><span>predictor: fm</span><span>policy: llm</span><span>GPU+API</span></div>
+      </div>
+
+      <div class="card method tier-fmllm">
+        <div class="role">FM + LLM + Gate</div>
+        <div class="mid">m7_fm_llm_gated</div>
+        <div class="name">FM + LLM + RulesGate</div>
+        <div class="what">在 m6 之上加规则护栏：高 severity action 必须满足 alert 数 + 置信度门槛，防止 LLM 乱开"红色警报"。</div>
+        <div class="meta"><span>predictor: fm</span><span>policy: llm + gate</span><span>GPU+API</span></div>
+      </div>
+    </div>
+
+    <div class="legend-row">
+      <span><span class="dot" style="background:var(--baseline)"></span>启发式 / 朴素基线</span>
+      <span><span class="dot" style="background:var(--gnn)"></span>时序 GNN 对比</span>
+      <span><span class="dot" style="background:var(--fm-only)"></span>纯 FM</span>
+      <span><span class="dot" style="background:var(--fm-rules)"></span>FM + 规则（主体）</span>
+      <span><span class="dot" style="background:var(--fm-llm)"></span>FM + LLM（含 gate）</span>
+    </div>
+  </section>
+
+  <!-- §3 BENCHMARKS -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§3</span><h2>六个 benchmark</h2>
+      <span class="note">每个 benchmark 回答一个具体问题</span>
+    </div>
+    <div class="row benchmarks">
+      <div class="card bench b1">
+        <div class="bid">b1_forecast</div>
+        <div class="bname">Risk Forecasting</div>
+        <div class="bq">"预测的网络指标准不准？"</div>
+        <ul>
+          <li>HHI / Gini / Density / PageRank MAE</li>
+          <li>Spearman rank correlation</li>
+          <li>Trend consistency（方向一致率）</li>
+          <li>横跨 h ∈ {1, 4, 8, 12} 周</li>
+        </ul>
+        <span class="layer-tag">Layer 1</span>
+      </div>
+
+      <div class="card bench b2">
+        <div class="bid">b2_warning</div>
+        <div class="bname">Early Warning</div>
+        <div class="bq">"能不能在危机前 N 周发警报？"</div>
+        <ul>
+          <li>Lead time（提前几周）</li>
+          <li>Precision/Recall @ budget {5,10,20}</li>
+          <li>Alert stability（翻牌率）</li>
+          <li>F1-warning · 在 Terra/FTX/SVB 三个真实事件上评估</li>
+        </ul>
+        <span class="layer-tag">Layer 1</span>
+      </div>
+
+      <div class="card bench b3">
+        <div class="bid">b3_calibration</div>
+        <div class="bname">Uncertainty Calibration</div>
+        <div class="bq">"预测的不确定度可信吗？"</div>
+        <ul>
+          <li>ECE（Expected Calibration Error）</li>
+          <li>PI coverage（目标 90%）</li>
+          <li>PI width</li>
+          <li>CRPS</li>
+          <li>用 50 个 MC sample + split conformal 校准</li>
+        </ul>
+        <span class="layer-tag">Layer 1</span>
+      </div>
+
+      <div class="card bench b4">
+        <div class="bid">b4_stress</div>
+        <div class="bname">Stress Test</div>
+        <div class="bq">"压力场景下的传染预测对不对？"</div>
+        <ul>
+          <li>Contagion loss MAE</li>
+          <li>Distressed count MAE</li>
+          <li>Propagation depth MAE</li>
+          <li>Target overlap@10</li>
+          <li>5 个标准场景 S1-S5（单点 / 桥 / 稳定币 / 借贷 / top-10 相关冲击）</li>
+        </ul>
+        <span class="layer-tag">Layer 3</span>
+      </div>
+
+      <div class="card bench b5">
+        <div class="bid">b5_decision</div>
+        <div class="bname">Decision Quality</div>
+        <div class="bq">"开出去的 ticket 实际兑现吗？"</div>
+        <ul>
+          <li>Ticket precision（命中真被冲击的协议）</li>
+          <li>Target stability（相邻周 Jaccard）</li>
+          <li>Audit completeness（覆盖被冲击协议比例）</li>
+          <li>False intervention rate</li>
+          <li>Suppression rate（safe-mode 触发率）</li>
+        </ul>
+        <span class="layer-tag">Layer 3</span>
+      </div>
+
+      <div class="card bench b6">
+        <div class="bid">b6_robustness</div>
+        <div class="bname">Robustness</div>
+        <div class="bq">"低数据 / 噪声 / 缺失下还撑得住吗？"</div>
+        <ul>
+          <li>5 种退化情景：low_data_10%, low_data_25%, partial_graph_30, noisy_features_0.1, missing_features_20%</li>
+          <li>同 b1_forecast 的指标</li>
+          <li>relative_degradation vs clean baseline</li>
+        </ul>
+        <span class="layer-tag">Layer 1</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- §4 APPLICABILITY MATRIX -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§4</span><h2>适用矩阵</h2>
+      <span class="note">不是每个 method 都会跑每个 benchmark — 这是设计上的约束</span>
+    </div>
+    <div class="card matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Method ＼ Benchmark</th>
+            <th class="bcol">b1_forecast</th>
+            <th class="bcol">b2_warning</th>
+            <th class="bcol">b3_calibration</th>
+            <th class="bcol">b4_stress</th>
+            <th class="bcol">b5_decision</th>
+            <th class="bcol">b6_robustness</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th>h1_weighted_degree (Heuristic)</th>
+            <td class="no">–</td><td class="heur">★</td><td class="no">–</td>
+            <td class="no">–</td><td class="no">–</td><td class="no">–</td></tr>
+          <tr><th>m1_persistence_rules (Persistence + Rules)</th>
+            <td class="yes">●</td><td class="no">–</td><td class="no">–</td>
+            <td class="yes">●</td><td class="yes">●</td><td class="yes">●</td></tr>
+          <tr><th>m2_snapshot_llm (Pure LLM)</th>
+            <td class="no">–</td><td class="no">–</td><td class="no">–</td>
+            <td class="no">–</td><td class="yes">●<small> (local)</small></td><td class="no">–</td></tr>
+          <tr><th>m3_evolvegcn (EvolveGCN)</th>
+            <td class="yes">●</td><td class="no">–</td><td class="no">–</td>
+            <td class="yes">●</td><td class="no">–</td><td class="yes">●</td></tr>
+          <tr><th>m4_fm_only (FM only)</th>
+            <td class="yes">●</td><td class="no">–</td><td class="yes">●</td>
+            <td class="yes">●</td><td class="no">–</td><td class="yes">●</td></tr>
+          <tr><th>m5_fm_rules (FM + Rules)</th>
+            <td class="yes">●</td><td class="no">–</td><td class="yes">●</td>
+            <td class="yes">●</td><td class="yes">●</td><td class="yes">●</td></tr>
+          <tr><th>m6_fm_llm (FM + LLM)</th>
+            <td class="no">–</td><td class="no">–</td><td class="no">–</td>
+            <td class="no">–</td><td class="yes">●<small> (local)</small></td><td class="no">–</td></tr>
+          <tr><th>m7_fm_llm_gated (FM + LLM + Gate)</th>
+            <td class="no">–</td><td class="no">–</td><td class="no">–</td>
+            <td class="no">–</td><td class="yes">●<small> (local)</small></td><td class="no">–</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend-row">
+      <span><span style="color:var(--good);font-size:14px">●</span> 适用 / 在 GPU 上跑</span>
+      <span><span style="color:var(--good);font-size:14px">●</span> <small>(local)</small> 适用，但跑在本地（走 LLM API）</span>
+      <span><span style="color:var(--warn);font-weight:700">★</span> 共享启发式（不是模型对比）</span>
+      <span><span style="color:var(--ink-faint)">–</span> 不适用（按设计跳过）</span>
+    </div>
+  </section>
+
+  <!-- §5 THREE LAYERS -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§5</span><h2>三层评估框架</h2>
+      <span class="note">FM 预测 → LLM 推理 → 端到端决策，逐层加压</span>
+    </div>
+    <div class="row layers">
+      <div class="layer l1">
+        <div class="label">
+          <div class="num">Layer 1</div>
+          <div class="t">FM 预测质量</div>
+          <div class="q">"FM 给出的图预测本身可不可信？"</div>
+        </div>
+        <div class="body">
+          <div class="row-bench">
+            <span class="bchip"><span class="name">b1_forecast</span><span class="sub">MAE, Spearman, trend</span></span>
+            <span class="bchip"><span class="name">b2_warning</span><span class="sub">lead time, precision</span></span>
+            <span class="bchip"><span class="name">b3_calibration</span><span class="sub">ECE, PI coverage</span></span>
+            <span class="bchip"><span class="name">b6_robustness</span><span class="sub">退化情景下的 b1 指标</span></span>
+          </div>
+          <p class="compared"><b>对比谁：</b> m5_fm_rules / m4_fm_only / m1_persistence_rules / m3_evolvegcn / h1_weighted_degree（b2 only）</p>
+          <p class="compared"><b>跑在哪：</b> GPU 服务器（FM checkpoint + DGL）</p>
+        </div>
+      </div>
+
+      <div class="layer l2">
+        <div class="label">
+          <div class="num">Layer 2</div>
+          <div class="t">LLM 推理质量</div>
+          <div class="q">"FM 喂进来之后 LLM 想得清不清楚？"</div>
+        </div>
+        <div class="body">
+          <div class="row-bench">
+            <span class="bchip"><span class="name">Grounding score</span><span class="sub">引用值能不能溯源</span></span>
+            <span class="bchip"><span class="name">Consistency</span><span class="sub">3 次重跑 Jaccard</span></span>
+            <span class="bchip"><span class="name">Explanation quality</span><span class="sub">LLM-as-Judge 1-5 分</span></span>
+          </div>
+          <p class="compared"><b>对比谁：</b> m6_fm_llm  vs  m2_snapshot_llm（看 FM 信息是否真的降低幻觉）</p>
+          <p class="compared"><b>跑在哪：</b> 本地 · 走 Anthropic API · 由 <code>experiments/llm_eval_b5.py</code> 编排</p>
+        </div>
+      </div>
+
+      <div class="layer l3">
+        <div class="label">
+          <div class="num">Layer 3</div>
+          <div class="t">端到端决策质量</div>
+          <div class="q">"最后开出去的 ticket 在真实未来里命中没？"</div>
+        </div>
+        <div class="body">
+          <div class="row-bench">
+            <span class="bchip"><span class="name">b5_decision</span><span class="sub">precision, stability, FIR</span></span>
+            <span class="bchip"><span class="name">b4_stress</span><span class="sub">target overlap@K, loss MAE</span></span>
+          </div>
+          <p class="compared"><b>对比谁：</b> 五种 ticket 生成器 — m1_persistence_rules · m2_snapshot_llm · m5_fm_rules · m6_fm_llm · m7_fm_llm_gated</p>
+          <p class="compared"><b>预期叙事：</b> FM+LLM > FM+Rules > Persistence+Rules ≳ Pure LLM</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §6 PIPELINE -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§6</span><h2>单次 epoch 的数据流</h2>
+      <span class="note">论文 Algorithm 1 = 这条流水线</span>
+    </div>
+    <div class="pipeline">
+      <div class="flow">
+        <div class="step">
+          <div class="top">输入</div>
+          <div class="m">G<sub>t</sub>, X<sub>t</sub></div>
+          <div class="s">当前周快照<br>+ 节点特征</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="top">Predict</div>
+          <div class="m">FM Backbone</div>
+          <div class="s">输出 Ĝ<sub>t+h</sub><br>+ 50 MC sample</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="top">Monitor</div>
+          <div class="m">M1–M7 指标</div>
+          <div class="s">滚动 26 周基线<br>z &gt; 2 触发 alert</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="top">Decide</div>
+          <div class="m">Playbook 4 级</div>
+          <div class="s">Monitor / Investigate /<br>Reduce / Contingency</div>
+        </div>
+      </div>
+      <p style="margin-top:14px;color:var(--ink-dim);font-size:13px">
+        其中 Decide 这一步对不同方法行为不同：
+        <code>m5_fm_rules</code> 走规则引擎（z-score + playbook + confidence gate），
+        <code>m6_fm_llm</code> 直接让 Claude 生成 ticket，
+        <code>m7_fm_llm_gated</code> 用规则当护栏过滤 LLM 的输出。
+        Persistence 系列把 Predict 那一格替换成 G<sub>t+h</sub> = G<sub>t</sub>。
+      </p>
+    </div>
+  </section>
+
+  <!-- §7 DATA & STRESS EVENTS -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§7</span><h2>数据 & 真实压力事件</h2>
+      <span class="note">DeXposure dataset · DeFiLlama 周快照</span>
+    </div>
+    <div class="row data-grid">
+      <div class="card data">
+        <h3>DeXposure 周快照数据集</h3>
+        <p>2020-03 ～ 2025-08，共 283 周；每周节点 50–500，边 100–2,000；总条目 43.7M+。</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px">
+          <div class="stat"><div><div class="n">283</div><div class="l">周快照</div></div></div>
+          <div class="stat"><div><div class="n">43.7M+</div><div class="l">数据条目</div></div></div>
+          <div class="stat"><div><div class="n">15</div><div class="l">协议类别 (one-hot)</div></div></div>
+        </div>
+        <p style="margin-top:14px"><b>时间切分（严格无泄漏）：</b></p>
+        <ul style="color:var(--ink-dim);font-size:13px;padding-left:18px;margin-top:4px">
+          <li>Train: 2020-03 → 2024-06（~222 周，用于 FM 训练）</li>
+          <li>Val: 2024-07 → 2024-12（~26 周，调阈值 / conformal）</li>
+          <li>Test: 2025-01 → 2025-08（~33 周，最终评估）</li>
+        </ul>
+      </div>
+
+      <div class="card events">
+        <h3>三个真实压力事件（b2_warning 评估）</h3>
+        <table>
+          <thead><tr><th>事件</th><th>峰值</th><th>Pre-window (4w)</th><th>Event (3w)</th></tr></thead>
+          <tbody>
+            <tr><td>Terra / Luna</td><td>2022-05-09</td><td>03-28 → 05-02</td><td>05-02 → 05-23</td></tr>
+            <tr><td>FTX</td><td>2022-11-07</td><td>09-26 → 10-31</td><td>10-31 → 11-21</td></tr>
+            <tr><td>SVB / USDC</td><td>2023-03-10</td><td>02-06 → 03-06</td><td>03-06 → 03-27</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;margin-top:8px">"被压坏的协议" = 在 event-window 内加权度比 pre-window 末尾下降 &gt; 30%。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- §8 INFRA -->
+  <section class="block">
+    <div class="block-head">
+      <span class="num">§8</span><h2>实现基础设施</h2>
+      <span class="note">GPU 跑 FM / benchmarks，本地跑 LLM；FM API 通过 SSH tunnel 串起来</span>
+    </div>
+    <div class="infra">
+      <div class="stage">
+        <div class="box gpu">
+          <div class="role">GPU 服务器</div>
+          <h4>RTX 4090 / 5880 Ada</h4>
+          <ul>
+            <li>跑所有 FM 推断（<code>fm_predictor.py</code>）</li>
+            <li>跑 b1/b3/b4/b5/b6 的 m1/m3/m4/m5（不含 LLM 方法）</li>
+            <li>训练 EvolveGCN checkpoint（m3）</li>
+            <li>暴露 FastAPI <code>:8000</code></li>
+            <li>结果落到 <code>results/run_YYYYMMDD_*/</code></li>
+          </ul>
+        </div>
+
+        <div class="box bridge">
+          <div class="role">FM API · SSH tunnel</div>
+          <h4>桥接层</h4>
+          <ul>
+            <li>本地 → GPU 反向端口 8000</li>
+            <li>路由：<code>/health · /predict · /metrics · /stress · /batch</code></li>
+            <li>本地 LLM 评估通过这个 API 拿 FM 预测</li>
+            <li>不上 LLM SDK，保持 GPU 那侧纯计算</li>
+          </ul>
+        </div>
+
+        <div class="box local">
+          <div class="role">本地 (WSL)</div>
+          <h4>LLM 评估 + 画图</h4>
+          <ul>
+            <li>跑 <code>llm_eval_b5.py</code> — m2_snapshot_llm / m6_fm_llm / m7_fm_llm_gated</li>
+            <li>直接调 Anthropic API（Claude Sonnet/Haiku）</li>
+            <li>3 次温度=0 重跑算 consistency</li>
+            <li>结果落到 <code>results/llm_eval_TIMESTAMP/</code></li>
+          </ul>
+        </div>
+      </div>
+      <p class="legend">每个方法在哪里跑，是被它对 GPU / LLM API 的依赖决定的，不是任意安排的。这也是 audit_results.py 校验"GPU 上不该出现 LLM 调用"的依据。</p>
+    </div>
+  </section>
+
+  <!-- §9 RESULT VERDICT -->
+  <section class="block lead">
+    <div class="block-head">
+      <span class="num">§9</span><h2>当前结果对论文 3 条 claim 的支撑（截至 gpu_run_20260510_181509）</h2>
+      <span class="note">这是设计层面的诚实校验，不是 cheerleading</span>
+    </div>
+    <div class="row claims">
+      <div class="claim">
+        <div class="id">Claim 1</div>
+        <div class="what">FM 提供"更早、更稳"的 early-warning 信号 — <small>b2 这次只跑了 h1_weighted_degree，没跑 FM vs baseline 对比</small></div>
+        <div class="verdict todo">缺数据</div>
+      </div>
+      <div class="claim">
+        <div class="id">Claim 2</div>
+        <div class="what">FM 在风险指标预测上超过 naïve baseline — <small>b1 HHI/Gini/PageRank 上 m5_fm_rules ≈ m1_persistence_rules；仅 trend_consistency 胜（但 persistence 此项结构性为 0）</small></div>
+        <div class="verdict mid">部分</div>
+      </div>
+      <div class="claim">
+        <div class="id">Claim 3</div>
+        <div class="what">FM+LLM 的 ticket 质量 > FM+Rules > 纯 LLM — <small>本轮没跑 m2/m6/m7；现有 b5 上 m1_persistence_rules 反而 ticket_precision = 0.66 &gt; m5_fm_rules = 0.50</small></div>
+        <div class="verdict bad">不支撑</div>
+      </div>
+      <div class="claim">
+        <div class="id">B3 校准</div>
+        <div class="what">不确定度校准（ECE / PI coverage） — <small>m4_fm_only ECE = 0.013, PI coverage 0.91（目标 0.9）；m5_fm_rules ECE = 0.031, coverage 0.93</small></div>
+        <div class="verdict good">达标</div>
+      </div>
+    </div>
+    <p style="margin-top:12px">→ 要让论文叙事站得住，下一轮必须补：<b>b2 跑 m5/m1 对比</b>、<b>跑齐 m6/m7/m2 的 b5_decision</b>、<b>ablation A1/A2/A3/A6</b>、<b>R=3 多 seed</b>。</p>
+  </section>
+
+  <footer>
+    生成于 2026-05-14 · 对应代码版本：feat/dexposure-agent-plugin · 单文件可离线打开 ·
+    若要追新结果，请重新跑 <code>scripts/run_benchmarks_sequential.py</code> 并刷新 §9。
+  </footer>
+
+</div>
+</body>
+</html>

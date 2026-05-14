@@ -71,11 +71,11 @@ class ExperimentIntegrityTests(unittest.TestCase):
         runner_source = read("scripts/run_benchmarks_sequential.py")
         methods_source = read("experiments/methods.py")
 
-        self.assertIn('B2_APPLICABLE_METHODS = {"H0"}', b2_source)
-        self.assertIn('"H0": MethodSpec', methods_source)
+        self.assertIn('APPLICABLE_METHODS = {"h1_weighted_degree"}', b2_source)
+        self.assertIn('"h1_weighted_degree": MethodSpec', methods_source)
         self.assertIn('label="WeightedDegreeHeuristic"', methods_source)
-        self.assertIn('"B2": {"H0"}', run_all_source)
-        self.assertIn('"run_b2", ["H0"]', runner_source)
+        self.assertIn('"b2_warning": {"h1_weighted_degree"}', run_all_source)
+        self.assertIn('"run_b2", ["h1_weighted_degree"]', runner_source)
 
     def test_master_runner_uses_canonical_methods_and_structured_results(self):
         source = read("experiments/run_all.py")
@@ -83,7 +83,7 @@ class ExperimentIntegrityTests(unittest.TestCase):
         self.assertIn("from experiments.methods import", source)
         self.assertNotIn("METHOD_NAMES = {", source)
         self.assertNotIn("str(r) for r in results", source)
-        self.assertNotIn('("ablations", "C0")', source)
+        self.assertNotIn('("ablations", "m5_fm_rules")', source)
         self.assertIn("traceback.format_exc", source)
         self.assertIn("wall_seconds", source)
         self.assertIn("git_commit", source)
@@ -129,11 +129,11 @@ class ExperimentIntegrityTests(unittest.TestCase):
         fake_module = types.SimpleNamespace(run_fake=fake_run)
 
         with mock.patch.object(run_all.importlib, "import_module", return_value=fake_module):
-            with mock.patch.dict(run_all.BENCHMARK_MODULES, {"BX": "fake.module"}):
-                with mock.patch.dict(run_all.BENCHMARK_FUNCS, {"BX": "run_fake"}):
+            with mock.patch.dict(run_all.BENCHMARK_MODULES, {"bx_test": "fake.module"}):
+                with mock.patch.dict(run_all.BENCHMARK_FUNCS, {"bx_test": "run_fake"}):
                     result = run_all._run_benchmark(
-                        "BX",
-                        "C7",
+                        "bx_test",
+                        "m3_evolvegcn",
                         data_dir="data/",
                         test_split="2025-01~2025-08",
                         results_dir=AGENT_ROOT / "results",
@@ -161,9 +161,9 @@ class ExperimentIntegrityTests(unittest.TestCase):
                             code = run_all.main(
                                 [
                                     "--benchmarks",
-                                    "B1",
+                                    "b1_forecast",
                                     "--methods",
-                                    "C7,C4,C0",
+                                    "m3_evolvegcn,m4_fm_only,m5_fm_rules",
                                     "--output",
                                     tmp,
                                 ]

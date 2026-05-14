@@ -4,10 +4,10 @@
 Core question: Does DeXposure-FM outperform persistence during crises?
 
 Experiments:
-1. B1-crisis: Risk metric forecasting (MAE, RankCorr, TrendCons) on crisis periods
-   - C0 (FM) vs C2 (persistence) on Terra/Luna, FTX, SVB
-2. B5-crisis-multihorizon: Decision quality with multi-horizon alert aggregation
-   - C0 vs C2 on same crisis periods
+1. b1_forecast-crisis: Risk metric forecasting (MAE, RankCorr, TrendCons) on crisis periods
+   - m5_fm_rules (FM) vs m1_persistence_rules (persistence) on Terra/Luna, FTX, SVB
+2. b5_decision-crisis-multihorizon: Decision quality with multi-horizon alert aggregation
+   - m5_fm_rules vs m1_persistence_rules on same crisis periods
 
 Usage:
     DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 python3 scripts/run_fm_vs_persistence_crisis.py
@@ -42,7 +42,7 @@ from dexposure_agent.types import Edge, GraphSnapshot
 from dexposure_agent.agent_loop import _aggregate_scenarios
 from experiments.predict_helper import predict_graph
 
-DATA_DIR = str(_REPO_ROOT / "DeXposure" / "data")
+DATA_DIR = str(_REPO_ROOT / "data")
 RESULTS_DIR = str(_AGENT_DIR / "results" / "run_fm_vs_persistence_crisis")
 STRESS_LOOKAHEAD = 4
 MC_NOISE_SIGMA = 2.0
@@ -53,13 +53,13 @@ CRISIS_SPLITS = {
     "calm_2025":  ("2025-01~2025-08", "2025 calm baseline"),
 }
 
-METHODS = ["C0", "C2"]
+METHODS = ["m5_fm_rules", "m1_persistence_rules"]
 HORIZONS = [1, 4, 8, 12]
 METRIC_IDS = ["M1", "M3", "M4", "M6", "M7"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# B1-crisis: Risk metric forecasting
+# b1_forecast-crisis: Risk metric forecasting
 # ──────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -98,7 +98,7 @@ def _count_new_edges(pred: GraphSnapshot, current: GraphSnapshot) -> int:
 
 
 def run_b1_crisis() -> list[B1CrisisResult]:
-    """Run B1 risk forecasting on crisis and calm periods, comparing C0 vs C2."""
+    """Run b1_forecast risk forecasting on crisis and calm periods, comparing m5_fm_rules vs m1_persistence_rules."""
     loader = SnapshotLoader(data_dir=DATA_DIR)
     all_dates = loader.dates
     all_snaps = loader.load()
@@ -107,7 +107,7 @@ def run_b1_crisis() -> list[B1CrisisResult]:
     results = []
 
     for crisis_name, (test_split, desc) in CRISIS_SPLITS.items():
-        logger.info(f"B1-crisis: {crisis_name} ({desc}) split={test_split}")
+        logger.info(f"b1_forecast-crisis: {crisis_name} ({desc}) split={test_split}")
         test_snaps = loader.load(date_range=test_split)
         logger.info(f"  Loaded {len(test_snaps)} test snapshots")
 
@@ -210,7 +210,7 @@ def run_b1_crisis() -> list[B1CrisisResult]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# B5-crisis: Multi-horizon decision quality
+# b5_decision-crisis: Multi-horizon decision quality
 # ──────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -260,7 +260,7 @@ def _mc_samples(graph, n, sigma, rng):
 
 
 def run_b5_crisis() -> list[B5CrisisResult]:
-    """Run multi-horizon B5 on crisis periods, C0 vs C2."""
+    """Run multi-horizon b5_decision on crisis periods, m5_fm_rules vs m1_persistence_rules."""
     loader = SnapshotLoader(data_dir=DATA_DIR)
     all_dates = loader.dates
     all_snaps = loader.load()
@@ -271,7 +271,7 @@ def run_b5_crisis() -> list[B5CrisisResult]:
     results = []
 
     for crisis_name, (test_split, desc) in CRISIS_SPLITS.items():
-        logger.info(f"B5-crisis: {crisis_name} ({desc}) split={test_split}")
+        logger.info(f"b5_decision-crisis: {crisis_name} ({desc}) split={test_split}")
         test_pairs = list(loader.iter_test_with_baselines(test_split, baseline_window=config.rolling_window))
         logger.info(f"  Loaded {len(test_pairs)} test weeks")
 
@@ -363,15 +363,15 @@ def main():
 
     t_start = time.time()
 
-    # B1-crisis
+    # b1_forecast-crisis
     logger.info("\n" + "=" * 65)
-    logger.info("PART 1: B1 Risk Forecasting — C0 vs C2 on crisis periods")
+    logger.info("PART 1: b1_forecast Risk Forecasting — m5_fm_rules vs m1_persistence_rules on crisis periods")
     logger.info("=" * 65)
     b1_results = run_b1_crisis()
 
-    # B5-crisis
+    # b5_decision-crisis
     logger.info("\n" + "=" * 65)
-    logger.info("PART 2: B5 Decision Quality (multi-horizon) — C0 vs C2")
+    logger.info("PART 2: b5_decision Decision Quality (multi-horizon) — m5_fm_rules vs m1_persistence_rules")
     logger.info("=" * 65)
     b5_results = run_b5_crisis()
 
@@ -388,8 +388,8 @@ def main():
     total = time.time() - t_start
     logger.info(f"\nALL DONE in {total:.0f}s ({total/60:.1f} min)")
 
-    # Print B1 summary
-    print("\n=== B1: FM vs Persistence on Crisis Periods ===")
+    # Print b1_forecast summary
+    print("\n=== b1_forecast: FM vs Persistence on Crisis Periods ===")
     print(f"{'Crisis':<12} {'Method':<6} {'h':>3} {'RankCorr':>9} {'TrendCons':>10} {'HHI_MAE':>8} {'EdgeMAE':>8} {'NewEdge':>8} {'n':>3}")
     print("-" * 75)
     for r in b1_results:
@@ -397,8 +397,8 @@ def main():
               f"{r.trend_consistency:>10.4f} {r.hhi_mae:>8.4f} "
               f"{r.mean_edge_weight_mae:>8.4f} {r.mean_new_edge_count:>8.1f} {r.n_snapshots:>3}")
 
-    # Print B5 summary
-    print("\n=== B5: Decision Quality (multi-horizon) on Crisis ===")
+    # Print b5_decision summary
+    print("\n=== b5_decision: Decision Quality (multi-horizon) on Crisis ===")
     print(f"{'Crisis':<12} {'Method':<6} {'Alerts':>7} {'Prec':>6} {'FIR':>6} {'Audit':>7} {'Stab':>6} {'#Intv':>6}")
     print("-" * 60)
     for r in b5_results:

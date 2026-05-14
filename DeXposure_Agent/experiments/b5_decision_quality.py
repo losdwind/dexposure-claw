@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B5: Decision Quality (Section 3.6 of EXPERIMENT_PLAN)
+"""b5_decision: Decision Quality (Section 3.6 of EXPERIMENT_PLAN)
 
 Evaluates the quality of regulatory/supervisory action recommendations
 produced by the agent layer on top of risk forecasts.
@@ -47,7 +47,7 @@ MC_NOISE_SIGMA_DEFAULT = 0.1
 
 
 @dataclass
-class B5Result:
+class DecisionResult:
     method: str
     ticket_precision: float = float("nan")
     risk_reduction: float = float("nan")
@@ -59,7 +59,7 @@ class B5Result:
 
     def __str__(self) -> str:
         return (
-            f"B5Result(method={self.method}, "
+            f"DecisionResult(method={self.method}, "
             f"ticket_prec={self.ticket_precision:.3f}, "
             f"risk_reduct={self.risk_reduction:.3f}, "
             f"stability={self.target_stability:.3f}, "
@@ -150,22 +150,22 @@ def run_b5(
     data_dir: str = "data/",
     test_split: str = "2025-01~2025-08",
     **kwargs,
-) -> list[B5Result]:
-    """Run B5 benchmark for a given method.
+) -> list[DecisionResult]:
+    """Run b5_decision benchmark for a given method.
 
     Args:
-        method_id: Decision method with rule-based tickets, typically C0 or C2.
+        method_id: Decision method with rule-based tickets, typically m5_fm_rules or m1_persistence_rules.
         data_dir: Path to processed graph snapshots and ground-truth action labels.
         test_split: Date range string 'YYYY-MM~YYYY-MM'.
         **kwargs: Extra method-specific config.
 
     Returns:
-        List containing a single B5Result.
+        List containing a single DecisionResult.
     """
     results_dir = kwargs.pop("results_dir", "results/")
-    log = ExpLogger("B5", method=method_id, results_dir=results_dir)
+    log = ExpLogger("b5_decision", method=method_id, results_dir=results_dir)
 
-    log.info(f"B5 | method={method_id} | test_split={test_split}")
+    log.info(f"b5_decision | method={method_id} | test_split={test_split}")
 
     config = AgentConfig(**{k: v for k, v in kwargs.items() if k in AgentConfig.model_fields})
     rng = np.random.default_rng(seed=42)
@@ -181,15 +181,15 @@ def run_b5(
         test_pairs.append((snap, baseline))
 
     if len(test_pairs) < 2:
-        log.warning("B5: fewer than 2 test snapshots, returning NaN result")
-        return [B5Result(method=method_id, n_weeks_evaluated=0)]
+        log.warning("b5_decision: fewer than 2 test snapshots, returning NaN result")
+        return [DecisionResult(method=method_id, n_weeks_evaluated=0)]
 
-    log.info(f"B5: loaded {len(test_pairs)} test snapshots with baselines")
+    log.info(f"b5_decision: loaded {len(test_pairs)} test snapshots with baselines")
 
     # Calibrate MC sigma from training data
     from experiments.b3_uncertainty_calibration import _calibrate_mc_sigma
     mc_sigma = _calibrate_mc_sigma(loader, test_split, horizon=STRESS_LOOKAHEAD)
-    log.info(f"B5: calibrated MC sigma = {mc_sigma:.4f}")
+    log.info(f"b5_decision: calibrated MC sigma = {mc_sigma:.4f}")
 
     # Build date -> snapshot for future lookups
     all_snapshots = loader.load()
@@ -215,14 +215,14 @@ def run_b5(
             continue
         future_idx = t_idx + horizon
         if future_idx >= len(all_dates):
-            log.info(f"B5: no future snapshot for {snap_t.date}, skipping")
+            log.info(f"b5_decision: no future snapshot for {snap_t.date}, skipping")
             continue
         future_date = all_dates[future_idx]
         if future_date not in date_to_snap:
             try:
                 gt_future = loader.load_single(future_date)
             except KeyError:
-                log.info(f"B5: cannot load future snapshot {future_date}, skipping")
+                log.info(f"b5_decision: cannot load future snapshot {future_date}, skipping")
                 continue
         else:
             gt_future = date_to_snap[future_date]
@@ -297,8 +297,8 @@ def run_b5(
         )
 
     if n_weeks == 0:
-        log.warning("B5: no weeks evaluated")
-        return [B5Result(method=method_id, n_weeks_evaluated=0)]
+        log.warning("b5_decision: no weeks evaluated")
+        return [DecisionResult(method=method_id, n_weeks_evaluated=0)]
 
     # --- Aggregate metrics ---
 
@@ -336,7 +336,7 @@ def run_b5(
     else:
         false_intervention_rate = 0.0
 
-    result = B5Result(
+    result = DecisionResult(
         method=method_id,
         ticket_precision=ticket_precision,
         risk_reduction=risk_reduction,
@@ -368,16 +368,16 @@ def run_b5(
         "n_weeks_evaluated": n_weeks,
     }])
 
-    log.info(f"B5 complete: {result}")
+    log.info(f"b5_decision complete: {result}")
     return [result]
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="B5: Decision Quality benchmark")
+    parser = argparse.ArgumentParser(description="b5_decision: Decision Quality benchmark")
     parser.add_argument("--method", required=True,
-                        help="Method ID (e.g. C0 or C2)")
+                        help="Method ID (e.g. m5_fm_rules or m1_persistence_rules)")
     parser.add_argument("--data-dir", default="data/", help="Data directory")
     parser.add_argument("--test-split", default="2025-01~2025-08",
                         help="Test split range YYYY-MM~YYYY-MM")

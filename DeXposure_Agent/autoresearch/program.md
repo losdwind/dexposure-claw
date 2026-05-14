@@ -73,10 +73,10 @@ build intuition from the results.
 ## The Metric
 
 **composite_score** (higher is better): weighted average of
-- 0.4 * rank_corr (B1 Spearman rho @ h=4)
-- 0.2 * trend (B1 trend consistency)
-- 0.2 * f1_warning (B2 early warning F1)
-- 0.2 * ticket_prec (B5 ticket precision)
+- 0.4 * rank_corr (b1_forecast Spearman rho @ h=4)
+- 0.2 * trend (b1_forecast trend consistency)
+- 0.2 * f1_warning (b2_warning early warning F1)
+- 0.2 * ticket_prec (b5_decision ticket precision)
 
 All components in [0, 1] range.
 
@@ -154,10 +154,10 @@ Start with the parameters most likely to have the biggest impact:
    all downstream metrics.
 
 2. **Phase 2 -- Alert Sensitivity** (trials 6-10): Sweep `z_threshold` and
-   `rolling_window`. These control when alerts fire, affecting B2 and B5.
+   `rolling_window`. These control when alerts fire, affecting b2_warning and b5_decision.
 
 3. **Phase 3 -- Decision Quality** (trials 11-15): Sweep `tau_conf`,
-   `lambda_tail`, `top_k`. These affect ticket generation (B5).
+   `lambda_tail`, `top_k`. These affect ticket generation (b5_decision).
 
 4. **Phase 4 -- Interactions** (trials 16+): Combine the best values found
    in phases 1-3. Try joint changes. Search around the current best config.
@@ -180,11 +180,11 @@ When you've found a good config (or when manually stopped), save the best to:
 - Modify config parameters within the ranges above.
 - Try values outside the predefined ranges if you have a good hypothesis.
 - Change which benchmarks to run (--benchmarks flag) for faster iteration.
-  B1 alone is fastest (~3 min).  Add B2 and B5 for full composite.
+  b1_forecast alone is fastest (~3 min).  Add b2_warning and b5_decision for full composite.
 - Edit `run_trial.py` if you discover bugs or need adjustments.
 
 **What you CANNOT do:**
-- Modify the benchmark implementations (B1, B2, B5) -- they define the metric.
+- Modify the benchmark implementations (b1_forecast, b2_warning, b5_decision) -- they define the metric.
 - Use the test split (2025-01 ~ 2025-08) -- that's for final evaluation only.
 - Skip logging results.
 
