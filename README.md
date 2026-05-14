@@ -13,10 +13,14 @@ Shared resources at repo root:
 
 - `data/` -- weekly graph snapshots (Git LFS) + `meta_df.csv`
 - `checkpoints/dexposure-fm-release/` -- trained FM weights (h1, h4, h8-h12)
+- `lib/` -- GraphPFN + LiMiX library source, lazily imported by
+  `DeXposure_Agent/dexposure_agent/fm_predictor.py` when loading FM
+  checkpoints (`from lib.graphpfn.model import GraphPFN`, etc.). Treat as
+  a live dependency, not archive material.
 
-Both paths are referenced by `DeXposure_Agent/dexposure_agent/fm_predictor.py`
-via relative paths from the repo root, so commands are expected to run with
-the repo root as cwd.
+All three are referenced via relative paths from the repo root, so commands
+are expected to run with the repo root as cwd (or with the repo root on
+`sys.path`, which `fm_predictor.py` arranges automatically).
 
 ## Archive
 
@@ -24,9 +28,10 @@ Previous-generation code and reference papers are kept under
 [`archive/`](archive/) (read-only references):
 
 - `archive/code/` -- DeXposure-FM training pipeline (`run_full_experiment.py`,
-  `run_task2_model_based.py`, ...) plus the GraphPFN/LiMiX backbone
-  libraries (`lib/`, `bin/`, `exp/`) and FM-side `analysis/` and
-  `autoresearch/`.
+  `run_task2_model_based.py`, ...) plus the GraphPFN training entries
+  (`bin/`, `exp/`) and FM-side `analysis/` and `autoresearch/`. The
+  GraphPFN/LiMiX library source (`lib/`) lives at the repo root because
+  the active paper imports it.
 - `archive/papers/` -- DeXposure-FM PDF + review notes, GraphPFN paper,
   external references (GoT, arXiv preprint).
 - `archive/docs/` -- FM-era `EXPERIMENT_PLAN.md`, `ACTION_CONDITIONED_ROADMAP.txt`,

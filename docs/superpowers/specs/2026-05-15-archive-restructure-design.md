@@ -2,7 +2,7 @@
 
 Date: 2026-05-15
 Branch: feat/dexposure-agent-plugin
-Status: approved, pending implementation plan
+Status: implemented 2026-05-15 with one correction (see "Execution Notes" below)
 
 ## Problem
 
@@ -335,6 +335,31 @@ git push origin pre-archive-refactor
 | LFS pointer files accidentally inflate to real blobs during `git mv` | Low | `.gitattributes` is untouched; git preserves pointer encoding through renames |
 | GitHub Actions break | Low | Confirmed `.github/` references zero archive-bound paths |
 | Future need to retrain FM | Medium | `pre-archive-refactor` tag pinpoints the last working layout; `archive/code/` is complete and runnable in place |
+
+## Execution Notes (added 2026-05-15)
+
+One blind spot was caught during Phase 5 verification: `lib/` is not
+dormant. `DeXposure_Agent/dexposure_agent/fm_predictor.py` does three
+lazy imports inside functions:
+
+- `from lib.graphpfn.model import GraphPFN` (L117)
+- `from lib.graphpfn.model import GraphPFNLayerWrapper` (L372)
+- `from lib.limix.model.layer import MultiheadAttention as MHA` (L373)
+
+The original brainstorm grep used `^from lib` which only matches top-of-file
+imports; the indented lazy imports were missed. `fm_predictor.py` also adds
+the repo root to `sys.path` at module load (L31-34), expecting `lib/` to
+sit directly under repo root.
+
+Correction applied during implementation:
+- `lib/` moved back from `archive/code/lib/` to `lib/` at repo root.
+- Root `README.md` lists `lib/` alongside `data/` and `checkpoints/` as a
+  live shared resource.
+- `archive/README.md` no longer claims `lib/` as part of the archive.
+- The other directories listed in section A (Move Inventory) -- `bin/`,
+  `exp/`, `dexposure_fm/`, `analysis/`, `autoresearch/`, four root
+  `run_*.py`, `Makefile` -- were verified truly dormant (zero live imports
+  from `DeXposure_Agent/`) and remain archived.
 
 ## Verification Checklist
 

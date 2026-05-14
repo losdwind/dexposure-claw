@@ -6,7 +6,6 @@ Read-only historical material for this repo.
 
 | Path | What lives here |
 |------|-----------------|
-| `code/lib/` | GraphPFN + LiMiX library source (upstream fork) |
 | `code/bin/` | GraphPFN original training and evaluation scripts |
 | `code/exp/` | GraphPFN experiment artifacts (~13 MB) |
 | `code/dexposure_fm/` | FM helper modules (macroprudential tools, network statistics) |
@@ -19,7 +18,7 @@ Read-only historical material for this repo.
 | `code/Makefile` | Convenience targets for the FM-era pipeline |
 | `papers/` | DeXposure-FM PDF, FM-paper review, GraphPFN paper, GoT, arXiv preprint |
 | `docs/` | `EXPERIMENT_PLAN.md`, `ACTION_CONDITIONED_ROADMAP.txt`, writing guide |
-| `LICENSES/` | LimiX and TabICL third-party licenses (tracks `code/lib/`) |
+| `LICENSES/` | LimiX and TabICL third-party licenses (tracks the live `lib/` at repo root) |
 | `.tools/` | Legacy AI-tool project state (Sisyphus boulder.json, Serena project.yml) |
 
 ## Provenance
