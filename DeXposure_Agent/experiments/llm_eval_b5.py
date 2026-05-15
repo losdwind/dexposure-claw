@@ -61,7 +61,13 @@ DECISION_MODEL = os.environ.get("LLM_EVAL_MODEL", "claude-sonnet-4-6")
 JUDGE_MODEL = os.environ.get("LLM_JUDGE_MODEL", "claude-haiku-4-5")
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS = 4096
-STRESS_THRESHOLD = 0.50  # >50% edge-weight drop; matches b5_decision_quality.py
+# Ground truth uses the same percentile-based definition as b5_decision_quality.py
+# (top STRESS_PERCENTILE most-deteriorating active protocols per week). Keeping
+# the two evaluators on identical ground truth is required for m5_fm_rules vs
+# m6_fm_llm comparisons to be meaningful. The legacy absolute STRESS_THRESHOLD
+# (0.50) is retained as a numeric fallback only.
+STRESS_PERCENTILE = 0.05
+STRESS_THRESHOLD = 0.50  # legacy; not used by detect_truly_stressed below.
 STRESS_LOOKAHEAD = 4
 CONSISTENCY_RUNS = 3
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
@@ -274,7 +280,8 @@ def run_scenarios(data: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def detect_truly_stressed(snap_current: dict, snap_future: dict,
-                          threshold: float = STRESS_THRESHOLD) -> set[str]:
+                          pct: float = STRESS_PERCENTILE) -> set[str]:
+    """Top-`pct` most-deteriorating active protocols (matches b5_decision)."""
     def _node_weights(data):
         nw: dict[str, float] = defaultdict(float)
         for e in data.get("edges", []):
@@ -284,14 +291,18 @@ def detect_truly_stressed(snap_current: dict, snap_future: dict,
 
     wt = _node_weights(snap_current)
     wf = _node_weights(snap_future)
-    stressed = set()
+    drops: list[tuple[str, float]] = []
     for nid, w in wt.items():
         if w <= 0:
             continue
         drop = (w - wf.get(nid, 0.0)) / w
-        if drop > threshold:
-            stressed.add(nid)
-    return stressed
+        if drop > 0.0:
+            drops.append((nid, drop))
+    if not drops:
+        return set()
+    drops.sort(key=lambda x: x[1], reverse=True)
+    cutoff = max(1, int(len(drops) * pct))
+    return {nid for nid, _ in drops[:cutoff]}
 
 
 def compute_actual_loss(snap_current: dict, snap_future: dict) -> dict[str, float]:
@@ -407,7 +418,7 @@ Network: {n_nodes} nodes, {n_edges} edges
 Key metrics: {metrics_summary}
 
 == GROUND TRUTH ==
-{n_stressed} protocols actually experienced >20% weight loss: {stressed_list}
+{n_stressed} protocols are in the top-5% most-deteriorating set (largest weight drops over the horizon): {stressed_list}
 
 == REPORT TO EVALUATE ==
 Risk level: {risk_level}

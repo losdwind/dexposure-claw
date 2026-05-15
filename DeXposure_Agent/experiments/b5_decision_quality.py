@@ -140,7 +140,11 @@ def _detect_truly_stressed_protocols(
             continue
         w_f = weights_future.get(node_id, 0.0)
         drop_frac = (w_t - w_f) / w_t
-        drops.append((node_id, drop_frac))
+        # Only consider protocols that actually shrank. Without this filter
+        # weeks where everything grew still produced a top-5% "stressed" set,
+        # mislabeling the least-improved protocols as stressed.
+        if drop_frac > 0.0:
+            drops.append((node_id, drop_frac))
 
     if not drops:
         return set()
@@ -152,15 +156,20 @@ def _detect_truly_stressed_protocols(
 def _ticket_target_score_map(decision) -> dict[str, float]:
     """Aggregate a per-protocol score from the ticket decision.
 
-    Uses ticket confidence (proxy for "how strongly the engine flagged this
-    target"). When a protocol appears in multiple tickets, take the max.
-    Protocols not in any ticket get score 0.
+    The Ticket model exposes `.score` (a float computed by the decision
+    engine from alert confidence + scenario impact); when the same protocol
+    is named by several tickets we take the max. Protocols not in any
+    ticket map to 0.
+
+    (Codex review caught the earlier version, which read a non-existent
+    `confidence` attribute and silently returned 0 for every protocol,
+    collapsing the score_discrimination metric to a constant zero.)
     """
     scores: dict[str, float] = {}
     for ticket in decision.tickets:
-        conf = float(getattr(ticket, "confidence", 0.0) or 0.0)
+        s = float(getattr(ticket, "score", 0.0) or 0.0)
         for target in ticket.targets:
-            scores[target] = max(scores.get(target, 0.0), conf)
+            scores[target] = max(scores.get(target, 0.0), s)
     return scores
 
 
@@ -310,10 +319,11 @@ def run_b5(
         # vs. arbitrary ones.
         if truly_stressed:
             recall_k = len(truly_stressed & all_ticket_targets) / len(truly_stressed)
-        else:
-            recall_k = float("nan")
-        week_recall_at_k.append(recall_k)
-        truly_stressed_covered.append(recall_k if not np.isnan(recall_k) else 0.0)
+            week_recall_at_k.append(recall_k)
+            # legacy audit_completeness mirrors recall@k on weeks where it is
+            # defined; weeks with an empty stress pool are excluded rather
+            # than being silently counted as 0 (which would deflate the mean).
+            truly_stressed_covered.append(recall_k)
 
         # score_discrimination: does the ticket engine assign higher
         # confidence to truly-stressed targets than non-stressed ones?
