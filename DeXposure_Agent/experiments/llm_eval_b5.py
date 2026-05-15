@@ -281,7 +281,12 @@ def run_scenarios(data: dict) -> list[dict]:
 
 def detect_truly_stressed(snap_current: dict, snap_future: dict,
                           pct: float = STRESS_PERCENTILE) -> set[str]:
-    """Top-`pct` most-deteriorating active protocols (matches b5_decision)."""
+    """Top-`pct` protocols by ABSOLUTE weight loss (matches b5_decision).
+
+    Aligns ground truth with regulator intent: large protocols losing
+    significant absolute weight are flagged, not small protocols losing
+    high fractions. See b5_decision_quality._detect_truly_stressed_protocols.
+    """
     def _node_weights(data):
         nw: dict[str, float] = defaultdict(float)
         for e in data.get("edges", []):
@@ -295,9 +300,9 @@ def detect_truly_stressed(snap_current: dict, snap_future: dict,
     for nid, w in wt.items():
         if w <= 0:
             continue
-        drop = (w - wf.get(nid, 0.0)) / w
-        if drop > 0.0:
-            drops.append((nid, drop))
+        absolute_drop = w - wf.get(nid, 0.0)
+        if absolute_drop > 0.0:
+            drops.append((nid, absolute_drop))
     if not drops:
         return set()
     drops.sort(key=lambda x: x[1], reverse=True)
@@ -418,7 +423,7 @@ Network: {n_nodes} nodes, {n_edges} edges
 Key metrics: {metrics_summary}
 
 == GROUND TRUTH ==
-{n_stressed} protocols are in the top-5% most-deteriorating set (largest weight drops over the horizon): {stressed_list}
+{n_stressed} protocols are in the top-5% set ranked by absolute weight loss over the horizon (regulator-relevant systemic risk): {stressed_list}
 
 == REPORT TO EVALUATE ==
 Risk level: {risk_level}
