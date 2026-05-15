@@ -57,8 +57,7 @@ BATCH_SIZE = 1        # one graph sequence per batch
 class EvolveGCNO(nn.Module):
     """EvolveGCN-O: GCN with LSTM-updated weight matrices.
 
-    Simplified implementation that works with dense adjacency matrices
-    for small-to-medium graphs (up to ~500 nodes).
+    Sparse adjacency variant; scales to graphs with tens of thousands of nodes.
     """
 
     def __init__(self, n_features: int, hidden_dim: int, n_nodes_max: int):
@@ -118,10 +117,11 @@ class EvolveGCNO(nn.Module):
             w2 = h2.view(self.hidden_dim, self.hidden_dim)
 
             # GCN forward: H = ReLU(A * X * W1) * W2
-            x = torch.mm(adj, feat)       # [N, F]
-            x = F.relu(torch.mm(x, w1))   # [N, H]
-            x = torch.mm(adj, x)          # [N, H]
-            node_embed = torch.mm(x, w2)  # [N, H]
+            # adj is a sparse COO tensor; use torch.sparse.mm for sparse @ dense.
+            x = torch.sparse.mm(adj, feat)       # [N, F]
+            x = F.relu(torch.mm(x, w1))          # [N, H]
+            x = torch.sparse.mm(adj, x)          # [N, H]
+            node_embed = torch.mm(x, w2)         # [N, H]
 
         return node_embed
 
@@ -167,28 +167,54 @@ def _snap_to_tensors(
     n_nodes: int,
     device: torch.device,
 ) -> tuple[torch.Tensor, torch.Tensor, dict[tuple[int, int], float]]:
-    """Convert a GraphSnapshot to adjacency and feature tensors.
+    """Convert a GraphSnapshot to a sparse normalized adjacency + dense features.
 
     Returns:
-        adj: [N, N] normalized adjacency (D^-1/2 A D^-1/2 + I).
+        adj: sparse COO [N, N] = D^-1/2 (A + I) D^-1/2.
         feat: [N, F] node features (F=5: log_size, num_tokens, max_share, entropy, degree).
-        edge_weights: dict mapping (src_idx, tgt_idx) -> weight.
+        edge_weights: dict mapping (src_idx, tgt_idx) -> raw weight (for the loss target).
     """
-    adj = torch.eye(n_nodes, device=device)  # self-loops
+    rows: list[int] = []
+    cols: list[int] = []
+    vals: list[float] = []
+    deg_counter: dict[int, int] = {}
     edge_weights: dict[tuple[int, int], float] = {}
 
     for e in snap.edges:
         if e.source in node_index and e.target in node_index:
-            si, ti = node_index[e.source], node_index[e.target]
-            adj[si, ti] += 1.0
+            si = node_index[e.source]
+            ti = node_index[e.target]
+            rows.append(si)
+            cols.append(ti)
+            vals.append(1.0)
             edge_weights[(si, ti)] = e.weight
+            deg_counter[si] = deg_counter.get(si, 0) + 1
+            deg_counter[ti] = deg_counter.get(ti, 0) + 1
 
-    # Symmetric normalization D^-1/2 A D^-1/2
-    deg = adj.sum(dim=1).clamp(min=1e-8)
-    deg_inv_sqrt = deg.pow(-0.5)
-    adj = deg_inv_sqrt.unsqueeze(1) * adj * deg_inv_sqrt.unsqueeze(0)
+    # Self-loops (A + I)
+    for i in range(n_nodes):
+        rows.append(i)
+        cols.append(i)
+        vals.append(1.0)
 
-    # Node features
+    rows_t = torch.tensor(rows, dtype=torch.long, device=device)
+    cols_t = torch.tensor(cols, dtype=torch.long, device=device)
+    vals_t = torch.tensor(vals, dtype=torch.float32, device=device)
+
+    # Degree (row sum) -- include self-loops
+    deg = torch.zeros(n_nodes, device=device)
+    deg.index_add_(0, rows_t, vals_t)
+    deg_inv_sqrt = deg.clamp(min=1e-8).pow(-0.5)
+
+    # Symmetric normalization: w_ij / sqrt(d_i * d_j)
+    norm_vals = vals_t * deg_inv_sqrt[rows_t] * deg_inv_sqrt[cols_t]
+
+    indices = torch.stack([rows_t, cols_t], dim=0)
+    adj = torch.sparse_coo_tensor(
+        indices, norm_vals, (n_nodes, n_nodes), device=device
+    ).coalesce()
+
+    # Node features (dense, mostly zero rows for inactive nodes)
     feat = torch.zeros(n_nodes, 5, device=device)
     for nid, nf in snap.nodes.items():
         if nid in node_index:
@@ -197,10 +223,7 @@ def _snap_to_tensors(
             feat[idx, 1] = float(nf.num_tokens)
             feat[idx, 2] = nf.max_share
             feat[idx, 3] = nf.entropy
-            # degree as 5th feature
-            feat[idx, 4] = float(sum(
-                1 for e in snap.edges if e.source == nid or e.target == nid
-            ))
+            feat[idx, 4] = float(deg_counter.get(idx, 0))  # incident-edge count
 
     return adj, feat, edge_weights
 
