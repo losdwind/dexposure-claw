@@ -38,25 +38,35 @@ from dexposure_agent.scenario import SCENARIO_LIBRARY, apply_shock, compute_cont
 from dexposure_agent.types import Edge, GraphSnapshot, ScenarioSummary
 
 
-# Stress detection: >50% edge weight drop threshold.
-# Bumped from 0.20 per the TKDE plan: with 0.20 the "truly stressed" set
-# included ~3-8k protocols per week, making audit_completeness near zero and
-# letting trivial baselines (m1_persistence_rules) match m5_fm_rules on
-# ticket_precision. 0.50 yields tens of truly-stressed protocols per week,
-# which is what the ticket recommendation engine is actually designed to flag.
-STRESS_THRESHOLD = 0.50
+# TKDE plan: replace absolute threshold with percentile-based ground truth.
+# Old design (STRESS_THRESHOLD = 0.20 or 0.50 absolute drop) produced a pool
+# that varied wildly week-to-week (1.7k - 5.2k protocols), making
+# precision/recall unstable and dominated by node churn rather than method
+# quality. Percentile selects a fixed-size top-K most-deteriorating pool
+# per week, so comparisons across weeks and methods are apples-to-apples.
+STRESS_PERCENTILE = 0.05  # top 5% most-deteriorating protocols per week
 # Lookahead window for ground truth stress detection (weeks)
 STRESS_LOOKAHEAD = 4
 # MC noise sigma for persistence-based MC samples (calibrated at runtime)
 MC_NOISE_SIGMA_DEFAULT = 0.1
 
+# Legacy threshold kept for llm_eval_b5.py compatibility; b5 now uses
+# percentile-based detection above.
+STRESS_THRESHOLD = 0.50
+
 
 @dataclass
 class DecisionResult:
     method: str
-    ticket_precision: float = float("nan")
+    # Primary TKDE-redesigned metrics
+    ticket_precision: float = float("nan")        # |tickets ∩ stressed| / |tickets|
+    target_recall_at_k: float = float("nan")      # |tickets ∩ stressed| / |stressed|
+    score_discrimination: float = float("nan")    # mean tgt-rank gap: stressed vs non-stressed protocols
+    target_stability: float = float("nan")        # mean Jaccard week-to-week
+    stress_pool_size_mean: float = float("nan")   # sanity check: |stressed| per week
+    n_tickets_mean: float = float("nan")          # sanity check: |tickets| per week
+    # Retained legacy fields (informational only)
     risk_reduction: float = float("nan")
-    target_stability: float = float("nan")
     audit_completeness: float = float("nan")
     suppression_rate: float = float("nan")
     false_intervention_rate: float = float("nan")
@@ -65,12 +75,12 @@ class DecisionResult:
     def __str__(self) -> str:
         return (
             f"DecisionResult(method={self.method}, "
-            f"ticket_prec={self.ticket_precision:.3f}, "
-            f"risk_reduct={self.risk_reduction:.3f}, "
-            f"stability={self.target_stability:.3f}, "
-            f"audit_compl={self.audit_completeness:.3f}, "
-            f"suppress={self.suppression_rate:.3f}, "
-            f"FIR={self.false_intervention_rate:.3f})"
+            f"prec={self.ticket_precision:.3f}, "
+            f"recall@k={self.target_recall_at_k:.3f}, "
+            f"score_discrim={self.score_discrimination:.3f}, "
+            f"stab={self.target_stability:.3f}, "
+            f"pool_size={self.stress_pool_size_mean:.1f}, "
+            f"n_tickets={self.n_tickets_mean:.1f})"
         )
 
 
@@ -113,26 +123,45 @@ def _compute_node_total_weight(graph: GraphSnapshot) -> dict[str, float]:
 def _detect_truly_stressed_protocols(
     snap_t: GraphSnapshot,
     snap_future: GraphSnapshot,
-    threshold: float = STRESS_THRESHOLD,
+    pct: float = STRESS_PERCENTILE,
 ) -> set[str]:
-    """Identify protocols that experienced > threshold edge weight drop.
+    """Identify the top-`pct` most-deteriorating protocols between t and t+h.
 
-    Compares per-node total edge weight between current and future snapshots.
-    A protocol is 'truly stressed' if its total edge weight dropped by more
-    than threshold (as a fraction of the current weight).
+    Score each active protocol (w_t > 0) by drop_frac = (w_t - w_f) / w_t,
+    then keep the top fraction by drop. Guarantees a fixed-size pool per week
+    so precision/recall are comparable across weeks and across methods.
     """
     weights_t = _compute_node_total_weight(snap_t)
     weights_future = _compute_node_total_weight(snap_future)
 
-    stressed: set[str] = set()
+    drops: list[tuple[str, float]] = []
     for node_id, w_t in weights_t.items():
         if w_t <= 0.0:
             continue
         w_f = weights_future.get(node_id, 0.0)
         drop_frac = (w_t - w_f) / w_t
-        if drop_frac > threshold:
-            stressed.add(node_id)
-    return stressed
+        drops.append((node_id, drop_frac))
+
+    if not drops:
+        return set()
+    drops.sort(key=lambda x: x[1], reverse=True)
+    cutoff = max(1, int(len(drops) * pct))
+    return {node_id for node_id, _ in drops[:cutoff]}
+
+
+def _ticket_target_score_map(decision) -> dict[str, float]:
+    """Aggregate a per-protocol score from the ticket decision.
+
+    Uses ticket confidence (proxy for "how strongly the engine flagged this
+    target"). When a protocol appears in multiple tickets, take the max.
+    Protocols not in any ticket get score 0.
+    """
+    scores: dict[str, float] = {}
+    for ticket in decision.tickets:
+        conf = float(getattr(ticket, "confidence", 0.0) or 0.0)
+        for target in ticket.targets:
+            scores[target] = max(scores.get(target, 0.0), conf)
+    return scores
 
 
 def _jaccard(set_a: set[str], set_b: set[str]) -> float:
@@ -203,11 +232,15 @@ def run_b5(
     # --- Per-week accumulators ---
     n_weeks = 0
     ticket_correct: list[bool] = []        # was each ticket target truly stressed?
-    truly_stressed_covered: list[float] = []  # fraction of truly stressed covered per week
+    week_recall_at_k: list[float] = []     # |tickets ∩ stressed| / |stressed| per week
+    week_score_gap: list[float] = []       # mean(score | stressed) - mean(score | non-stressed) per week
+    truly_stressed_covered: list[float] = []  # legacy audit_completeness (== recall_at_k now)
     target_sets: list[set[str]] = []       # target sets per week for stability
     safe_mode_flags: list[bool] = []       # safe_mode flag per week
     false_interventions: list[bool] = []   # false interventions (Recommend-Reduce/Contingency on stable)
     risk_deltas: list[float] = []          # scenario loss delta (simplified)
+    stress_pool_sizes: list[int] = []      # sanity: |stressed| per week
+    n_tickets_per_week: list[int] = []     # sanity: |tickets| per week
 
     prev_targets: set[str] | None = None
 
@@ -262,19 +295,40 @@ def run_b5(
         target_sets.append(all_ticket_targets)
         safe_mode_flags.append(decision.suppressed)
 
-        # --- Step f: Ground truth check ---
-        truly_stressed = _detect_truly_stressed_protocols(snap_t, gt_future, threshold=STRESS_THRESHOLD)
+        # --- Step f: Ground truth check (percentile-based) ---
+        truly_stressed = _detect_truly_stressed_protocols(snap_t, gt_future, pct=STRESS_PERCENTILE)
+        stress_pool_sizes.append(len(truly_stressed))
+        n_tickets_per_week.append(len(decision.tickets))
 
         # Ticket Precision: fraction of ticket targets that are truly stressed
         for target in all_ticket_targets:
             ticket_correct.append(target in truly_stressed)
 
-        # Audit Completeness: fraction of truly stressed protocols that were targeted
+        # target_recall@k: of the truly-stressed pool, how many appear in the
+        # week's ticket targets. With ticket_budget << pool the absolute number
+        # is small, but discriminates between methods that pick stressed targets
+        # vs. arbitrary ones.
         if truly_stressed:
-            covered = len(truly_stressed & all_ticket_targets) / len(truly_stressed)
+            recall_k = len(truly_stressed & all_ticket_targets) / len(truly_stressed)
         else:
-            covered = 1.0  # no truly stressed protocols => vacuously complete
-        truly_stressed_covered.append(covered)
+            recall_k = float("nan")
+        week_recall_at_k.append(recall_k)
+        truly_stressed_covered.append(recall_k if not np.isnan(recall_k) else 0.0)
+
+        # score_discrimination: does the ticket engine assign higher
+        # confidence to truly-stressed targets than non-stressed ones?
+        # Per-protocol score = max confidence across tickets that name it,
+        # 0 if not flagged. Gap = mean(score | stressed) - mean(score | non).
+        score_map = _ticket_target_score_map(decision)
+        snap_t_weights = _compute_node_total_weight(snap_t)
+        active_nodes = [n for n in snap_t.nodes.keys() if snap_t_weights.get(n, 0.0) > 0]
+        if active_nodes and truly_stressed:
+            stressed_scores = [score_map.get(n, 0.0) for n in truly_stressed if n in snap_t.nodes]
+            non_stressed_scores = [score_map.get(n, 0.0) for n in active_nodes if n not in truly_stressed]
+            if stressed_scores and non_stressed_scores:
+                week_score_gap.append(
+                    float(np.mean(stressed_scores)) - float(np.mean(non_stressed_scores))
+                )
 
         # False Intervention Rate: intervention tickets targeting stable protocols
         stable_protocols = set(snap_t.nodes.keys()) - truly_stressed
@@ -307,16 +361,21 @@ def run_b5(
 
     # --- Aggregate metrics ---
 
-    # Ticket Precision
+    # Ticket Precision: |tickets ∩ stressed| / |tickets|, micro-averaged across weeks
     if ticket_correct:
         ticket_precision = float(np.mean(ticket_correct))
     else:
         ticket_precision = 0.0
 
-    # Risk Reduction: average scenario loss (lower is better; report as negative delta
-    # if we have at least 2 points, otherwise just report mean loss)
+    # target_recall@k: mean across weeks (NaN weeks skipped)
+    finite_recalls = [r for r in week_recall_at_k if not np.isnan(r)]
+    target_recall_at_k = float(np.mean(finite_recalls)) if finite_recalls else 0.0
+
+    # score_discrimination: mean across weeks of (stressed-score - non-stressed-score)
+    score_discrimination = float(np.mean(week_score_gap)) if week_score_gap else 0.0
+
+    # Risk Reduction: average scenario loss (lower is better)
     if len(risk_deltas) >= 2:
-        # Simplified: mean of all scenario losses across weeks
         risk_reduction = float(np.mean(risk_deltas))
     elif risk_deltas:
         risk_reduction = float(risk_deltas[0])
@@ -329,23 +388,29 @@ def run_b5(
         stability_scores.append(_jaccard(target_sets[i], target_sets[i - 1]))
     target_stability = float(np.mean(stability_scores)) if stability_scores else 0.0
 
-    # Audit Completeness
-    audit_completeness = float(np.mean(truly_stressed_covered)) if truly_stressed_covered else 0.0
+    # Legacy audit completeness (kept == recall@k for back-compat)
+    audit_completeness = target_recall_at_k
 
-    # Suppression Rate: fraction of weeks where safe_mode was on
+    # Suppression / FIR (kept for back-compat; both typically 0)
     suppression_rate = float(np.mean(safe_mode_flags)) if safe_mode_flags else 0.0
-
-    # False Intervention Rate
     if false_interventions:
         false_intervention_rate = float(np.mean(false_interventions))
     else:
         false_intervention_rate = 0.0
 
+    # Sanity-check aggregates
+    stress_pool_size_mean = float(np.mean(stress_pool_sizes)) if stress_pool_sizes else 0.0
+    n_tickets_mean = float(np.mean(n_tickets_per_week)) if n_tickets_per_week else 0.0
+
     result = DecisionResult(
         method=method_id,
         ticket_precision=ticket_precision,
-        risk_reduction=risk_reduction,
+        target_recall_at_k=target_recall_at_k,
+        score_discrimination=score_discrimination,
         target_stability=target_stability,
+        stress_pool_size_mean=stress_pool_size_mean,
+        n_tickets_mean=n_tickets_mean,
+        risk_reduction=risk_reduction,
         audit_completeness=audit_completeness,
         suppression_rate=suppression_rate,
         false_intervention_rate=false_intervention_rate,
@@ -355,8 +420,12 @@ def run_b5(
     log.summary({
         "n_weeks_evaluated": n_weeks,
         "ticket_precision": ticket_precision,
-        "risk_reduction": risk_reduction,
+        "target_recall_at_k": target_recall_at_k,
+        "score_discrimination": score_discrimination,
         "target_stability": target_stability,
+        "stress_pool_size_mean": stress_pool_size_mean,
+        "n_tickets_mean": n_tickets_mean,
+        "risk_reduction": risk_reduction,
         "audit_completeness": audit_completeness,
         "suppression_rate": suppression_rate,
         "false_intervention_rate": false_intervention_rate,
@@ -365,8 +434,12 @@ def run_b5(
     log.save_results([{
         "method": method_id,
         "ticket_precision": ticket_precision,
-        "risk_reduction": risk_reduction,
+        "target_recall_at_k": target_recall_at_k,
+        "score_discrimination": score_discrimination,
         "target_stability": target_stability,
+        "stress_pool_size_mean": stress_pool_size_mean,
+        "n_tickets_mean": n_tickets_mean,
+        "risk_reduction": risk_reduction,
         "audit_completeness": audit_completeness,
         "suppression_rate": suppression_rate,
         "false_intervention_rate": false_intervention_rate,
