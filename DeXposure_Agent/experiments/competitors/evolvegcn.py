@@ -517,23 +517,37 @@ class EvolveGCNPredictor:
             adj_seq.append(adj)
             feat_seq.append(feat)
 
-        # Forward pass
+        # Forward pass + batched edge weight prediction.
+        # Each test snapshot may carry tens of thousands of edges; predicting
+        # them one-by-one with .item() syncs serialises the GPU. Batch the
+        # whole edge set into a single forward + a single host transfer.
         with torch.no_grad():
             node_embed = model(adj_seq, feat_seq)
 
-            # Predict weights for all edges from current snapshot
-            edges_out: list[Edge] = []
-
+            valid_edges: list[Edge] = []
+            src_idx: list[int] = []
+            tgt_idx: list[int] = []
             for e in current_snapshot.edges:
                 if e.source in node_index and e.target in node_index:
-                    si, ti = node_index[e.source], node_index[e.target]
-                    edge_idx = torch.tensor([[si, ti]], dtype=torch.long, device=self.device)
-                    pred_w = model.predict_edges(node_embed, edge_idx)
-                    edges_out.append(Edge(
-                        source=e.source,
-                        target=e.target,
-                        weight=float(pred_w[0].item()),
-                    ))
+                    valid_edges.append(e)
+                    src_idx.append(node_index[e.source])
+                    tgt_idx.append(node_index[e.target])
+
+            if valid_edges:
+                edge_idx = torch.stack(
+                    [
+                        torch.tensor(src_idx, dtype=torch.long, device=self.device),
+                        torch.tensor(tgt_idx, dtype=torch.long, device=self.device),
+                    ],
+                    dim=1,
+                )
+                pred_weights = model.predict_edges(node_embed, edge_idx).cpu().numpy()
+                edges_out = [
+                    Edge(source=e.source, target=e.target, weight=float(pred_weights[i]))
+                    for i, e in enumerate(valid_edges)
+                ]
+            else:
+                edges_out = []
 
         return GraphSnapshot(
             date=current_snapshot.date,
