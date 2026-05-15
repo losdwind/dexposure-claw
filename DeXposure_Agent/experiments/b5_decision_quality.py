@@ -38,8 +38,13 @@ from dexposure_agent.scenario import SCENARIO_LIBRARY, apply_shock, compute_cont
 from dexposure_agent.types import Edge, GraphSnapshot, ScenarioSummary
 
 
-# Stress detection: >20% edge weight drop threshold
-STRESS_THRESHOLD = 0.20
+# Stress detection: >50% edge weight drop threshold.
+# Bumped from 0.20 per the TKDE plan: with 0.20 the "truly stressed" set
+# included ~3-8k protocols per week, making audit_completeness near zero and
+# letting trivial baselines (m1_persistence_rules) match m5_fm_rules on
+# ticket_precision. 0.50 yields tens of truly-stressed protocols per week,
+# which is what the ticket recommendation engine is actually designed to flag.
+STRESS_THRESHOLD = 0.50
 # Lookahead window for ground truth stress detection (weeks)
 STRESS_LOOKAHEAD = 4
 # MC noise sigma for persistence-based MC samples (calibrated at runtime)
