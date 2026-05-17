@@ -40,7 +40,7 @@ def _fmt(v: float | None, nd: int = 3) -> str:
         return "N/A"
     if isinstance(v, float) and math.isnan(v):
         return "N/A"
-    return f"{v:.{nd}f}"
+    return f"{v + 1e-12:.{nd}f}"
 
 
 def build_summary() -> dict:
@@ -66,6 +66,7 @@ def build_summary() -> dict:
 
     out = {
         "m5_fm_rules": {
+            "b1_pagerank_mae_h4": b1_c0_h4["pagerank_mae"],
             "b1_rank_corr_h4": b1_c0_h4["rank_correlation"],
             "b1_trend_consistency_h4": b1_c0_h4["trend_consistency"],
             "b1_hhi_mae_h4": b1_c0_h4["hhi_mae"],
@@ -78,6 +79,7 @@ def build_summary() -> dict:
             "b6_relative_degradation_mean": _mean([r["relative_degradation"] for r in b6_c0]),
         },
         "m1_persistence_rules": {
+            "b1_pagerank_mae_h4": b1_c2_h4["pagerank_mae"],
             "b1_rank_corr_h4": b1_c2_h4["rank_correlation"],
             "b1_trend_consistency_h4": b1_c2_h4["trend_consistency"],
             "b1_hhi_mae_h4": b1_c2_h4["hhi_mae"],
@@ -116,22 +118,23 @@ def write_table(summary: dict) -> None:
         "\\begin{table*}[!htbp]",
         "\\centering",
         "\\small",
-        "\\begin{tabularx}{\\linewidth}{Xcc}",
+        "\\begin{tabularx}{\\linewidth}{Xlcc}",
         "\\toprule",
-        "Metric & FM (\\texttt{m5\\_fm\\_rules}) & Persist (\\texttt{m1\\_persistence\\_rules}) \\\\",
+        "Evidence item & Scope / method & Value & Comparator \\\\",
         "\\midrule",
-        f"RankCorr@h4 (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_rank_corr_h4'])} & {_fmt(c2['b1_rank_corr_h4'])} \\\\",
-        f"TrendCons@h4 (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_trend_consistency_h4'])} & {_fmt(c2['b1_trend_consistency_h4'])} \\\\",
-        f"HHI-MAE@h4, lower better (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_hhi_mae_h4'])} & {_fmt(c2['b1_hhi_mae_h4'])} \\\\",
-        f"Precision, mean (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_precision_mean'])} & N/A \\\\",
-        f"F1-warning, mean (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_f1_mean'])} & N/A \\\\",
-        f"Lead time, weeks (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_lead_time_mean'])} & N/A \\\\",
-        f"ECE, FM only (\\texttt{{b3\\_calibration}}) & {_fmt(c0['b3_ece'])} & N/A \\\\",
-        f"PI coverage, FM only (\\texttt{{b3\\_calibration}}) & {_fmt(c0['b3_pi_coverage'])} & N/A \\\\",
-        f"Relative degradation, mean (\\texttt{{b6\\_robustness}}) & {_fmt(c0['b6_relative_degradation_mean'])} & {_fmt(c2['b6_relative_degradation_mean'])} \\\\",
+        f"PR-MAE@h4 ($10^{{-5}}$, lower better) & 2025 \\texttt{{b1}}, FM & {_fmt(c0['b1_pagerank_mae_h4'] * 1e5, 1)} & Persist {_fmt(c2['b1_pagerank_mae_h4'] * 1e5, 1)} \\\\",
+        f"RankCorr@h4 & 2025 \\texttt{{b1}}, FM & {_fmt(c0['b1_rank_corr_h4'])} & Persist {_fmt(c2['b1_rank_corr_h4'])} \\\\",
+        f"TrendCons@h4 & 2025 \\texttt{{b1}}, FM & {_fmt(c0['b1_trend_consistency_h4'])} & Persist {_fmt(c2['b1_trend_consistency_h4'])} \\\\",
+        f"HHI-MAE@h4, lower better & 2025 \\texttt{{b1}}, FM & {_fmt(c0['b1_hhi_mae_h4'])} & Persist {_fmt(c2['b1_hhi_mae_h4'])} \\\\",
+        f"Precision, mean & Historical \\texttt{{b2}}, shared \\texttt{{h1}} & {_fmt(c0['b2_precision_mean'])} & N/A \\\\",
+        f"F1-warning, mean & Historical \\texttt{{b2}}, shared \\texttt{{h1}} & {_fmt(c0['b2_f1_mean'])} & N/A \\\\",
+        f"Lead time, weeks & Historical \\texttt{{b2}}, shared \\texttt{{h1}} & {_fmt(c0['b2_lead_time_mean'])} & N/A \\\\",
+        f"ECE & 2025 \\texttt{{b3}}, FM intervals & {_fmt(c0['b3_ece'])} & N/A \\\\",
+        f"PI coverage & 2025 \\texttt{{b3}}, FM intervals & {_fmt(c0['b3_pi_coverage'])} & target 0.900 \\\\",
+        f"Relative degradation, mean & 2025 \\texttt{{b6}}, FM & {_fmt(c0['b6_relative_degradation_mean'])} & Persist {_fmt(c2['b6_relative_degradation_mean'])} \\\\",
         "\\bottomrule",
         "\\end{tabularx}",
-        "\\caption{Task I evidence for deployable risk monitoring on the 2025 test split. The table is a numeric audit ledger; Fig.~\\ref{fig:task1_deployable_signal} compresses the same evidence into the main claim.}",
+        "\\caption{Task I evidence ledger. The 2025 rows compare FM and persistence on forecasting, calibration, and robustness; the \\texttt{b2\\_warning} rows are a separate historical event study using the shared \\texttt{h1\\_weighted\\_degree} monitor and are not attributed to a specific predictor.}",
         "\\label{tab:task1_summary}",
         "\\end{table*}",
         "",
@@ -140,7 +143,7 @@ def write_table(summary: dict) -> None:
 
 
 def write_figure(summary: dict | None = None) -> None:
-    """Render Fig. 5: FM deployable risk signal, not a rank-correlation repeat."""
+    """Render Fig. 5: balanced Task I signal audit."""
     summary = summary or build_summary()
     fm = summary["m5_fm_rules"]
     persistence = summary["m1_persistence_rules"]
@@ -154,18 +157,18 @@ def write_figure(summary: dict | None = None) -> None:
             "savefig.pad_inches": 0.05,
         }
     )
-    fig, axes = plt.subplots(1, 3, figsize=(9.4, 3.25))
+    fig, axes = plt.subplots(1, 4, figsize=(10.4, 3.15))
     colors = {"fm": "#4A6FA5", "persistence": "#8A939E", "accent": "#3A8E8C"}
 
     panels = [
         (
             axes[0],
-            "Static rank is hard to beat",
-            "RankCorr@h4 (higher better)",
-            [fm["b1_rank_corr_h4"], persistence["b1_rank_corr_h4"]],
+            "Persistence wins point MAE",
+            "PR MAE@h4, $10^{-5}$ (lower)",
+            [fm["b1_pagerank_mae_h4"] * 1e5, persistence["b1_pagerank_mae_h4"] * 1e5],
             ["FM", "Persist"],
             [colors["fm"], colors["persistence"]],
-            (0.0, 0.65),
+            (0.0, 5.2),
         ),
         (
             axes[1],
@@ -178,7 +181,16 @@ def write_figure(summary: dict | None = None) -> None:
         ),
         (
             axes[2],
-            "FM improves deployability",
+            "Intervals are calibrated",
+            "PI coverage",
+            [fm["b3_pi_coverage"], 0.90],
+            ["FM", "Target"],
+            [colors["fm"], colors["accent"]],
+            (0.0, 1.05),
+        ),
+        (
+            axes[3],
+            "FM degrades less",
             "Robust degradation (lower better)",
             [
                 fm["b6_relative_degradation_mean"],
@@ -203,26 +215,13 @@ def write_figure(summary: dict | None = None) -> None:
             ax.text(
                 idx,
                 value + (ylim[1] - ylim[0]) * 0.035,
-                f"{value:.3f}",
+                f"{value + 1e-12:.1f}" if value > 1.0 else f"{value + 1e-12:.3f}",
                 ha="center",
                 va="bottom",
                 fontsize=8,
             )
-    coverage = fm["b3_pi_coverage"]
-    target = 0.90
-    axes[2].text(
-        0.03,
-        0.96,
-        f"PI coverage = {coverage:.3f} (target {target:.2f})",
-        transform=axes[2].transAxes,
-        ha="left",
-        va="top",
-        fontsize=7.8,
-        bbox={"boxstyle": "round,pad=0.35", "facecolor": "#EEF7F4", "edgecolor": colors["accent"]},
-    )
-
-    fig.suptitle("Task I: FM Deployable Risk Signal", fontsize=13, y=1.05)
-    fig.subplots_adjust(wspace=0.34)
+    fig.suptitle("Task I: FM Signal Audit", fontsize=13, y=1.05)
+    fig.subplots_adjust(wspace=0.42)
 
     FIGURES.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGURES / "fig5_task1_deployable_signal.png", format="png")

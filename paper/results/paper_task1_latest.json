@@ -1,5 +1,6 @@
 {
   "m5_fm_rules": {
+    "b1_pagerank_mae_h4": 4.4568879278345295e-05,
     "b1_rank_corr_h4": 0.5583183411416054,
     "b1_trend_consistency_h4": 0.6275862068965516,
     "b1_hhi_mae_h4": 0.03214205297050013,
@@ -12,6 +13,7 @@
     "b6_relative_degradation_mean": 0.11300065468542597
   },
   "m1_persistence_rules": {
+    "b1_pagerank_mae_h4": 3.386260345729284e-05,
     "b1_rank_corr_h4": 0.5700787623009229,
     "b1_trend_consistency_h4": 0.0,
     "b1_hhi_mae_h4": 0.03216092870170988,

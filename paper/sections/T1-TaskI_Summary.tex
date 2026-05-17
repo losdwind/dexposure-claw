@@ -2,21 +2,22 @@
 \begin{table*}[!htbp]
 \centering
 \small
-\begin{tabularx}{\linewidth}{Xcc}
+\begin{tabularx}{\linewidth}{Xlcc}
 \toprule
-Metric & FM (\texttt{m5\_fm\_rules}) & Persist (\texttt{m1\_persistence\_rules}) \\
+Evidence item & Scope / method & Value & Comparator \\
 \midrule
-RankCorr@h4 (\texttt{b1\_forecast}) & 0.558 & 0.570 \\
-TrendCons@h4 (\texttt{b1\_forecast}) & 0.628 & 0.000 \\
-HHI-MAE@h4, lower better (\texttt{b1\_forecast}) & 0.032 & 0.032 \\
-Precision, mean (\texttt{b2\_warning}, \texttt{h1\_weighted\_degree}) & 0.756 & N/A \\
-F1-warning, mean (\texttt{b2\_warning}, \texttt{h1\_weighted\_degree}) & 0.007 & N/A \\
-Lead time, weeks (\texttt{b2\_warning}, \texttt{h1\_weighted\_degree}) & 4.667 & N/A \\
-ECE, FM only (\texttt{b3\_calibration}) & 0.013 & N/A \\
-PI coverage, FM only (\texttt{b3\_calibration}) & 0.913 & N/A \\
-Relative degradation, mean (\texttt{b6\_robustness}) & 0.113 & 0.148 \\
+PR-MAE@h4 ($10^{-5}$, lower better) & 2025 \texttt{b1}, FM & 4.5 & Persist 3.4 \\
+RankCorr@h4 & 2025 \texttt{b1}, FM & 0.558 & Persist 0.570 \\
+TrendCons@h4 & 2025 \texttt{b1}, FM & 0.628 & Persist 0.000 \\
+HHI-MAE@h4, lower better & 2025 \texttt{b1}, FM & 0.032 & Persist 0.032 \\
+Precision, mean & Historical \texttt{b2}, shared \texttt{h1} & 0.756 & N/A \\
+F1-warning, mean & Historical \texttt{b2}, shared \texttt{h1} & 0.007 & N/A \\
+Lead time, weeks & Historical \texttt{b2}, shared \texttt{h1} & 4.667 & N/A \\
+ECE & 2025 \texttt{b3}, FM intervals & 0.013 & N/A \\
+PI coverage & 2025 \texttt{b3}, FM intervals & 0.913 & target 0.900 \\
+Relative degradation, mean & 2025 \texttt{b6}, FM & 0.113 & Persist 0.148 \\
 \bottomrule
 \end{tabularx}
-\caption{Task I evidence for deployable risk monitoring on the 2025 test split. The table is a numeric audit ledger; Fig.~\ref{fig:task1_deployable_signal} compresses the same evidence into the main claim.}
+\caption{Task I evidence ledger. The 2025 rows compare FM and persistence on forecasting, calibration, and robustness; the \texttt{b2\_warning} rows are a separate historical event study using the shared \texttt{h1\_weighted\_degree} monitor and are not attributed to a specific predictor.}
 \label{tab:task1_summary}
 \end{table*}

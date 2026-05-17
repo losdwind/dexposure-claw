@@ -4,12 +4,13 @@
 \footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Component-level ablation of \textsc{DeXposure-Claw} on
-\texttt{b5\_decision}. Each ablation disables a single design choice and
-re-evaluates against the \texttt{m5\_fm\_rules} baseline. A1 (data-health
-gating) is shown to be a \emph{safety reserve} that engages only under
-data degradation (Panel~B). A6 (multi-horizon) provides broader coverage
-during fast network dynamics (Panel~C). Numbers in Panel~A are on the
-clean 2025 test split; Panels~B--C aggregate the dedicated stress runs.}
+\texttt{b5\_decision}. Panel~A shows clean 2025 test-split ablations against
+the \texttt{m5\_fm\_rules} baseline; Panels~B--C report targeted stress runs
+for mechanisms that are dormant on clean data. A2 (confidence gating) and A3
+(scenario engine) are load-bearing in the clean setting, while A1
+(data-health gating) and A6 (multi-horizon monitoring) are safety-reserve
+mechanisms whose effects appear under data degradation and crisis-window
+dynamics, respectively.}
 \label{tab:ablation}
 \begin{tabular}{l l c c c l}
 \toprule

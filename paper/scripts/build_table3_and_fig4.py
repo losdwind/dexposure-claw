@@ -201,6 +201,7 @@ def write_table_files(rows: list[dict]) -> None:
         "\\begin{table*}[!htbp]",
         "\\centering",
         "\\small",
+        "\\resizebox{\\textwidth}{!}{%",
         "\\begin{tabular}{lcccccccccc}",
         "\\toprule",
         "Method & Prec & Recall & F1 & Stabil & SevRho & FIR & Ground & Consist & Explain & CostAdj \\\\",
@@ -229,6 +230,7 @@ def write_table_files(rows: list[dict]) -> None:
     lines += [
         "\\bottomrule",
         "\\end{tabular}",
+        "}",
         "\\caption{Task II decision-quality comparison. F1 combines Prec and "
         "Recall against the regulator-aligned absolute-loss ground truth; "
         "absolute values are small because each week's stressed pool "
@@ -266,13 +268,16 @@ def write_figure(rows: list[dict]) -> None:
             for r in f1_rows
         ]
     )
-    f1_labels = ["m1\nPersist", "m5\nFM+Rules", "m2\nLLM", "m6\nFM+LLM", "m7\n+Gate"]
+    f1_labels = ["m1\nPersist", "m5\nFM+R", "m2\nLLM", "m6\nFM+L", "m7\nGate"]
     f1_colors = ["#B8B8B8", "#5C8D57", "#6F8FBF", "#4A6FA5", "#3A8E8C"]
 
     judge_ids = ["m2_snapshot_llm", "m6_fm_llm", "m7_fm_llm_gated"]
     judge_rows = [row_by_id[mid] for mid in judge_ids if mid in row_by_id]
     judge_values = np.array([r["explanation_quality"] or 0.0 for r in judge_rows])
-    judge_labels = ["m2\nLLM", "m6\nFM+LLM", "m7\n+Gate"]
+    judge_labels = ["m2\nLLM", "m6\nFM+L", "m7\nGate"]
+
+    fir_rows = f1_rows
+    fir_values = np.array([r["false_intervention_rate"] or 0.0 for r in fir_rows])
 
     plt.rcParams.update(
         {
@@ -283,17 +288,18 @@ def write_figure(rows: list[dict]) -> None:
             "savefig.pad_inches": 0.05,
         }
     )
-    fig, (ax_f1, ax_judge) = plt.subplots(
+    fig, (ax_f1, ax_judge, ax_fir) = plt.subplots(
         1,
-        2,
-        figsize=(8.8, 3.8),
-        gridspec_kw={"width_ratios": [1.45, 1.0], "wspace": 0.28},
+        3,
+        figsize=(11.8, 3.75),
+        gridspec_kw={"width_ratios": [1.35, 1.0, 1.1], "wspace": 0.34},
     )
 
     x = np.arange(len(f1_rows))
     ax_f1.bar(x, f1_values, color=f1_colors[: len(f1_rows)], edgecolor="#222222")
     ax_f1.set_xticks(x)
     ax_f1.set_xticklabels(f1_labels[: len(f1_rows)])
+    ax_f1.tick_params(axis="x", labelsize=8)
     ax_f1.set_ylabel("Ticket F1")
     ax_f1.set_title("Layer-wise Contribution to Ticket F1", fontsize=11, pad=8)
     ax_f1.set_ylim(0.0, max(f1_values) * 1.33)
@@ -327,6 +333,7 @@ def write_figure(rows: list[dict]) -> None:
     ax_judge.bar(jx, judge_values, color=["#6F8FBF", "#4A6FA5", "#3A8E8C"], edgecolor="#222222")
     ax_judge.set_xticks(jx)
     ax_judge.set_xticklabels(judge_labels[: len(judge_rows)])
+    ax_judge.tick_params(axis="x", labelsize=8)
     ax_judge.set_ylabel("Judge Score")
     ax_judge.set_ylim(0.0, 5.0)
     ax_judge.set_title("Explanation Quality", fontsize=11, pad=8)
@@ -351,7 +358,19 @@ def write_figure(rows: list[dict]) -> None:
             arrowprops={"arrowstyle": "->", "color": "#555555", "linewidth": 0.9},
         )
 
-    fig.suptitle("Task II Layer-wise Contribution", fontsize=14, y=1.03)
+    fx = np.arange(len(fir_rows))
+    ax_fir.bar(fx, fir_values, color=f1_colors[: len(fir_rows)], edgecolor="#222222")
+    ax_fir.set_xticks(fx)
+    ax_fir.set_xticklabels(f1_labels[: len(fir_rows)])
+    ax_fir.tick_params(axis="x", labelsize=8)
+    ax_fir.set_ylabel("False Intervention Rate")
+    ax_fir.set_ylim(0.0, max(0.52, float(fir_values.max()) * 1.18))
+    ax_fir.set_title("Intervention Cost", fontsize=11, pad=8)
+    ax_fir.grid(axis="y", linestyle="--", alpha=0.3)
+    for idx, value in enumerate(fir_values):
+        ax_fir.text(idx, value + 0.015, f"{value:.3f}", ha="center", va="bottom", fontsize=8)
+
+    fig.suptitle("Task II: Recall and Explanation Gains With Explicit Cost", fontsize=13.5, y=1.03)
 
     fig.savefig(FIGURES / "fig4_method_comparison.png", format="png")
     fig.savefig(FIGURES / "fig4_method_comparison.pdf", format="pdf")

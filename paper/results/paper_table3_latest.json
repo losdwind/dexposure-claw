@@ -11,6 +11,7 @@
       "grounding_score": null,
       "consistency": null,
       "explanation_quality": null,
+      "ticket_f1": 0.0076,
       "cost_adjusted_score": 0.72
     },
     {
@@ -24,6 +25,7 @@
       "grounding_score": null,
       "consistency": null,
       "explanation_quality": null,
+      "ticket_f1": 0.0189,
       "cost_adjusted_score": 0.6
     },
     {
@@ -37,6 +39,7 @@
       "grounding_score": 1.0,
       "consistency": 0.9157,
       "explanation_quality": 2.03,
+      "ticket_f1": 0.0183,
       "cost_adjusted_score": 0.5747
     },
     {
@@ -50,6 +53,7 @@
       "grounding_score": 1.0,
       "consistency": 0.7795,
       "explanation_quality": 2.48,
+      "ticket_f1": 0.0241,
       "cost_adjusted_score": 0.3144
     },
     {
@@ -63,6 +67,7 @@
       "grounding_score": 1.0,
       "consistency": 0.8551,
       "explanation_quality": 2.69,
+      "ticket_f1": 0.0233,
       "cost_adjusted_score": 0.3268
     }
   ]

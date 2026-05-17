@@ -1,6 +1,6 @@
-method_id,method_name,ticket_precision,audit_completeness,target_stability,severity_correlation,false_intervention_rate,grounding_score,consistency,explanation_quality,cost_adjusted_score
-m1_persistence_rules,Persist+Rules,0.72,0.0038,0.5139,,0.0,,,,0.72
-m5_fm_rules,FM+Rules,0.6,0.0096,0.2569,,0.0,,,,0.6
-m2_snapshot_llm,Pure LLM,0.5747,0.0093,0.5319,,0.0,1.0,0.9157,2.03,0.5747
-m6_fm_llm,FM+LLM,0.5698,0.0123,0.4885,-0.0013,0.4483,1.0,0.7795,2.48,0.3144
-m7_fm_llm_gated,FM+LLM+RulesGate,0.5802,0.0119,0.4349,-0.0025,0.4368,1.0,0.8551,2.69,0.3268
+method_id,method_name,ticket_precision,audit_completeness,ticket_f1,target_stability,severity_correlation,false_intervention_rate,grounding_score,consistency,explanation_quality,cost_adjusted_score
+m1_persistence_rules,Persist+Rules,0.72,0.0038,0.0076,0.5139,,0.0,,,,0.72
+m5_fm_rules,FM+Rules,0.6,0.0096,0.0189,0.2569,,0.0,,,,0.6
+m2_snapshot_llm,Pure LLM,0.5747,0.0093,0.0183,0.5319,,0.0,1.0,0.9157,2.03,0.5747
+m6_fm_llm,FM+LLM,0.5698,0.0123,0.0241,0.4885,-0.0013,0.4483,1.0,0.7795,2.48,0.3144
+m7_fm_llm_gated,FM+LLM+RulesGate,0.5802,0.0119,0.0233,0.4349,-0.0025,0.4368,1.0,0.8551,2.69,0.3268

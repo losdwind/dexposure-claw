@@ -5,9 +5,10 @@
 \setlength{\tabcolsep}{4pt}
 \caption{\texttt{b4\_stress} per-scenario detail. Loss MAE in normalised
 units; Distress count MAE in protocols; target overlap@10 measured against
-the actual future graph. Best per scenario row in \textbf{bold}.
-EvolveGCN underperforms across all scenarios, confirming that weight-only
-prediction is too coarse for downstream what-if queries.}
+the actual future graph. Best per scenario row in \textbf{bold}. The main
+pattern is conservative: FM variants roughly match the strong persistence
+baseline on loss and target-overlap metrics, while EvolveGCN is generally
+weaker on downstream what-if fidelity.}
 \label{tab:b4_detail}
 \begin{tabular}{l l c c c c}
 \toprule
