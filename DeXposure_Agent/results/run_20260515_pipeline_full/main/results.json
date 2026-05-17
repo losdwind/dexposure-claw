@@ -1,0 +1,804 @@
+{
+  "ablations": {
+    "ablation_ids": null,
+    "ended_at": "2026-05-15T05:55:07+00:00",
+    "error": "[05:55:00] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n",
+    "exception_type": "DGLError",
+    "started_at": "2026-05-15T05:51:30+00:00",
+    "status": "runtime_error",
+    "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 454, in _run_ablations\n    results = module.run_all_ablations(\n              ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/ablations.py\", line 250, in run_all_ablations\n    baseline_metrics = _run_baseline_metrics(data_dir, test_split, results_dir)\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/ablations.py\", line 291, in _run_baseline_metrics\n    b1_results = run_b1(\"m5_fm_rules\", data_dir, test_split, results_dir=results_dir)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b1_risk_forecasting.py\", line 308, in run_b1\n    snap_pred = predict_graph(method_id, snap_t, h, config=kwargs.get(\"config\"))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 225, in predict\n    h = self._encode(encoder, g, features)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 385, in _encode\n    graph = graph.to(device)\n            ^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph.py\", line 5714, in to\n    ret._graph = self._graph.copy_to(utils.to_dgl_context(device))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph_index.py\", line 255, in copy_to\n    return _CAPI_DGLHeteroCopyTo(self, ctx.device_type, ctx.device_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"dgl/_ffi/_cython/./function.pxi\", line 295, in dgl._ffi._cy3.core.FunctionBase.__call__\n  File \"dgl/_ffi/_cython/./function.pxi\", line 227, in dgl._ffi._cy3.core.FuncCall\n  File \"dgl/_ffi/_cython/./function.pxi\", line 217, in dgl._ffi._cy3.core.FuncCall3\ndgl._ffi.base.DGLError: [05:55:00] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n\n",
+    "wall_seconds": 217.106
+  },
+  "metadata": {
+    "args": {
+      "ablation_ids": "",
+      "ablations": true,
+      "benchmarks": "b1_forecast,b2_warning,b3_calibration,b4_stress,b5_decision,b6_robustness",
+      "continue_on_error": true,
+      "data_dir": "/workspace/graph-dexposure/data/",
+      "methods": "all",
+      "output": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030",
+      "seed": 42,
+      "test_split": "2025-01~2025-08"
+    },
+    "benchmark_applicability": {
+      "b1_forecast": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b2_warning": [
+        "h1_weighted_degree"
+      ],
+      "b3_calibration": [
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b4_stress": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b5_decision": [
+        "m1_persistence_rules",
+        "m5_fm_rules"
+      ],
+      "b6_robustness": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ]
+    },
+    "checkpoint_sha256": {
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h1.pt": "ddf6b33a07fb94886bf2adca219a75b899c8da2984afd344da1219eab22865f0",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h12.pt": "15271536fec92f1a32a5257461ea56b0e3a3937ac46cfba6ff7f8194ff90aaca",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h4.pt": "816c3d957045d3b0a5b3881e58419c0f91d7122ad5f77d5ae3b1eb0f47b155de",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h8.pt": "2ff2cd5c9c79809bca1a0178a4131fd8d43ee8afaf5fdc18880ad230be529256",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h1.pt": "d867e66834f54d48ae4ca3d042faf28e04712316b580587e8837121ef76c6e30",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h4.pt": "ce8ea6a0e9b6fd966233fc2b79a697e22bcf29c9b5bc89cd1d4398c709e70250",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h8-h12.pt": "a7773e85a66a8914822edd8e172f9e9b7bff2a076a94ca970dea630efb63b030",
+      "checkpoints/dexposure-fm-release/graphpfn-frozen-all-horizons.pt": "114183835be3de3689150fc2a21a3a941072500b1117db957cf02374dba6a14d",
+      "checkpoints/graphpfn-v1.ckpt": "5543a25b07b4be523490b7ef14adbb6c7a9ea763d93a4ef7a22584c0cee9a76d"
+    },
+    "ended_at": "2026-05-15T05:55:07+00:00",
+    "environment": {
+      "cuda_available": true,
+      "cuda_device_count": 1,
+      "cuda_devices": [
+        "NVIDIA GeForce RTX 4090"
+      ],
+      "dgl_backend": "pytorch",
+      "dgl_disable_graphbolt": "1",
+      "dgl_version": "2.1.0",
+      "platform": "Linux-6.5.0-41-generic-x86_64-with-glibc2.39",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "torch_version": "2.11.0+cu126"
+    },
+    "git_commit": "ae57046898cdd341d0f776422678a5d53c937c23",
+    "git_dirty": true,
+    "git_status_short": [
+      "?? DeXposure_Agent/checkpoints/"
+    ],
+    "log_file": "DeXposure_Agent/results/run_20260515_105030/experiment_20260515_034921.log",
+    "methods": {
+      "h1_weighted_degree": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "WeightedDegreeHeuristic",
+        "method_id": "h1_weighted_degree",
+        "notes": "Method-agnostic b2_warning early-warning heuristic.",
+        "policy": "heuristic",
+        "predictor": "current"
+      },
+      "m1_persistence_rules": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "Persistence+Rules",
+        "method_id": "m1_persistence_rules",
+        "notes": "",
+        "policy": "rules",
+        "predictor": "persistence"
+      },
+      "m2_snapshot_llm": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "CurrentSnapshot+LLM",
+        "method_id": "m2_snapshot_llm",
+        "notes": "",
+        "policy": "llm",
+        "predictor": "current"
+      },
+      "m3_evolvegcn": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "EvolveGCN",
+        "method_id": "m3_evolvegcn",
+        "notes": "Requires trained EvolveGCN checkpoints; fail closed if absent.",
+        "policy": "none",
+        "predictor": "evolvegcn"
+      },
+      "m4_fm_only": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FMOnly",
+        "method_id": "m4_fm_only",
+        "notes": "",
+        "policy": "none",
+        "predictor": "fm"
+      },
+      "m5_fm_rules": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+Rules",
+        "method_id": "m5_fm_rules",
+        "notes": "",
+        "policy": "rules",
+        "predictor": "fm"
+      },
+      "m6_fm_llm": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+LLM",
+        "method_id": "m6_fm_llm",
+        "notes": "",
+        "policy": "llm",
+        "predictor": "fm"
+      },
+      "m7_fm_llm_gated": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+LLM+RulesGate",
+        "method_id": "m7_fm_llm_gated",
+        "notes": "",
+        "policy": "llm_rules_gate",
+        "predictor": "fm"
+      }
+    },
+    "runner": "experiments/run_all.py",
+    "schema_version": 2,
+    "seeded_libraries": [
+      "python.random",
+      "numpy",
+      "torch"
+    ],
+    "started_at": "2026-05-15T03:49:21+00:00",
+    "total_wall_seconds": 7542.037
+  },
+  "results": {
+    "b1_forecast__h1_weighted_degree": {
+      "benchmark": "b1_forecast",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "reason": "h1_weighted_degree is not applicable to b1_forecast",
+      "status": "applicable_skip"
+    },
+    "b1_forecast__m1_persistence_rules": {
+      "benchmark": "b1_forecast",
+      "ended_at": "2026-05-15T03:51:27+00:00",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "results": [
+        {
+          "density_mae": 6.851139579790816e-06,
+          "gini_mae": 0.0026748814006950193,
+          "hhi_mae": 0.037558669308760936,
+          "horizon": 1,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 32,
+          "pagerank_mae": 3.610148358855295e-05,
+          "rank_correlation": 0.5555127419418926,
+          "trend_consistency": 0.0
+        },
+        {
+          "density_mae": 1.2357196538348944e-05,
+          "gini_mae": 0.0018282137403790952,
+          "hhi_mae": 0.03216092870170988,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 3.386260345729284e-05,
+          "rank_correlation": 0.5700787623009229,
+          "trend_consistency": 0.0
+        },
+        {
+          "density_mae": 2.289262392872479e-05,
+          "gini_mae": 0.0028019219814337725,
+          "hhi_mae": 0.03989727807959019,
+          "horizon": 8,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 25,
+          "pagerank_mae": 3.940164379358873e-05,
+          "rank_correlation": 0.5165972618036412,
+          "trend_consistency": 0.0
+        },
+        {
+          "density_mae": 3.0678266242923575e-05,
+          "gini_mae": 0.0026932668510502022,
+          "hhi_mae": 0.039346235759496376,
+          "horizon": 12,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 21,
+          "pagerank_mae": 3.684083116009657e-05,
+          "rank_correlation": 0.525112694394281,
+          "trend_consistency": 0.0
+        }
+      ],
+      "started_at": "2026-05-15T03:49:25+00:00",
+      "status": "ok",
+      "wall_seconds": 121.91
+    },
+    "b1_forecast__m3_evolvegcn": {
+      "benchmark": "b1_forecast",
+      "ended_at": "2026-05-15T03:53:52+00:00",
+      "error": "No historical-network_week_*.json files found in data",
+      "exception_type": "FileNotFoundError",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "started_at": "2026-05-15T03:51:27+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b1_risk_forecasting.py\", line 308, in run_b1\n    snap_pred = predict_graph(method_id, snap_t, h, config=kwargs.get(\"config\"))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 88, in predict_graph\n    return egcn.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/competitors/evolvegcn.py\", line 493, in predict\n    all_dates = self._loader.dates\n                ^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/data_loader.py\", line 287, in dates\n    self._load_raw_data()\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/data_loader.py\", line 246, in _load_raw_data\n    raise FileNotFoundError(\nFileNotFoundError: No historical-network_week_*.json files found in data\n",
+      "wall_seconds": 145.153
+    },
+    "b1_forecast__m4_fm_only": {
+      "benchmark": "b1_forecast",
+      "ended_at": "2026-05-15T03:55:51+00:00",
+      "error": "No module named 'ogb'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "started_at": "2026-05-15T03:53:52+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b1_risk_forecasting.py\", line 308, in run_b1\n    snap_pred = predict_graph(method_id, snap_t, h, config=kwargs.get(\"config\"))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 15, in <module>\n    from ogb.nodeproppred import DglNodePropPredDataset as OGBDataset\nModuleNotFoundError: No module named 'ogb'\n",
+      "wall_seconds": 119.043
+    },
+    "b1_forecast__m5_fm_rules": {
+      "benchmark": "b1_forecast",
+      "ended_at": "2026-05-15T03:58:08+00:00",
+      "error": "No module named 'ogb'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "started_at": "2026-05-15T03:55:51+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b1_risk_forecasting.py\", line 308, in run_b1\n    snap_pred = predict_graph(method_id, snap_t, h, config=kwargs.get(\"config\"))\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 15, in <module>\n    from ogb.nodeproppred import DglNodePropPredDataset as OGBDataset\nModuleNotFoundError: No module named 'ogb'\n",
+      "wall_seconds": 136.364
+    },
+    "b2_warning__h1_weighted_degree": {
+      "benchmark": "b2_warning",
+      "ended_at": "2026-05-15T03:58:56+00:00",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "results": [
+        {
+          "alert_budget": 5,
+          "alert_stability": 0.43999999999999995,
+          "f1_warning": 0.0036096739261220075,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 11,
+          "precision_at_budget": 0.6,
+          "recall_at_budget": 0.0018102824040550326,
+          "stress_event": "terra_luna"
+        },
+        {
+          "alert_budget": 10,
+          "alert_stability": 0.62,
+          "f1_warning": 0.006486820428336079,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 19,
+          "precision_at_budget": 0.7,
+          "recall_at_budget": 0.0032585083272990588,
+          "stress_event": "terra_luna"
+        },
+        {
+          "alert_budget": 20,
+          "alert_stability": 0.74,
+          "f1_warning": 0.015737632751884664,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 36,
+          "precision_at_budget": 0.65,
+          "recall_at_budget": 0.007965242577842143,
+          "stress_event": "terra_luna"
+        },
+        {
+          "alert_budget": 5,
+          "alert_stability": 0.64,
+          "f1_warning": 0.0026529890343119917,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 10,
+          "precision_at_budget": 0.6,
+          "recall_at_budget": 0.0013294336612603031,
+          "stress_event": "ftx"
+        },
+        {
+          "alert_budget": 10,
+          "alert_stability": 0.72,
+          "f1_warning": 0.004769655903395541,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 18,
+          "precision_at_budget": 0.7,
+          "recall_at_budget": 0.0023929805902685457,
+          "stress_event": "ftx"
+        },
+        {
+          "alert_budget": 20,
+          "alert_stability": 0.72,
+          "f1_warning": 0.009489348445999378,
+          "lead_time_weeks": 5.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 39,
+          "precision_at_budget": 0.55,
+          "recall_at_budget": 0.004785961180537091,
+          "stress_event": "ftx"
+        },
+        {
+          "alert_budget": 5,
+          "alert_stability": 0.55,
+          "f1_warning": 0.0036188178528347406,
+          "lead_time_weeks": 4.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 10,
+          "precision_at_budget": 1.0,
+          "recall_at_budget": 0.0018126888217522659,
+          "stress_event": "svb_usdc"
+        },
+        {
+          "alert_budget": 10,
+          "alert_stability": 0.75,
+          "f1_warning": 0.005623619200642699,
+          "lead_time_weeks": 4.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 15,
+          "precision_at_budget": 1.0,
+          "recall_at_budget": 0.0028197381671701913,
+          "stress_event": "svb_usdc"
+        },
+        {
+          "alert_budget": 20,
+          "alert_stability": 0.8125,
+          "f1_warning": 0.011215701982775887,
+          "lead_time_weeks": 4.0,
+          "method": "h1_weighted_degree",
+          "n_alerted_protocols": 30,
+          "precision_at_budget": 1.0,
+          "recall_at_budget": 0.005639476334340383,
+          "stress_event": "svb_usdc"
+        }
+      ],
+      "started_at": "2026-05-15T03:58:08+00:00",
+      "status": "ok",
+      "wall_seconds": 48.307
+    },
+    "b2_warning__m1_persistence_rules": {
+      "benchmark": "b2_warning",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "reason": "m1_persistence_rules is not applicable to b2_warning",
+      "status": "applicable_skip"
+    },
+    "b2_warning__m3_evolvegcn": {
+      "benchmark": "b2_warning",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "reason": "m3_evolvegcn is not applicable to b2_warning",
+      "status": "applicable_skip"
+    },
+    "b2_warning__m4_fm_only": {
+      "benchmark": "b2_warning",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "reason": "m4_fm_only is not applicable to b2_warning",
+      "status": "applicable_skip"
+    },
+    "b2_warning__m5_fm_rules": {
+      "benchmark": "b2_warning",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "reason": "m5_fm_rules is not applicable to b2_warning",
+      "status": "applicable_skip"
+    },
+    "b3_calibration__h1_weighted_degree": {
+      "benchmark": "b3_calibration",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "reason": "h1_weighted_degree is not applicable to b3_calibration",
+      "status": "applicable_skip"
+    },
+    "b3_calibration__m1_persistence_rules": {
+      "benchmark": "b3_calibration",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "reason": "m1_persistence_rules is not applicable to b3_calibration",
+      "status": "applicable_skip"
+    },
+    "b3_calibration__m3_evolvegcn": {
+      "benchmark": "b3_calibration",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "reason": "m3_evolvegcn is not applicable to b3_calibration",
+      "status": "applicable_skip"
+    },
+    "b3_calibration__m4_fm_only": {
+      "benchmark": "b3_calibration",
+      "ended_at": "2026-05-15T04:00:06+00:00",
+      "error": "No module named 'ogb'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "started_at": "2026-05-15T03:58:56+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b3_uncertainty_calibration.py\", line 359, in run_b3\n    conformal_margin = _conformal_calibrate(\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b3_uncertainty_calibration.py\", line 255, in _conformal_calibrate\n    pred_graph = predict_graph(method_id, snap_t, horizon=horizon)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 15, in <module>\n    from ogb.nodeproppred import DglNodePropPredDataset as OGBDataset\nModuleNotFoundError: No module named 'ogb'\n",
+      "wall_seconds": 69.696
+    },
+    "b3_calibration__m5_fm_rules": {
+      "benchmark": "b3_calibration",
+      "ended_at": "2026-05-15T04:01:11+00:00",
+      "error": "No module named 'ogb'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "started_at": "2026-05-15T04:00:06+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b3_uncertainty_calibration.py\", line 359, in run_b3\n    conformal_margin = _conformal_calibrate(\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b3_uncertainty_calibration.py\", line 255, in _conformal_calibrate\n    pred_graph = predict_graph(method_id, snap_t, horizon=horizon)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 15, in <module>\n    from ogb.nodeproppred import DglNodePropPredDataset as OGBDataset\nModuleNotFoundError: No module named 'ogb'\n",
+      "wall_seconds": 65.235
+    },
+    "b4_stress__h1_weighted_degree": {
+      "benchmark": "b4_stress",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "reason": "h1_weighted_degree is not applicable to b4_stress",
+      "status": "applicable_skip"
+    },
+    "b4_stress__m1_persistence_rules": {
+      "benchmark": "b4_stress",
+      "ended_at": "2026-05-15T04:02:21+00:00",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "results": [
+        {
+          "distressed_count_mae": 200.27586206896552,
+          "loss_mae": 0.06675763935730221,
+          "method": "m1_persistence_rules",
+          "n_simulations": 29,
+          "propagation_depth_mae": 0.896551724137931,
+          "scenario": "S1",
+          "target_overlap_at_k": 0.3143807783500321,
+          "top_k": 10
+        },
+        {
+          "distressed_count_mae": 27.275862068965516,
+          "loss_mae": 0.01504263820744287,
+          "method": "m1_persistence_rules",
+          "n_simulations": 29,
+          "propagation_depth_mae": 0.0,
+          "scenario": "S2",
+          "target_overlap_at_k": 0.5212660902316074,
+          "top_k": 10
+        },
+        {
+          "distressed_count_mae": 0.0,
+          "loss_mae": 0.007909234094802447,
+          "method": "m1_persistence_rules",
+          "n_simulations": 29,
+          "propagation_depth_mae": 0.0,
+          "scenario": "S3",
+          "target_overlap_at_k": 0.44451812555260833,
+          "top_k": 10
+        },
+        {
+          "distressed_count_mae": 0.0,
+          "loss_mae": 0.010025225709987675,
+          "method": "m1_persistence_rules",
+          "n_simulations": 29,
+          "propagation_depth_mae": 0.034482758620689655,
+          "scenario": "S4",
+          "target_overlap_at_k": 0.5358377254928979,
+          "top_k": 10
+        },
+        {
+          "distressed_count_mae": 0.0,
+          "loss_mae": 0.010014503181516168,
+          "method": "m1_persistence_rules",
+          "n_simulations": 29,
+          "propagation_depth_mae": 0.0,
+          "scenario": "S5",
+          "target_overlap_at_k": 0.6015019463295326,
+          "top_k": 10
+        }
+      ],
+      "started_at": "2026-05-15T04:01:11+00:00",
+      "status": "ok",
+      "wall_seconds": 69.874
+    },
+    "b4_stress__m3_evolvegcn": {
+      "benchmark": "b4_stress",
+      "ended_at": "2026-05-15T04:03:03+00:00",
+      "error": "No historical-network_week_*.json files found in data",
+      "exception_type": "FileNotFoundError",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "started_at": "2026-05-15T04:02:21+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b4_stress_test.py\", line 181, in run_b4\n    pred_graph = predict_graph(method_id, snap_t, horizon=horizon)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 88, in predict_graph\n    return egcn.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/competitors/evolvegcn.py\", line 493, in predict\n    all_dates = self._loader.dates\n                ^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/data_loader.py\", line 287, in dates\n    self._load_raw_data()\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/data_loader.py\", line 246, in _load_raw_data\n    raise FileNotFoundError(\nFileNotFoundError: No historical-network_week_*.json files found in data\n",
+      "wall_seconds": 42.739
+    },
+    "b4_stress__m4_fm_only": {
+      "benchmark": "b4_stress",
+      "ended_at": "2026-05-15T04:03:46+00:00",
+      "error": "No module named 'tomli_w'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "started_at": "2026-05-15T04:03:03+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b4_stress_test.py\", line 181, in run_b4\n    pred_graph = predict_graph(method_id, snap_t, horizon=horizon)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 23, in <module>\n    from lib.data import _SCORE_SHOULD_BE_MAXIMIZED\n  File \"/workspace/graph-dexposure/lib/data.py\", line 17, in <module>\n    from .metrics import calculate_metrics as calculate_metrics_\n  File \"/workspace/graph-dexposure/lib/metrics.py\", line 9, in <module>\n    from .util import PredictionType, TaskType\n  File \"/workspace/graph-dexposure/lib/util.py\", line 25, in <module>\n    import tomli_w\nModuleNotFoundError: No module named 'tomli_w'\n",
+      "wall_seconds": 42.807
+    },
+    "b4_stress__m5_fm_rules": {
+      "benchmark": "b4_stress",
+      "ended_at": "2026-05-15T04:04:24+00:00",
+      "error": "No module named 'tomli_w'",
+      "exception_type": "ModuleNotFoundError",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "started_at": "2026-05-15T04:03:46+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b4_stress_test.py\", line 181, in run_b4\n    pred_graph = predict_graph(method_id, snap_t, horizon=horizon)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 190, in predict\n    self._load_model(horizon)\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 117, in _load_model\n    from lib.graphpfn.model import GraphPFN\n  File \"/workspace/graph-dexposure/lib/graphpfn/__init__.py\", line 1, in <module>\n    from . import model, prior, util\n  File \"/workspace/graph-dexposure/lib/graphpfn/model.py\", line 12, in <module>\n    import lib.graph.deep\n  File \"/workspace/graph-dexposure/lib/graph/__init__.py\", line 1, in <module>\n    from . import data, deep, util\n  File \"/workspace/graph-dexposure/lib/graph/data.py\", line 23, in <module>\n    from lib.data import _SCORE_SHOULD_BE_MAXIMIZED\n  File \"/workspace/graph-dexposure/lib/data.py\", line 17, in <module>\n    from .metrics import calculate_metrics as calculate_metrics_\n  File \"/workspace/graph-dexposure/lib/metrics.py\", line 9, in <module>\n    from .util import PredictionType, TaskType\n  File \"/workspace/graph-dexposure/lib/util.py\", line 25, in <module>\n    import tomli_w\nModuleNotFoundError: No module named 'tomli_w'\n",
+      "wall_seconds": 37.35
+    },
+    "b5_decision__h1_weighted_degree": {
+      "benchmark": "b5_decision",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "reason": "h1_weighted_degree is not applicable to b5_decision",
+      "status": "applicable_skip"
+    },
+    "b5_decision__m1_persistence_rules": {
+      "benchmark": "b5_decision",
+      "ended_at": "2026-05-15T04:27:12+00:00",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "results": [
+        {
+          "audit_completeness": 0.00019141192042891494,
+          "false_intervention_rate": 0.0,
+          "method": "m1_persistence_rules",
+          "n_weeks_evaluated": 29,
+          "risk_reduction": 0.09116506992977855,
+          "suppression_rate": 0.0,
+          "target_stability": 0.5138888888888888,
+          "ticket_precision": 0.66
+        }
+      ],
+      "started_at": "2026-05-15T04:04:24+00:00",
+      "status": "ok",
+      "wall_seconds": 1368.031
+    },
+    "b5_decision__m3_evolvegcn": {
+      "benchmark": "b5_decision",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "reason": "m3_evolvegcn is not applicable to b5_decision",
+      "status": "applicable_skip"
+    },
+    "b5_decision__m4_fm_only": {
+      "benchmark": "b5_decision",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "reason": "m4_fm_only is not applicable to b5_decision",
+      "status": "applicable_skip"
+    },
+    "b5_decision__m5_fm_rules": {
+      "benchmark": "b5_decision",
+      "ended_at": "2026-05-15T04:30:40+00:00",
+      "error": "[04:30:40] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n",
+      "exception_type": "DGLError",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "started_at": "2026-05-15T04:27:12+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b5_decision_quality.py\", line 235, in run_b5\n    pred_graph = predict_graph(method_id, snap_t, horizon=STRESS_LOOKAHEAD)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 225, in predict\n    h = self._encode(encoder, g, features)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 385, in _encode\n    graph = graph.to(device)\n            ^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph.py\", line 5714, in to\n    ret._graph = self._graph.copy_to(utils.to_dgl_context(device))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph_index.py\", line 255, in copy_to\n    return _CAPI_DGLHeteroCopyTo(self, ctx.device_type, ctx.device_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"dgl/_ffi/_cython/./function.pxi\", line 295, in dgl._ffi._cy3.core.FunctionBase.__call__\n  File \"dgl/_ffi/_cython/./function.pxi\", line 227, in dgl._ffi._cy3.core.FuncCall\n  File \"dgl/_ffi/_cython/./function.pxi\", line 217, in dgl._ffi._cy3.core.FuncCall3\ndgl._ffi.base.DGLError: [04:30:40] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n\n",
+      "wall_seconds": 208.587
+    },
+    "b6_robustness__h1_weighted_degree": {
+      "benchmark": "b6_robustness",
+      "method": "h1_weighted_degree",
+      "method_label": "WeightedDegreeHeuristic",
+      "reason": "h1_weighted_degree is not applicable to b6_robustness",
+      "status": "applicable_skip"
+    },
+    "b6_robustness__m1_persistence_rules": {
+      "benchmark": "b6_robustness",
+      "ended_at": "2026-05-15T04:34:42+00:00",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "results": [
+        {
+          "density_mae": 9.260384903102801e-06,
+          "gini_mae": 0.002300350269689111,
+          "hhi_mae": 0.05905943954445543,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 2,
+          "pagerank_mae": 0.01593791854465708,
+          "rank_correlation": 0.552028163664238,
+          "regime": "low_data_10pct",
+          "relative_degradation": 0.7663225805358576,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 2.2046003558060705e-05,
+          "gini_mae": 0.0020292657525672014,
+          "hhi_mae": 0.028172130663765147,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 7,
+          "pagerank_mae": 0.009463434868827203,
+          "rank_correlation": 0.5771339990910354,
+          "regime": "low_data_25pct",
+          "relative_degradation": -0.09322757514372232,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 0.0001739991693698193,
+          "gini_mae": 0.0019251685414591688,
+          "hhi_mae": 0.03502718099171267,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.009628468070798512,
+          "rank_correlation": 0.5537551147508742,
+          "regime": "partial_graph_30",
+          "relative_degradation": 0.06826189097334644,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 1.2357196538348944e-05,
+          "gini_mae": 0.0018282137403790952,
+          "hhi_mae": 0.03216092870170988,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.009765686262518634,
+          "rank_correlation": 0.5835860851818031,
+          "regime": "noisy_features_01",
+          "relative_degradation": 0.0,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 1.2357196538348944e-05,
+          "gini_mae": 0.0018282137403790952,
+          "hhi_mae": 0.03216092870170988,
+          "horizon": 4,
+          "method": "m1_persistence_rules",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.009765686262518634,
+          "rank_correlation": 0.5835860851818031,
+          "regime": "missing_features_20",
+          "relative_degradation": 0.0,
+          "trend_consistency": "nan"
+        }
+      ],
+      "started_at": "2026-05-15T04:30:40+00:00",
+      "status": "ok",
+      "wall_seconds": 241.851
+    },
+    "b6_robustness__m3_evolvegcn": {
+      "benchmark": "b6_robustness",
+      "ended_at": "2026-05-15T05:46:43+00:00",
+      "method": "m3_evolvegcn",
+      "method_label": "EvolveGCN",
+      "results": [
+        {
+          "density_mae": 2.6955930486287035e-05,
+          "gini_mae": 0.13014908294814137,
+          "hhi_mae": 0.09990252512815508,
+          "horizon": 4,
+          "method": "m3_evolvegcn",
+          "n_test_snapshots": 2,
+          "pagerank_mae": 0.015228336939301758,
+          "rank_correlation": 0.5346100868616765,
+          "regime": "low_data_10pct",
+          "relative_degradation": 0.27628054847982736,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 3.6020932954642344e-05,
+          "gini_mae": 0.12809421945405744,
+          "hhi_mae": 0.04857936408372902,
+          "horizon": 4,
+          "method": "m3_evolvegcn",
+          "n_test_snapshots": 7,
+          "pagerank_mae": 0.010223074495002848,
+          "rank_correlation": 0.5575232850461901,
+          "regime": "low_data_25pct",
+          "relative_degradation": -0.02742833112697518,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 0.00019033341982548533,
+          "gini_mae": 0.12359243258535278,
+          "hhi_mae": 0.048845310251572835,
+          "horizon": 4,
+          "method": "m3_evolvegcn",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.010357170799729264,
+          "rank_correlation": 0.536754418551393,
+          "regime": "partial_graph_30",
+          "relative_degradation": -0.047965994530700606,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 3.325736498080786e-05,
+          "gini_mae": 0.13263715570741166,
+          "hhi_mae": 0.04885831054951647,
+          "horizon": 4,
+          "method": "m3_evolvegcn",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.010675805807430076,
+          "rank_correlation": 0.5630942979203082,
+          "regime": "noisy_features_01",
+          "relative_degradation": 5.276245558342733e-09,
+          "trend_consistency": "nan"
+        },
+        {
+          "density_mae": 3.325736498080786e-05,
+          "gini_mae": 0.13263715477875565,
+          "hhi_mae": 0.04885831016572661,
+          "horizon": 4,
+          "method": "m3_evolvegcn",
+          "n_test_snapshots": 29,
+          "pagerank_mae": 0.010675805807430076,
+          "rank_correlation": 0.5630942979203082,
+          "regime": "missing_features_20",
+          "relative_degradation": -1.552136088143235e-09,
+          "trend_consistency": "nan"
+        }
+      ],
+      "started_at": "2026-05-15T04:34:42+00:00",
+      "status": "ok",
+      "wall_seconds": 4320.584
+    },
+    "b6_robustness__m4_fm_only": {
+      "benchmark": "b6_robustness",
+      "ended_at": "2026-05-15T05:49:13+00:00",
+      "error": "[05:49:03] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n",
+      "exception_type": "DGLError",
+      "method": "m4_fm_only",
+      "method_label": "FMOnly",
+      "started_at": "2026-05-15T05:46:43+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b6_robustness.py\", line 389, in run_b6\n    clean_pred.append(predict_graph(method_id, snap_t, horizon=horizon))\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 225, in predict\n    h = self._encode(encoder, g, features)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 385, in _encode\n    graph = graph.to(device)\n            ^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph.py\", line 5714, in to\n    ret._graph = self._graph.copy_to(utils.to_dgl_context(device))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph_index.py\", line 255, in copy_to\n    return _CAPI_DGLHeteroCopyTo(self, ctx.device_type, ctx.device_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"dgl/_ffi/_cython/./function.pxi\", line 295, in dgl._ffi._cy3.core.FunctionBase.__call__\n  File \"dgl/_ffi/_cython/./function.pxi\", line 227, in dgl._ffi._cy3.core.FuncCall\n  File \"dgl/_ffi/_cython/./function.pxi\", line 217, in dgl._ffi._cy3.core.FuncCall3\ndgl._ffi.base.DGLError: [05:49:03] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n\n",
+      "wall_seconds": 149.859
+    },
+    "b6_robustness__m5_fm_rules": {
+      "benchmark": "b6_robustness",
+      "ended_at": "2026-05-15T05:51:30+00:00",
+      "error": "[05:51:21] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n",
+      "exception_type": "DGLError",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "started_at": "2026-05-15T05:49:13+00:00",
+      "status": "runtime_error",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/run_all.py\", line 409, in _run_benchmark\n    results = func(\n              ^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/b6_robustness.py\", line 389, in run_b6\n    clean_pred.append(predict_graph(method_id, snap_t, horizon=horizon))\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/experiments/predict_helper.py\", line 80, in predict_graph\n    return fm.predict(current_snapshot, horizon)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 225, in predict\n    h = self._encode(encoder, g, features)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/fm_predictor.py\", line 385, in _encode\n    graph = graph.to(device)\n            ^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph.py\", line 5714, in to\n    ret._graph = self._graph.copy_to(utils.to_dgl_context(device))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/venv/main/lib/python3.12/site-packages/dgl/heterograph_index.py\", line 255, in copy_to\n    return _CAPI_DGLHeteroCopyTo(self, ctx.device_type, ctx.device_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"dgl/_ffi/_cython/./function.pxi\", line 295, in dgl._ffi._cy3.core.FunctionBase.__call__\n  File \"dgl/_ffi/_cython/./function.pxi\", line 227, in dgl._ffi._cy3.core.FuncCall\n  File \"dgl/_ffi/_cython/./function.pxi\", line 217, in dgl._ffi._cy3.core.FuncCall3\ndgl._ffi.base.DGLError: [05:51:21] /opt/dgl/src/runtime/c_runtime_api.cc:82: Check failed: allow_missing: Device API cuda is not enabled. Please install the cuda version of dgl.\nStack trace:\n  [bt] (0) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x67) [0x74e1831621b7]\n  [bt] (1) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPIManager::GetAPI(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool)+0x2a5) [0x74e1835bae85]\n  [bt] (2) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::DeviceAPI::Get(DGLContext, bool)+0x1ea) [0x74e1835b789a]\n  [bt] (3) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::Empty(std::vector<long, std::allocator<long> >, DGLDataType, DGLContext)+0x130) [0x74e1835d0e60]\n  [bt] (4) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::runtime::NDArray::CopyTo(DGLContext const&) const+0xb5) [0x74e183605c45]\n  [bt] (5) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::UnitGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0x1e7) [0x74e1836f7e27]\n  [bt] (6) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(dgl::HeteroGraph::CopyTo(std::shared_ptr<dgl::BaseHeteroGraph>, DGLContext const&)+0xfa) [0x74e183611a0a]\n  [bt] (7) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(+0x6226d6) [0x74e1836226d6]\n  [bt] (8) /venv/main/lib/python3.12/site-packages/dgl/libdgl.so(DGLFuncCall+0x4c) [0x74e1835b9e2c]\n\n\n",
+      "wall_seconds": 137.427
+    }
+  },
+  "summary": {
+    "counts": {
+      "applicable_skip": 13,
+      "ok": 6,
+      "runtime_error": 11
+    },
+    "n_executed": 17,
+    "n_ok": 6,
+    "n_total_records": 30
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "benchmark": "b6_robustness",
+  "method": "m3_evolvegcn",
+  "timestamp": "2026-05-15T05:46:34.184060",
+  "elapsed_seconds": 4311.55,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030/b6_robustness__m3_evolvegcn__20260515_043442.log",
+  "results": [
+    {
+      "method": "m3_evolvegcn",
+      "regime": "low_data_10pct",
+      "horizon": 4,
+      "pagerank_mae": 0.015228336939301758,
+      "hhi_mae": 0.09990252512815508,
+      "density_mae": 2.6955930486287035e-05,
+      "gini_mae": 0.13014908294814137,
+      "rank_correlation": 0.5346100868616765,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.27628054847982736,
+      "n_test_snapshots": 2
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "low_data_25pct",
+      "horizon": 4,
+      "pagerank_mae": 0.010223074495002848,
+      "hhi_mae": 0.04857936408372902,
+      "density_mae": 3.6020932954642344e-05,
+      "gini_mae": 0.12809421945405744,
+      "rank_correlation": 0.5575232850461901,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.02742833112697518,
+      "n_test_snapshots": 7
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "partial_graph_30",
+      "horizon": 4,
+      "pagerank_mae": 0.010357170799729264,
+      "hhi_mae": 0.048845310251572835,
+      "density_mae": 0.00019033341982548533,
+      "gini_mae": 0.12359243258535278,
+      "rank_correlation": 0.536754418551393,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.047965994530700606,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "noisy_features_01",
+      "horizon": 4,
+      "pagerank_mae": 0.010675805807430076,
+      "hhi_mae": 0.04885831054951647,
+      "density_mae": 3.325736498080786e-05,
+      "gini_mae": 0.13263715570741166,
+      "rank_correlation": 0.5630942979203082,
+      "trend_consistency": NaN,
+      "relative_degradation": 5.276245558342733e-09,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "missing_features_20",
+      "horizon": 4,
+      "pagerank_mae": 0.010675805807430076,
+      "hhi_mae": 0.04885831016572661,
+      "density_mae": 3.325736498080786e-05,
+      "gini_mae": 0.13263715477875565,
+      "rank_correlation": 0.5630942979203082,
+      "trend_consistency": NaN,
+      "relative_degradation": -1.552136088143235e-09,
+      "n_test_snapshots": 29
+    }
+  ]
+}

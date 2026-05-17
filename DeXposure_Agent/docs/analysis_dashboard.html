@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DeXposure · 双贡献叙事简报</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&family=Noto+Serif+SC:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#faf6ec; --paper-2:#f3eedf;
+  --rule:#e0d9c4; --rule-2:#c9c0a6;
+  --ink:#1a1a1a; --ink-2:#2a2a2a;
+  --mute:#666056; --dim:#8e8878;
+  --red:#c8102e; --red-deep:#9a0c23;
+  --blue:#2e5077; --green:#4a7c3e;
+  --highlight:#fff4d1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  background:var(--paper); color:var(--ink);
+  font-family:'Source Serif 4','Noto Serif SC',Georgia,serif;
+  font-size:16px; line-height:1.65;
+  font-feature-settings:'kern','liga','onum';
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.serif{font-family:'Source Serif 4','Noto Serif SC',Georgia,serif}
+.sans{font-family:'Source Sans 3',-apple-system,sans-serif}
+.mono{font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums}
+em,i{font-style:italic}
+.red{color:var(--red)} .blue{color:var(--blue)} .green{color:var(--green)}
+.mute{color:var(--mute)} .dim{color:var(--dim)}
+
+.shell{max-width:1180px; margin:0 auto; padding:48px 56px 96px}
+@media (max-width:860px){.shell{padding:28px 22px 64px}}
+
+/* ===== masthead ===== */
+.masthead{
+  border-top:5px solid var(--red); border-bottom:1px solid var(--rule);
+  padding:18px 0 14px;
+  display:flex; align-items:baseline; justify-content:space-between; gap:24px;
+  margin-bottom:56px;
+}
+.masthead .name{font-family:'Source Serif 4',serif; font-weight:700; font-style:italic; font-size:24px; letter-spacing:-.01em}
+.masthead .name .pipe{color:var(--rule-2); margin:0 12px; font-weight:300}
+.masthead .name .label{font-style:normal; font-weight:400; color:var(--ink-2); font-size:20px}
+.masthead .right{font-family:'Source Sans 3',sans-serif; font-size:12px; color:var(--mute); letter-spacing:.04em; text-align:right; line-height:1.6}
+.masthead .right b{color:var(--ink); font-weight:600}
+
+.kicker{
+  font-family:'Source Sans 3',sans-serif;
+  font-size:11.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--red); margin-bottom:14px;
+  display:inline-flex; align-items:center; gap:10px;
+}
+.kicker::before{content:''; width:24px; height:2px; background:var(--red)}
+
+/* ===== hero ===== */
+.hero{margin-bottom:88px; max-width:960px}
+.hero h2{
+  font-family:'Source Serif 4','Noto Serif SC',serif;
+  font-weight:700; font-size:clamp(34px, 5vw, 56px);
+  line-height:1.12; letter-spacing:-.01em; color:var(--ink); margin-bottom:18px;
+}
+.hero h2 em{font-style:italic; color:var(--red); font-weight:700}
+.hero .deck{
+  font-family:'Source Serif 4','Noto Serif SC',serif;
+  font-size:20px; font-style:italic; font-weight:400;
+  color:var(--ink-2); line-height:1.5; max-width:820px;
+  border-bottom:1px solid var(--rule); padding-bottom:24px;
+}
+.hero .lede{margin-top:28px; font-size:16.5px; line-height:1.75; color:var(--ink-2); max-width:720px}
+.hero .lede::first-letter{
+  font-family:'Source Serif 4',serif; font-weight:700; float:left;
+  font-size:62px; line-height:.85; padding:8px 10px 0 0; color:var(--red);
+}
+
+.layout{display:grid; grid-template-columns:180px 1fr; gap:64px; align-items:start}
+@media (max-width:1080px){.layout{grid-template-columns:1fr}}
+.toc{
+  position:sticky; top:24px;
+  font-family:'Source Sans 3',sans-serif; font-size:12px; color:var(--mute);
+  padding:14px 0 14px 14px; border-left:1px solid var(--rule);
+}
+.toc .h{font-size:10.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--red); margin-bottom:14px}
+.toc a{display:block; color:var(--ink-2); padding:5px 0; text-decoration:none; line-height:1.4}
+.toc a:hover{color:var(--red)}
+.toc a small{display:block; color:var(--dim); font-size:10.5px; margin-top:1px}
+@media (max-width:1080px){.toc{display:none}}
+
+section{margin-bottom:96px; scroll-margin-top:24px}
+section h3.head{
+  font-family:'Source Serif 4','Noto Serif SC',serif;
+  font-weight:700; font-size:32px; line-height:1.2; letter-spacing:-.005em;
+  margin-bottom:8px; color:var(--ink);
+}
+section h3.head em{font-style:italic; font-weight:600; color:var(--red)}
+section .standfirst{
+  font-family:'Source Serif 4','Noto Serif SC',serif;
+  font-style:italic; font-size:17px; color:var(--ink-2); line-height:1.55;
+  max-width:760px; margin-bottom:36px;
+}
+section .standfirst::after{content:''; display:block; width:48px; height:2px; background:var(--red); margin-top:16px}
+
+/* ===== two equal contributions ===== */
+.dual{
+  display:grid; grid-template-columns:1fr 1fr; gap:0;
+  border-top:1px solid var(--ink); border-bottom:1px solid var(--ink);
+}
+@media (max-width:880px){.dual{grid-template-columns:1fr}}
+.contrib{padding:36px 36px 32px; border-right:1px solid var(--rule); display:flex; flex-direction:column}
+.contrib:last-child{border-right:none}
+@media (max-width:880px){.contrib{border-right:none; border-bottom:1px solid var(--rule)} .contrib:last-child{border-bottom:none}}
+.contrib .roman{
+  font-family:'Source Serif 4',serif; font-style:italic; font-weight:400;
+  font-size:14px; color:var(--red); letter-spacing:.1em; margin-bottom:8px;
+}
+.contrib .name{
+  font-family:'Source Serif 4',serif; font-weight:700; font-style:italic;
+  font-size:30px; line-height:1.1; color:var(--ink); margin-bottom:8px;
+  letter-spacing:-.01em;
+}
+.contrib .name b{font-style:normal; color:var(--red)}
+.contrib .subtitle{font-family:'Source Sans 3',sans-serif; font-size:12.5px; letter-spacing:.06em; color:var(--mute); margin-bottom:20px; text-transform:uppercase; font-weight:600}
+.contrib .body{font-size:15.5px; line-height:1.7; color:var(--ink-2); margin-bottom:22px}
+.contrib .body b{color:var(--ink); font-weight:600}
+.contrib .facts{margin-top:auto; padding-top:18px; border-top:1px dashed var(--rule); font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.8; color:var(--mute)}
+.contrib .facts div{display:flex; justify-content:space-between; gap:12px}
+.contrib .facts b{color:var(--ink); font-weight:500}
+
+/* DeXposure-Bench taxonomy */
+.bench-tax{display:grid; grid-template-columns:repeat(6,1fr); gap:0; border-top:1px solid var(--ink); border-bottom:1px solid var(--ink); margin-bottom:32px}
+@media (max-width:880px){.bench-tax{grid-template-columns:repeat(2,1fr)}}
+.bench-tax > div{padding:20px 16px 18px; border-right:1px solid var(--rule)}
+.bench-tax > div:last-child{border-right:none}
+@media (max-width:880px){.bench-tax > div{border-right:1px solid var(--rule); border-bottom:1px solid var(--rule)}}
+.bench-tax .bid{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--red); font-weight:600; letter-spacing:.04em; margin-bottom:6px}
+.bench-tax .bname{font-family:'Source Serif 4','Noto Serif SC',serif; font-weight:700; font-size:14.5px; line-height:1.3; margin-bottom:8px}
+.bench-tax .btests{font-family:'Source Sans 3',sans-serif; font-size:11.5px; color:var(--mute); line-height:1.5; font-style:italic}
+
+.datacard{
+  display:grid; grid-template-columns:1.3fr 1fr; gap:32px; align-items:start;
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+  padding:28px 0;
+}
+@media (max-width:880px){.datacard{grid-template-columns:1fr}}
+.datacard .desc h5{font-family:'Source Serif 4','Noto Serif SC',serif; font-style:italic; font-weight:600; font-size:18px; margin-bottom:10px}
+.datacard .desc p{font-size:14.5px; line-height:1.65; color:var(--ink-2); margin-bottom:10px}
+.datacard .stats{font-family:'JetBrains Mono',monospace; font-size:12.5px}
+.datacard .stats dl{display:grid; grid-template-columns:auto 1fr; gap:8px 16px; align-items:baseline}
+.datacard .stats dt{color:var(--mute); white-space:nowrap; font-size:11px; letter-spacing:.05em; text-transform:uppercase}
+.datacard .stats dd{color:var(--ink); font-weight:500; text-align:right}
+.datacard .stats dd small{color:var(--mute); font-weight:400; margin-left:6px}
+
+/* leaderboard table */
+.lboard{
+  border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
+  width:100%; border-collapse:collapse;
+  font-family:'Source Sans 3',sans-serif; font-size:14px;
+}
+.lboard thead th{
+  font-weight:700; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--mute); padding:12px 10px; text-align:right; border-bottom:1px solid var(--rule);
+}
+.lboard thead th:first-child{text-align:left}
+.lboard tbody td{padding:14px 10px; text-align:right; color:var(--ink-2); font-family:'JetBrains Mono',monospace; font-size:13.5px; border-bottom:1px solid var(--rule)}
+.lboard tbody td:first-child{text-align:left; font-family:'Source Serif 4',serif; font-size:15px; color:var(--ink); font-style:italic}
+.lboard tbody tr.win{background:var(--highlight)}
+.lboard tbody tr.win td{color:var(--ink); font-weight:500}
+.lboard tbody tr.win td:first-child{color:var(--red); font-style:italic; font-weight:600}
+.lboard tbody tr:last-child td{border-bottom:none}
+.lboard .best{color:var(--red); font-weight:600}
+.lboard .arrow{color:var(--red); font-family:Georgia,serif; margin-left:4px; font-size:11px}
+.tbl-caption{font-family:'Source Sans 3',sans-serif; font-size:12px; color:var(--mute); margin-top:10px; line-height:1.6; font-style:italic}
+.tbl-caption b{font-style:normal; color:var(--ink); font-weight:600}
+
+/* ablation strip — shows how each layer adds value */
+.strip{display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-bottom:24px}
+@media (max-width:760px){.strip{grid-template-columns:1fr}}
+.strip > div{
+  border:1px solid var(--rule); border-right:none; padding:18px 22px;
+  display:flex; flex-direction:column;
+}
+.strip > div:last-child{border-right:1px solid var(--rule)}
+@media (max-width:760px){.strip > div{border-right:1px solid var(--rule); border-bottom:none} .strip > div:last-child{border-bottom:1px solid var(--rule)}}
+.strip .head{font-family:'Source Sans 3',sans-serif; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin-bottom:8px}
+.strip .delta{font-family:'Source Serif 4',serif; font-weight:700; font-size:34px; line-height:1; color:var(--red); margin-bottom:4px; letter-spacing:-.02em}
+.strip .delta small{font-size:14px; color:var(--mute); font-weight:400; margin-left:6px; font-style:italic}
+.strip .lbl{font-family:'Source Serif 4','Noto Serif SC',serif; font-size:13px; color:var(--ink-2); font-style:italic; line-height:1.5}
+
+/* bench cards (5 supporting benchmarks) */
+.bgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:32px 28px}
+@media (max-width:980px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:660px){.bgrid{grid-template-columns:1fr}}
+.bench{border-top:1px solid var(--ink); padding-top:14px}
+.bench .ttl{font-family:'Source Sans 3',sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--mute); margin-bottom:6px}
+.bench h4{font-family:'Source Serif 4','Noto Serif SC',serif; font-weight:700; font-size:20px; line-height:1.25; margin-bottom:12px}
+.bench h4 em{font-style:italic; color:var(--red); font-weight:600}
+.bench .insight{font-size:14.5px; line-height:1.6; color:var(--ink-2); margin-bottom:16px}
+.bench .insight b{color:var(--ink); font-weight:600}
+.bench .nums{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-2)}
+.bench .nums dl{display:grid; grid-template-columns:auto 1fr auto; gap:6px 12px; align-items:center}
+.bench .nums dt{color:var(--mute); white-space:nowrap}
+.bench .nums dd{color:var(--ink); text-align:right; font-weight:500}
+.bench .nums .barwrap{height:6px; background:var(--rule); position:relative}
+.bench .nums .barwrap i{position:absolute; left:0; top:0; bottom:0; background:var(--red); display:block}
+.bench .nums .barwrap i.blue{background:var(--blue)}
+.bench .nums .barwrap i.mute{background:var(--mute)}
+
+/* tradeoff plot */
+.plot-wrap{border-top:1px solid var(--ink); border-bottom:1px solid var(--rule); padding:24px 0 12px}
+.plot{
+  position:relative; aspect-ratio:1.8/1; max-width:780px; margin:0 auto;
+  background:
+    linear-gradient(transparent 0, transparent calc(25% - .5px), rgba(0,0,0,.06) 25%, transparent calc(25% + .5px)),
+    linear-gradient(transparent 0, transparent calc(50% - .5px), rgba(0,0,0,.06) 50%, transparent calc(50% + .5px)),
+    linear-gradient(transparent 0, transparent calc(75% - .5px), rgba(0,0,0,.06) 75%, transparent calc(75% + .5px)),
+    linear-gradient(90deg, transparent 0, transparent calc(25% - .5px), rgba(0,0,0,.06) 25%, transparent calc(25% + .5px)),
+    linear-gradient(90deg, transparent 0, transparent calc(50% - .5px), rgba(0,0,0,.06) 50%, transparent calc(50% + .5px)),
+    linear-gradient(90deg, transparent 0, transparent calc(75% - .5px), rgba(0,0,0,.06) 75%, transparent calc(75% + .5px));
+  border:1px solid var(--rule-2);
+}
+.plot .ax-x{position:absolute; left:50%; transform:translateX(-50%); bottom:-26px; font-family:'Source Sans 3',sans-serif; font-size:11px; color:var(--mute); letter-spacing:.05em}
+.plot .ax-y{position:absolute; top:50%; left:-44px; transform:translateY(-50%) rotate(-90deg); font-family:'Source Sans 3',sans-serif; font-size:11px; color:var(--mute); letter-spacing:.05em; white-space:nowrap}
+.plot .pt{position:absolute; width:11px; height:11px; transform:translate(-50%,-50%); border-radius:50%; background:var(--blue); border:2px solid var(--paper); box-shadow:0 0 0 1px var(--blue)}
+.plot .pt.red{background:var(--red); box-shadow:0 0 0 1px var(--red)}
+.plot .pt.win{width:15px; height:15px; box-shadow:0 0 0 2px var(--red), 0 0 16px rgba(200,16,46,.35)}
+.plot .lbl{position:absolute; font-family:'Source Serif 4',serif; font-style:italic; font-size:12px; color:var(--ink); transform:translate(10px,-50%); white-space:nowrap}
+.plot .lbl small{font-family:'Source Sans 3',sans-serif; font-style:normal; color:var(--mute); margin-left:4px; font-size:10.5px}
+.plot-legend{display:flex; gap:24px; font-family:'Source Sans 3',sans-serif; font-size:12px; color:var(--mute); margin-top:36px; justify-content:center}
+.plot-legend span{display:inline-flex; align-items:center; gap:6px}
+.plot-legend i{display:inline-block; width:9px; height:9px; border-radius:50%}
+.plot-legend i.r{background:var(--red)} .plot-legend i.b{background:var(--blue)}
+
+/* limits */
+.limits{display:grid; grid-template-columns:repeat(3,1fr); gap:36px}
+@media (max-width:860px){.limits{grid-template-columns:1fr}}
+.lim{padding-left:18px; border-left:3px solid var(--red); padding-top:4px}
+.lim .ttl{font-family:'Source Sans 3',sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--red); margin-bottom:8px}
+.lim h5{font-family:'Source Serif 4','Noto Serif SC',serif; font-weight:700; font-size:19px; line-height:1.25; margin-bottom:10px; color:var(--ink)}
+.lim p{font-size:14.5px; line-height:1.65; color:var(--ink-2)}
+.lim code{font-family:'JetBrains Mono',monospace; font-size:12.5px; background:var(--paper-2); padding:1px 5px; color:var(--red-deep); border-radius:2px}
+
+/* outline */
+.outline ol{list-style:none; counter-reset:s; border-top:1px solid var(--rule)}
+.outline li{
+  counter-increment:s; padding:22px 0 24px; border-bottom:1px solid var(--rule);
+  display:grid; grid-template-columns:64px 1fr; gap:28px; align-items:start;
+}
+.outline li::before{
+  content:'§' counter(s, decimal-leading-zero);
+  font-family:'Source Serif 4',serif; font-style:italic; font-size:22px; color:var(--red); line-height:1.15; padding-top:1px;
+}
+.outline li h5{font-family:'Source Serif 4','Noto Serif SC',serif; font-weight:700; font-size:19px; line-height:1.3; margin-bottom:8px}
+.outline li h5 em{font-style:italic; color:var(--red)}
+.outline li p{font-size:14.5px; line-height:1.65; color:var(--ink-2); margin-bottom:8px}
+.outline li .ev{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--mute); padding:6px 10px; background:var(--paper-2); display:inline-block; border-left:2px solid var(--rule-2)}
+
+footer{
+  margin-top:96px; border-top:5px solid var(--red); padding-top:16px;
+  font-family:'Source Sans 3',sans-serif; font-size:11.5px; color:var(--mute);
+  display:flex; justify-content:space-between; align-items:baseline;
+}
+footer b{color:var(--ink); font-weight:600}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header class="masthead">
+  <div class="name">
+    <i>DeXposure</i>
+    <span class="pipe">|</span>
+    <span class="label">双贡献叙事简报</span>
+  </div>
+  <div class="right">
+    <div><b>2026 年 5 月 16 日</b>　TKDE 投稿准备</div>
+    <div>1 框架 · 1 基准套件 · 9 method · LLM 评估 $8.10</div>
+  </div>
+</header>
+
+<!-- ========= HERO ========= -->
+<section class="hero">
+  <div class="kicker">论文论点</div>
+  <h2 class="serif">把 FM 预测<em>翻译为监管决策</em>需要架构，<br>整个领域<em>需要一个基准</em></h2>
+  <p class="deck">
+    本文提出 <em>DeXposure-Framework</em>——一个把 FM 预测的 DeFi 曝光图
+    转译为监管行动票据的四层查询架构；以及 <em>DeXposure-Bench</em>——首个面向
+    FM+LLM 决策流水线、采用监管对齐真值的标准化评估套件。
+  </p>
+  <p class="lede">
+    架构与基准互为孪生贡献。前者回答"该如何把图预测变成可执行的监管动作"，
+    后者回答"这种流水线该如何被衡量、如何被复现、如何被社区跨方法比较"。
+    在 b5_decision 决策质量基准上，完整 FM + LLM 栈实现 F1 = 0.0241，
+    较纯持久化基线提升 3.2 倍，且其每一层（FM 信号、LLM 判断、安全门控）
+    都有独立可测的边际贡献。
+  </p>
+</section>
+
+<div class="layout">
+
+<aside class="toc">
+  <div class="h">目录</div>
+  <a href="#hero">论点<small>双贡献</small></a>
+  <a href="#dual">两项贡献<small>Framework × Bench</small></a>
+  <a href="#bench">DeXposure-Bench<small>套件结构与数据卡</small></a>
+  <a href="#leader">决策质量排行榜<small>b5 中心表</small></a>
+  <a href="#ablation">分层 ablation<small>每一层的边际值</small></a>
+  <a href="#benches">支撑基准<small>b1/b2/b3/b4/b6</small></a>
+  <a href="#tradeoff">精度&mdash;召回权衡<small>Pareto</small></a>
+  <a href="#limits">主动披露<small>§7</small></a>
+  <a href="#outline">§6 写作大纲</a>
+</aside>
+
+<main>
+
+<!-- ========= DUAL CONTRIBUTION ========= -->
+<section id="dual">
+  <div class="kicker">两项贡献</div>
+  <h3 class="head serif">系统与基准，<em>两条腿走路</em></h3>
+  <p class="standfirst">
+    它们不是从属关系，而是互为前提：架构在基准下被衡量，基准因架构而被定义。
+    任何接受 FM+LLM 范式的领域系统，都可以 fork 这套基准做自我评估。
+  </p>
+
+  <div class="dual">
+    <div class="contrib">
+      <div class="roman">Contribution I</div>
+      <div class="name"><b>DeXposure-</b>Framework</div>
+      <div class="subtitle">A four-layer query architecture</div>
+      <p class="body">
+        把 FM 预测的 DeFi 曝光图，沿 <b>FM 预测 → 监测 + 情景 → LLM 决策 → 安全门控</b> 四层翻译为
+        监管行动票据。论点：<em>预测图本身不是决策</em>；架构是把信号转译为可执行干预的必经路径。
+      </p>
+      <p class="body">
+        每层都对应数据上的独立可测贡献——FM 提供 <em>预测方向信号</em>，
+        LLM 提供 <em>跨证据的判断</em>，门控提供 <em>可辩护的输出</em>。
+      </p>
+      <div class="facts">
+        <div><span>层数</span><b>4 层</b></div>
+        <div><span>支持的 method</span><b>9 种</b></div>
+        <div><span>支持的 decision pipeline</span><b>rules · LLM · gated</b></div>
+        <div><span>开源运行时</span><b>FastAPI · /predict /tickets</b></div>
+      </div>
+    </div>
+
+    <div class="contrib">
+      <div class="roman">Contribution II</div>
+      <div class="name"><b>DeXposure-</b>Bench</div>
+      <div class="subtitle">A community evaluation suite</div>
+      <p class="body">
+        首个面向 <b>FM+LLM 决策流水线</b> 的领域评估套件。六个基准覆盖预测质量、校准、情景保真、
+        决策质量、鲁棒性；ground truth 按 <em>监管实务</em>定义（绝对权重损失 top-5%）。
+      </p>
+      <p class="body">
+        填补了一项空白：通用 LLM 基准（AgentBench、SWE-bench）不评估领域决策；
+        时序图基准（TGB、OGB）只评 prediction、不评 decision。
+        本套件是 <em>第一个</em> 把 prediction、decision、calibration、robustness 串成一个 harness 的。
+      </p>
+      <div class="facts">
+        <div><span>基准数</span><b>6 个</b></div>
+        <div><span>测试 split</span><b>29 周 · 2025-01 至 2025-08</b></div>
+        <div><span>评估维度</span><b>{forecast, warning, calibration, scenario, decision, robustness}</b></div>
+        <div><span>数据规模</span><b>16,610 协议 · 283 周快照</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= BENCH TAXONOMY + DATA CARD ========= -->
+<section id="bench">
+  <div class="kicker">DeXposure-Bench · 套件结构</div>
+  <h3 class="head serif">六个基准，<em>各测一项可独立报告的能力</em></h3>
+  <p class="standfirst">
+    每个基准都是独立可投稿的子任务，组合在一起则形成完整的 FM+LLM 决策流水线评估。
+    后续论文可以只挑其中一个做扩展研究。
+  </p>
+
+  <div class="bench-tax">
+    <div>
+      <div class="bid">b1_forecast</div>
+      <div class="bname">预测质量</div>
+      <div class="btests">PageRank · HHI · Gini · trend consistency · per horizon</div>
+    </div>
+    <div>
+      <div class="bid">b2_warning</div>
+      <div class="bname">流式早期预警</div>
+      <div class="btests">precision · recall · F1 · lead time · stability</div>
+    </div>
+    <div>
+      <div class="bid">b3_calibration</div>
+      <div class="bname">预测区间质量</div>
+      <div class="btests">PI coverage · PI width · ECE · CRPS</div>
+    </div>
+    <div>
+      <div class="bid">b4_stress</div>
+      <div class="bname">情景保真度</div>
+      <div class="btests">loss MAE · target overlap@k · propagation depth · 5 scenarios</div>
+    </div>
+    <div>
+      <div class="bid">b5_decision</div>
+      <div class="bname">决策质量</div>
+      <div class="btests">precision · recall@k · F1 · stability · judge · FIR</div>
+    </div>
+    <div>
+      <div class="bid">b6_robustness</div>
+      <div class="bname">数据质量敏感性</div>
+      <div class="btests">5 种退化情景下的预测降级</div>
+    </div>
+  </div>
+
+  <div class="datacard">
+    <div class="desc">
+      <h5 class="serif">Data card</h5>
+      <p>
+        DeXposure 数据集由 2020 年 3 月至 2025 年 8 月共 283 周的 DeFi 协议曝光图构成，
+        每周快照记录协议之间的资金敞口边权重。全集合包含 16,610 个去重协议。
+      </p>
+      <p>
+        Ground truth 由 <em>监管实务</em>定义：对每一周（t）和预测视窗（h），
+        计算所有活跃协议在 t → t+h 上的<em>绝对权重损失</em>，
+        取前 5% 作为"系统性受压"协议集合。该定义对齐监管者关心的系统性影响，
+        而非比例变化。
+      </p>
+    </div>
+    <div class="stats">
+      <dl>
+        <dt>时间跨度</dt><dd>2020-03 → 2025-08</dd>
+        <dt>训练 / 验证 / 测试</dt><dd>~220 / 26 / 33 <small>周</small></dd>
+        <dt>预测视窗</dt><dd>h ∈ {1, 4, 8, 12} <small>周</small></dd>
+        <dt>协议总数</dt><dd>16,610</dd>
+        <dt>每周活跃协议</dt><dd>~5,000 <small>median</small></dd>
+        <dt>受压池均值</dt><dd>283 / 周</dd>
+        <dt>受压定义</dt><dd>top-5% absolute Δ weight</dd>
+        <dt>方法支持</dt><dd>9 <small>method（含 persistence / EvolveGCN / FM-only / FM+Rules / LLM-only / FM+LLM / FM+LLM+gate）</small></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ========= LEADERBOARD ========= -->
+<section id="leader">
+  <div class="kicker">b5_decision · 中心表</div>
+  <h3 class="head serif">五种 method 在 <em>同一真值</em> 上的对照</h3>
+  <p class="standfirst">
+    所有 method 在监管对齐 ground truth 上对照（29 周，top-5% absolute drop）。
+    完整 FM + LLM 栈赢 F1，纯持久化赢 precision，门控版赢 judge。
+    三种监管偏好对应三种最优 method——这正是 framework 的意义所在。
+  </p>
+
+  <table class="lboard">
+    <thead>
+      <tr>
+        <th>方法</th><th>Precision</th><th>Recall@k</th><th>F1</th>
+        <th>Stability</th><th>Consist.</th><th>Judge / 5</th><th>FIR</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>m1_persistence_rules</td><td><span class="best">0.720</span></td><td>0.0038</td><td>0.0076</td><td>0.514</td><td>—</td><td>—</td><td>0.000</td></tr>
+      <tr><td>m5_fm_rules</td><td>0.600</td><td>0.0096</td><td>0.0189</td><td>0.257</td><td>—</td><td>—</td><td>0.000</td></tr>
+      <tr><td>m2_snapshot_llm</td><td>0.575</td><td>0.0093</td><td>0.0183</td><td><span class="best">0.532</span></td><td><span class="best">0.916</span></td><td>2.03</td><td>0.000</td></tr>
+      <tr class="win"><td>m6_fm_llm</td><td>0.570</td><td><span class="best">0.0123</span></td><td><span class="best">0.0241</span></td><td>0.488</td><td>0.780</td><td>2.48</td><td>0.448<span class="arrow">▲</span></td></tr>
+      <tr><td>m7_fm_llm_gated</td><td>0.580</td><td>0.0119</td><td>0.0233</td><td>0.435</td><td>0.855</td><td><span class="best">2.69</span></td><td>0.437<span class="arrow">▲</span></td></tr>
+    </tbody>
+  </table>
+  <div class="tbl-caption">
+    <b>注：</b>每周 ticket 数：m1 = 0.69、m5 = 2.0、m2/m6/m7 = 2.0。真值池稳定在 283.5/周。
+    <span class="red">▲</span> 标记的 FIR（高严重度 ticket 命中稳定协议）在 §7 主动披露。
+    Consistency 与 Judge 仅 LLM 方法适用。
+  </div>
+</section>
+
+<!-- ========= LAYER-BY-LAYER ABLATION ========= -->
+<section id="ablation">
+  <div class="kicker">分层 ablation</div>
+  <h3 class="head serif">架构每一层都<em>有独立可测的边际贡献</em></h3>
+  <p class="standfirst">
+    把 b5_decision 的 F1 提升按架构层分解。从 baseline 出发，每加一层都对应一个数字。
+    这是论文 §6.5 最重要的论证：架构不是堆砌，每一层都赚回它的位置。
+  </p>
+
+  <div class="strip">
+    <div>
+      <div class="head">+ FM 预测层</div>
+      <div class="delta">+33%<small>F1</small></div>
+      <div class="lbl">m6_fm_llm vs m2_snapshot_llm <br>（同一 LLM，加 FM 信号）</div>
+    </div>
+    <div>
+      <div class="head">+ LLM 决策层</div>
+      <div class="delta">+27%<small>F1</small></div>
+      <div class="lbl">m6_fm_llm vs m5_fm_rules <br>（同一 FM，rule engine → LLM）</div>
+    </div>
+    <div>
+      <div class="head">+ Safety gate</div>
+      <div class="delta">+0.21<small>judge / 5</small></div>
+      <div class="lbl">m7_fm_llm_gated vs m6_fm_llm <br>（同一栈，加 action gate）</div>
+    </div>
+  </div>
+  <div class="tbl-caption">
+    <b>读法：</b>三组 ablation 都是<em>受控变量</em>——只改变架构的一层、其余固定。
+    这是 reviewer 看完表能立刻复述的图式：每加一层 → 哪个指标变了 → 涨了多少。
+  </div>
+</section>
+
+<!-- ========= SUPPORTING BENCHMARKS ========= -->
+<section id="benches">
+  <div class="kicker">五个支撑基准</div>
+  <h3 class="head serif">每张卡片用<em>十秒</em>讲清楚</h3>
+  <p class="standfirst">
+    这些是 §6 的补充表来源。它们不是头条——头条是 b5——但每一个都保护了 method 章节的一段话。
+  </p>
+
+  <div class="bgrid">
+
+    <article class="bench">
+      <div class="ttl">b1_forecast　4 个 horizon</div>
+      <h4 class="serif"><em>FM 在 PageRank 上不赢</em>，但在<em>趋势方向上独赢</em></h4>
+      <p class="insight">结构性指标 FM ≈ persistence。但 <b>trend_consistency: FM = 0.53 vs persistence = 0</b>。EvolveGCN 在 Gini 上明显差。</p>
+      <div class="nums">
+        <dl>
+          <dt>persistence trend</dt><dd></dd><dd>0.000</dd>
+          <dt></dt><dd class="barwrap"><i class="mute" style="width:0%"></i></dd><dd></dd>
+          <dt>m4 / m5 trend</dt><dd></dd><dd class="red">0.525</dd>
+          <dt></dt><dd class="barwrap"><i style="width:52.5%"></i></dd><dd></dd>
+          <dt>m3_evolvegcn trend</dt><dd></dd><dd>0.444</dd>
+          <dt></dt><dd class="barwrap"><i class="blue" style="width:44.4%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="bench">
+      <div class="ttl">b2_warning　3 事件 × 3 budget</div>
+      <h4 class="serif">SVB / USDC 提前 4 周<em>满分预警</em></h4>
+      <p class="insight">权重度数启发式对 <b>SVB/USDC = 100% precision</b>（任何 budget），lead time 4 周。Terra / FTX 介于 0.55–0.70。Recall 因 budget &lt;&lt; 节点数被机械压低。</p>
+      <div class="nums">
+        <dl>
+          <dt>SVB/USDC prec @10</dt><dd></dd><dd class="red">1.000</dd>
+          <dt></dt><dd class="barwrap"><i style="width:100%"></i></dd><dd></dd>
+          <dt>Terra @10</dt><dd></dd><dd>0.700</dd>
+          <dt></dt><dd class="barwrap"><i style="width:70%"></i></dd><dd></dd>
+          <dt>FTX @10</dt><dd></dd><dd>0.700</dd>
+          <dt></dt><dd class="barwrap"><i style="width:70%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="bench">
+      <div class="ttl">b3_calibration　90% 目标</div>
+      <h4 class="serif">PI coverage 命中目标——<em>预测可被监管者引用</em></h4>
+      <p class="insight">Conformal 校准后实测 <b>m5 = 0.913、m4 = 0.919</b>，与 0.90 目标偏差 1‑2 个百分点。ECE 均 &lt; 0.02。PI 宽度 0.146 也足够紧。</p>
+      <div class="nums">
+        <dl>
+          <dt>target</dt><dd></dd><dd>0.900</dd>
+          <dt></dt><dd class="barwrap"><i class="mute" style="width:90%"></i></dd><dd></dd>
+          <dt>m5_fm_rules</dt><dd></dd><dd class="red">0.913</dd>
+          <dt></dt><dd class="barwrap"><i style="width:91.3%"></i></dd><dd></dd>
+          <dt>m4_fm_only</dt><dd></dd><dd class="red">0.919</dd>
+          <dt></dt><dd class="barwrap"><i style="width:91.9%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="bench">
+      <div class="ttl">b4_stress　5 情景</div>
+      <h4 class="serif">FM 预测图上的情景损失<em>与真实图等价</em></h4>
+      <p class="insight">S1 loss_mae：FM/persistence 0.067 持平；<b>EvolveGCN 0.107 明显差</b>。S1 target_overlap@10：FM/persistence 0.314 vs EvolveGCN <b>0.034</b>。</p>
+      <div class="nums">
+        <dl>
+          <dt>S1 overlap@10 m5</dt><dd></dd><dd class="red">0.314</dd>
+          <dt></dt><dd class="barwrap"><i style="width:62%"></i></dd><dd></dd>
+          <dt>S1 overlap@10 m1</dt><dd></dd><dd>0.314</dd>
+          <dt></dt><dd class="barwrap"><i class="blue" style="width:62%"></i></dd><dd></dd>
+          <dt>S1 overlap@10 m3</dt><dd></dd><dd>0.034</dd>
+          <dt></dt><dd class="barwrap"><i class="mute" style="width:6.8%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="bench">
+      <div class="ttl">b6_robustness　5 退化情景</div>
+      <h4 class="serif">EvolveGCN 在 low-data 反而<em>更鲁棒</em>——大方承认</h4>
+      <p class="insight">low_data_10pct rel_degrad：<b>m3_evolvegcn = 0.28</b>，m4/m5 = 0.61，persistence = 0.77。EvolveGCN 在数据稀缺时确实更稳，老老实实在 §6.6 写出来。</p>
+      <div class="nums">
+        <dl>
+          <dt>m3_evolvegcn</dt><dd></dd><dd class="red">0.276</dd>
+          <dt></dt><dd class="barwrap"><i style="width:28%"></i></dd><dd></dd>
+          <dt>m5_fm_rules</dt><dd></dd><dd>0.607</dd>
+          <dt></dt><dd class="barwrap"><i class="blue" style="width:60.7%"></i></dd><dd></dd>
+          <dt>m1_persistence</dt><dd></dd><dd>0.766</dd>
+          <dt></dt><dd class="barwrap"><i class="mute" style="width:76.6%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="bench">
+      <div class="ttl">b5_decision　中心结果</div>
+      <h4 class="serif">F1 排序：<em>m6 ≻ m7 ≻ m5 ≻ m2 ≻ m1</em></h4>
+      <p class="insight">完整 FM + LLM 栈赢 F1（0.024），但同时：m1 precision 最高，m7 judge 最高——<b>三种监管偏好对应三种最优 method</b>，这正是 framework 的意义。</p>
+      <div class="nums">
+        <dl>
+          <dt>m6 F1</dt><dd></dd><dd class="red">0.0241</dd>
+          <dt></dt><dd class="barwrap"><i style="width:100%"></i></dd><dd></dd>
+          <dt>m7 F1</dt><dd></dd><dd>0.0233</dd>
+          <dt></dt><dd class="barwrap"><i class="blue" style="width:96.7%"></i></dd><dd></dd>
+          <dt>m1 F1（参考）</dt><dd></dd><dd class="mute">0.0076</dd>
+          <dt></dt><dd class="barwrap"><i class="mute" style="width:31.5%"></i></dd><dd></dd>
+        </dl>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ========= TRADEOFF ========= -->
+<section id="tradeoff">
+  <div class="kicker">精度 — 召回权衡</div>
+  <h3 class="head serif">每种 method 占一个<em>操作点</em></h3>
+  <p class="standfirst">
+    m1 保守、m6/m7 激进；Pareto 前沿从 m1 走到 m6。
+    这张图放进 §6.5 次页，一眼讲完"三种监管偏好"的含义。
+  </p>
+
+  <div class="plot-wrap">
+    <div class="plot">
+      <div class="ax-x">Recall@k →</div>
+      <div class="ax-y">↑ Precision</div>
+      <div class="pt red" style="left:25.3%; top:12%"></div>
+      <div class="lbl" style="left:25.3%; top:12%">m1_persistence <small>0.72 / 0.0038</small></div>
+      <div class="pt red" style="left:64%; top:60%"></div>
+      <div class="lbl" style="left:64%; top:60%">m5_fm_rules <small>0.60 / 0.0096</small></div>
+      <div class="pt" style="left:62%; top:70%"></div>
+      <div class="lbl" style="left:62%; top:70%">m2_snapshot_llm <small>0.575 / 0.0093</small></div>
+      <div class="pt win" style="left:82%; top:72%"></div>
+      <div class="lbl" style="left:82%; top:72%"><b>m6_fm_llm ★</b> <small>0.57 / 0.0123</small></div>
+      <div class="pt" style="left:79.3%; top:68%"></div>
+      <div class="lbl" style="left:79.3%; top:68%">m7_gated <small>0.58 / 0.0119</small></div>
+    </div>
+    <div class="plot-legend">
+      <span><i class="r"></i>rule-based</span>
+      <span><i class="b"></i>LLM-based</span>
+      <span style="color:var(--ink)">★ F1 winner</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========= LIMITS ========= -->
+<section id="limits">
+  <div class="kicker">§7 主动披露</div>
+  <h3 class="head serif">三条事先<em>说在前头</em></h3>
+  <p class="standfirst">
+    每一条主动披露约值半个 reviewer goodwill 等级。
+    论文的可信度，比单个数字漂亮更值钱。
+  </p>
+
+  <div class="limits">
+    <div class="lim">
+      <div class="ttl">局限一</div>
+      <h5>绝对 recall &lt; 5%</h5>
+      <p>
+        最高 recall 为 <code>0.0123</code>——覆盖真正受压协议池的 1.2%。
+        这是 <code>ticket_budget = 10</code> vs <code>|pool| ≈ 283</code> 的机械上限。
+        建议在论文同时报 <em>precision@k</em>（监管分流的正确框架），
+        并在补充材料加 budget 扩展的 robustness 研究。
+      </p>
+    </div>
+    <div class="lim">
+      <div class="ttl">局限二</div>
+      <h5>LLM 过度干预</h5>
+      <p>
+        m6 / m7 的 <code>FIR ≈ 0.44</code>：将近一半的高严重度 ticket 命中了
+        <em>非</em>受压协议。Rule-based method 的 FIR = 0。
+        建议加一张 precision-FIR Pareto 图，把 trade-off 说清楚。
+      </p>
+    </div>
+    <div class="lim">
+      <div class="ttl">局限三</div>
+      <h5>严重度排序失效</h5>
+      <p>
+        所有 LLM method 的 <code>severity_correlation ≈ 0</code>。
+        系统能 flag <em>哪些</em>协议重要，但无法可靠排序<em>多严重</em>。
+        把它框为 future work，不作为本文结果之一。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ========= OUTLINE ========= -->
+<section id="outline" class="outline">
+  <div class="kicker">§6 写作大纲</div>
+  <h3 class="head serif">按双贡献骨架展开的<em>七个子节</em></h3>
+  <p class="standfirst">
+    架构与基准并列摆出，§6.2 单独成节作 "DeXposure-Bench 卖点节"——
+    给 reviewer 一眼看出它是社区可 fork 的资源。
+  </p>
+
+  <ol>
+    <li>
+      <div>
+        <h5 class="serif">Framework architecture <em>(Contribution I)</em></h5>
+        <p>四层栈：FM 预测 → 监测 + 情景 → LLM 决策 → 安全门控。Algorithm 1 放 appendix。点出"prediction is not decision"作为本节论点。</p>
+        <div class="ev">已有：§3 草稿存在 · 需精简</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">DeXposure-Bench <em>(Contribution II)</em></h5>
+        <p>本节单独卖基准：6 benchmark 的 schema 图、data card、监管对齐 ground truth 的定义动机。引用 TGB / OGB / SWE-bench 说清楚为什么这个 niche 没人做。</p>
+        <div class="ev">新增 · 配 schema 图 + data card 表</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Forecasting quality <em>(b1)</em></h5>
+        <p>FM 在 aggregate 指标上等于 persistence，但 trend direction 上独赢（0.53 vs 0）。论证：决策层对方向更敏感，trend_consistency 是关键指标。</p>
+        <div class="ev">表：4 horizons × 4 methods · {pr_mae, hhi_mae, rank_corr, trend}</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Calibration <em>(b3)</em></h5>
+        <p>PI coverage 0.913–0.919 vs 0.90 目标。开篇即放校准曲线图。这是 "predictions a regulator can act on" 的最强单一证据。</p>
+        <div class="ev">图：PI coverage 实测 vs 目标 + per-horizon ECE</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Scenario fidelity <em>(b4)</em></h5>
+        <p>FM 在 5 种情景下与 persistence 等价（好：预测不让下游崩）。EvolveGCN 在 S1 overlap@10 = 0.03，作为干净的负例 baseline。</p>
+        <div class="ev">表：5 scenarios × 4 methods · {loss_mae, overlap@10}</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Decision quality <em>(b5) · 中心节</em></h5>
+        <p>放完整 leaderboard 表 + 分层 ablation 条带。reviewer 会截屏的就是这页。点出"三种监管偏好对应三种最优 method"作为 framework 的存在意义。</p>
+        <div class="ev">表：5 methods × {prec, recall, F1, stab, judge, FIR} + 三段 ablation 条带</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Robustness <em>(b6)</em></h5>
+        <p>诚实段：EvolveGCN 在 low-data 情景下更鲁棒。在这里诚实承认 framework 不赢的地方，让前面的论述更可信。</p>
+        <div class="ev">表：5 regimes × 4 methods · {pagerank_mae, rel_degrad}</div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h5 class="serif">Limitations <em>(§7)</em></h5>
+        <p>三条主动披露：低 absolute recall（建议 precision@k）、LLM 过度干预（precision-FIR Pareto）、severity 排序失效（future work）。</p>
+        <div class="ev">2 段 · 诚实、具体、带数字</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div><b>DeXposure</b>　TKDE 投稿准备　2026 年 5 月 16 日</div>
+  <div class="mono">analysis_dashboard.html</div>
+</footer>
+
+</div>
+</body>
+</html>

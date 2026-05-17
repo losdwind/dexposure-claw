@@ -1,0 +1,69 @@
+{
+  "rows": [
+    {
+      "method_id": "m1_persistence_rules",
+      "method_name": "Persist+Rules",
+      "ticket_precision": 0.72,
+      "audit_completeness": 0.0038,
+      "target_stability": 0.5139,
+      "severity_correlation": null,
+      "false_intervention_rate": 0.0,
+      "grounding_score": null,
+      "consistency": null,
+      "explanation_quality": null,
+      "cost_adjusted_score": 0.72
+    },
+    {
+      "method_id": "m5_fm_rules",
+      "method_name": "FM+Rules",
+      "ticket_precision": 0.6,
+      "audit_completeness": 0.0096,
+      "target_stability": 0.2569,
+      "severity_correlation": null,
+      "false_intervention_rate": 0.0,
+      "grounding_score": null,
+      "consistency": null,
+      "explanation_quality": null,
+      "cost_adjusted_score": 0.6
+    },
+    {
+      "method_id": "m2_snapshot_llm",
+      "method_name": "Pure LLM",
+      "ticket_precision": 0.5747,
+      "audit_completeness": 0.0093,
+      "target_stability": 0.5319,
+      "severity_correlation": null,
+      "false_intervention_rate": 0.0,
+      "grounding_score": 1.0,
+      "consistency": 0.9157,
+      "explanation_quality": 2.03,
+      "cost_adjusted_score": 0.5747
+    },
+    {
+      "method_id": "m6_fm_llm",
+      "method_name": "FM+LLM",
+      "ticket_precision": 0.5698,
+      "audit_completeness": 0.0123,
+      "target_stability": 0.4885,
+      "severity_correlation": -0.0013,
+      "false_intervention_rate": 0.4483,
+      "grounding_score": 1.0,
+      "consistency": 0.7795,
+      "explanation_quality": 2.48,
+      "cost_adjusted_score": 0.3144
+    },
+    {
+      "method_id": "m7_fm_llm_gated",
+      "method_name": "FM+LLM+RulesGate",
+      "ticket_precision": 0.5802,
+      "audit_completeness": 0.0119,
+      "target_stability": 0.4349,
+      "severity_correlation": -0.0025,
+      "false_intervention_rate": 0.4368,
+      "grounding_score": 1.0,
+      "consistency": 0.8551,
+      "explanation_quality": 2.69,
+      "cost_adjusted_score": 0.3268
+    }
+  ]
+}

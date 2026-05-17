@@ -1,0 +1,19 @@
+{
+  "benchmark": "b5_decision",
+  "method": "m1_persistence_rules",
+  "timestamp": "2026-05-15T04:27:06.640251",
+  "elapsed_seconds": 1362.48,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030/b5_decision__m1_persistence_rules__20260515_040424.log",
+  "results": [
+    {
+      "method": "m1_persistence_rules",
+      "ticket_precision": 0.66,
+      "risk_reduction": 0.09116506992977855,
+      "target_stability": 0.5138888888888888,
+      "audit_completeness": 0.00019141192042891494,
+      "suppression_rate": 0.0,
+      "false_intervention_rate": 0.0,
+      "n_weeks_evaluated": 29
+    }
+  ]
+}

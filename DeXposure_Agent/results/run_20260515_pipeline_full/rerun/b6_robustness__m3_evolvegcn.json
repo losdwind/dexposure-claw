@@ -1,0 +1,74 @@
+{
+  "benchmark": "b6_robustness",
+  "method": "m3_evolvegcn",
+  "timestamp": "2026-05-15T12:02:32.488722",
+  "elapsed_seconds": 1970.8,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030_rerun/b6_robustness__m3_evolvegcn__20260515_112941.log",
+  "results": [
+    {
+      "method": "m3_evolvegcn",
+      "regime": "low_data_10pct",
+      "horizon": 4,
+      "pagerank_mae": 0.015228336939301758,
+      "hhi_mae": 0.09990252432365761,
+      "density_mae": 2.6955930486287035e-05,
+      "gini_mae": 0.1301490805924439,
+      "rank_correlation": 0.5346100868616765,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.276280511788224,
+      "n_test_snapshots": 2
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "low_data_25pct",
+      "horizon": 4,
+      "pagerank_mae": 0.010223074495002848,
+      "hhi_mae": 0.04857936404669261,
+      "density_mae": 3.6020932954642344e-05,
+      "gini_mae": 0.1280942222713422,
+      "rank_correlation": 0.5575232850461901,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.027428332092976748,
+      "n_test_snapshots": 7
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "partial_graph_30",
+      "horizon": 4,
+      "pagerank_mae": 0.010357170799729264,
+      "hhi_mae": 0.048845310680117306,
+      "density_mae": 0.00019033341982548533,
+      "gini_mae": 0.1235924328588715,
+      "rank_correlation": 0.536754418551393,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.04796600598320981,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "noisy_features_01",
+      "horizon": 4,
+      "pagerank_mae": 0.010675805807430076,
+      "hhi_mae": 0.048858310985870505,
+      "density_mae": 3.325736498080786e-05,
+      "gini_mae": 0.13263715655537436,
+      "rank_correlation": 0.5630942979203082,
+      "trend_consistency": NaN,
+      "relative_degradation": -3.907960059996235e-09,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m3_evolvegcn",
+      "regime": "missing_features_20",
+      "horizon": 4,
+      "pagerank_mae": 0.010675805807430076,
+      "hhi_mae": 0.04885831141294652,
+      "density_mae": 3.325736498080786e-05,
+      "gini_mae": 0.1326371573132634,
+      "rank_correlation": 0.5630942979203082,
+      "trend_consistency": NaN,
+      "relative_degradation": 2.2571653599132945e-09,
+      "n_test_snapshots": 29
+    }
+  ]
+}

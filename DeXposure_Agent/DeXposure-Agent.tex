@@ -23,6 +23,7 @@
 \usepackage{tabularx}
 \usepackage{algpseudocode}
 \usepackage{tikz}
+\usepackage[strings]{underscore}
 \usepackage{hyperref}
 \usepackage{cleveref}
 \usepackage[dvipsnames]{xcolor}
@@ -54,7 +55,7 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. While recent ``agentic'' pipelines promise automated surveillance and intervention planning, this direction remains premature in practice, in part because of the lack of a reliable \emph{foundation model backbone} that can forecast the evolving exposure network with calibrated uncertainty and sufficient data efficiency. Building on DeXposure-FM, a recent graph time-series foundation model trained on over 43.7 million data entries, we develop \emph{DeXposure-Agent}, to our best knowledge the first agentic system that integrates a graph time-series foundation model backbone for DeFi exposure-network risk monitoring and decision recommendation. The system continuously ingests exposure snapshots, employs DeXposure-FM to predict future credit-exposure graphs, computes systemic risk indicators and standardised stress scenarios, and emits auditable alerts and conservative playbook-based recommendations under explicit data-health and uncertainty gates. We evaluate DeXposure-Agent across six benchmarks and stress-test settings, including low-data and weakly supervised regimes, and show that it (1) produces earlier and more stable early-warning signals of systemic fragility, (2) improves risk metric forecasting and trend detection beyond na\"ive baselines, and (3) yields higher-quality recommendation tickets with improved grounding and consistency when combining the foundation model backbone with LLM-based reasoning. 
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. While recent ``agentic'' pipelines promise automated surveillance and intervention planning, this direction remains premature in practice, in part because of the lack of a reliable \emph{foundation model backbone} that can forecast the evolving exposure network with calibrated uncertainty and sufficient data efficiency. Building on DeXposure-FM, a graph time-series foundation model trained on over 43.7 million data entries, we present two coupled contributions. First, \emph{DeXposure-Framework}: a four-layer query architecture (prediction $\to$ monitoring and scenario $\to$ LLM decision $\to$ safety gate) that transforms FM-predicted exposure graphs into auditable supervisory tickets. Second, \emph{DeXposure-Bench}: the first standardised evaluation suite for FM+LLM decision pipelines on temporal exposure graphs, comprising six benchmarks with a regulator-aligned ground truth defined by absolute weight loss. Across the suite we show that (1) the FM signal and the LLM decision layer each contribute independently to decision quality (F1 +33\% / +27\% in layer-wise ablations), (2) prediction intervals are well-calibrated (coverage 0.913 vs the 0.90 target), and (3) the gated stack produces grounded, high-quality recommendations (grounding 1.0, judge 2.69 / 5). 
 
 Code: \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}
 
@@ -73,6 +74,7 @@ Agentic system, graph, time series, foundation model, decentralised finance, fin
 \input{sections/RelatedWorks}
 \input{sections/Pre}
 \input{sections/Alg}
+\input{sections/Bench}
 \input{sections/Exp}
 
 \section{Conclusion}

@@ -1,0 +1,74 @@
+{
+  "benchmark": "b6_robustness",
+  "method": "m4_fm_only",
+  "timestamp": "2026-05-15T12:12:45.763200",
+  "elapsed_seconds": 603.36,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030_rerun/b6_robustness__m4_fm_only__20260515_120242.log",
+  "results": [
+    {
+      "method": "m4_fm_only",
+      "regime": "low_data_10pct",
+      "horizon": 4,
+      "pagerank_mae": 0.012827191042979282,
+      "hhi_mae": 0.05863111714305279,
+      "density_mae": 4.1209078562688586e-05,
+      "gini_mae": 0.002747400000043254,
+      "rank_correlation": 0.5280414956660258,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.612018984105647,
+      "n_test_snapshots": 2
+    },
+    {
+      "method": "m4_fm_only",
+      "regime": "low_data_25pct",
+      "horizon": 4,
+      "pagerank_mae": 0.009859222143633753,
+      "hhi_mae": 0.02789589694800266,
+      "density_mae": 6.345314467961191e-05,
+      "gini_mae": 0.0024173159092844487,
+      "rank_correlation": 0.552871423551401,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.12641469945647116,
+      "n_test_snapshots": 7
+    },
+    {
+      "method": "m4_fm_only",
+      "regime": "partial_graph_30",
+      "horizon": 4,
+      "pagerank_mae": 0.012523660104643106,
+      "hhi_mae": 0.03504907398672783,
+      "density_mae": 2.479263771271813e-05,
+      "gini_mae": 0.002223425821915397,
+      "rank_correlation": 0.4997279684458225,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.08169233521413725,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m4_fm_only",
+      "regime": "noisy_features_01",
+      "horizon": 4,
+      "pagerank_mae": 0.011375024138429564,
+      "hhi_mae": 0.03227761772807361,
+      "density_mae": 6.451092928936008e-05,
+      "gini_mae": 0.0021279674561514297,
+      "rank_correlation": 0.5536999230632257,
+      "trend_consistency": NaN,
+      "relative_degradation": -0.004629324725671635,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m4_fm_only",
+      "regime": "missing_features_20",
+      "horizon": 4,
+      "pagerank_mae": 0.012111012475803599,
+      "hhi_mae": 0.032323959353884595,
+      "density_mae": 8.340615677465646e-05,
+      "gini_mae": 0.0023113214329197732,
+      "rank_correlation": 0.5587151392659762,
+      "trend_consistency": NaN,
+      "relative_degradation": 0.01674745922360606,
+      "n_test_snapshots": 29
+    }
+  ]
+}

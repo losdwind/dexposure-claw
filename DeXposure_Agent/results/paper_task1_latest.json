@@ -1,0 +1,26 @@
+{
+  "m5_fm_rules": {
+    "b1_rank_corr_h4": 0.5583183411416054,
+    "b1_trend_consistency_h4": 0.6275862068965516,
+    "b1_hhi_mae_h4": 0.03214205297050013,
+    "b2_precision_mean": 0.7555555555555555,
+    "b2_f1_mean": 0.007022695502922554,
+    "b2_lead_time_mean": 4.666666666666667,
+    "b3_ece": 0.012499999999999845,
+    "b3_pi_coverage": 0.9125,
+    "b3_crps": 0.014880372704265135,
+    "b6_relative_degradation_mean": 0.11300065468542597
+  },
+  "m1_persistence_rules": {
+    "b1_rank_corr_h4": 0.5700787623009229,
+    "b1_trend_consistency_h4": 0.0,
+    "b1_hhi_mae_h4": 0.03216092870170988,
+    "b2_precision_mean": null,
+    "b2_f1_mean": null,
+    "b2_lead_time_mean": null,
+    "b3_ece": null,
+    "b3_pi_coverage": null,
+    "b3_crps": null,
+    "b6_relative_degradation_mean": 0.14827137927309633
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "benchmark": "b1_forecast",
+  "method": "m5_fm_rules",
+  "timestamp": "2026-05-15T12:29:56.043675",
+  "elapsed_seconds": 484.14,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030_rerun/b1_forecast__m5_fm_rules__20260515_122151.log",
+  "results": [
+    {
+      "method": "m5_fm_rules",
+      "horizon": 1,
+      "pagerank_mae": 4.724067274609294e-05,
+      "hhi_mae": 0.037598848821679395,
+      "density_mae": 8.925888074731897e-05,
+      "gini_mae": 0.0029162343956422136,
+      "rank_correlation": 0.5488995241827876,
+      "trend_consistency": 0.525,
+      "n_test_snapshots": 32
+    },
+    {
+      "method": "m5_fm_rules",
+      "horizon": 4,
+      "pagerank_mae": 4.4568879278345295e-05,
+      "hhi_mae": 0.03214205297050013,
+      "density_mae": 6.882072008656451e-05,
+      "gini_mae": 0.00223944695947332,
+      "rank_correlation": 0.5583183411416054,
+      "trend_consistency": 0.6275862068965516,
+      "n_test_snapshots": 29
+    },
+    {
+      "method": "m5_fm_rules",
+      "horizon": 8,
+      "pagerank_mae": 4.45535014985394e-05,
+      "hhi_mae": 0.03983041940489759,
+      "density_mae": 2.5053586625762753e-05,
+      "gini_mae": 0.0029894856668370995,
+      "rank_correlation": 0.5082276420632862,
+      "trend_consistency": 0.632,
+      "n_test_snapshots": 25
+    },
+    {
+      "method": "m5_fm_rules",
+      "horizon": 12,
+      "pagerank_mae": 4.119192691090343e-05,
+      "hhi_mae": 0.03923954782173313,
+      "density_mae": 1.7453821376908377e-05,
+      "gini_mae": 0.002921949790223934,
+      "rank_correlation": 0.51621841386521,
+      "trend_consistency": 0.6,
+      "n_test_snapshots": 21
+    }
+  ]
+}

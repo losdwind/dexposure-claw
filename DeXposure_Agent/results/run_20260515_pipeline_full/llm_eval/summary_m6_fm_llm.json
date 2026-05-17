@@ -1,0 +1,15 @@
+{
+  "method": "m6_fm_llm",
+  "model": "claude-opus-4-7",
+  "n_weeks": 29,
+  "ticket_precision": 0.5698,
+  "audit_completeness": 0.0123,
+  "target_stability": 0.4885,
+  "severity_correlation": -0.0013,
+  "false_intervention_rate": 0.4483,
+  "grounding_score": 1.0,
+  "consistency": 0.7795,
+  "explanation_quality": 2.48,
+  "total_input_tokens": 43225,
+  "total_output_tokens": 30265
+}

@@ -267,8 +267,8 @@ ax.text(CX, 1.6, "AgentOutput: auditable, evidence-grounded risk intelligence",
         bbox=dict(boxstyle="round,pad=0.2", facecolor=LOOP_BG,
                   edgecolor=WARM_GRAY, alpha=0.8))
 
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig2_agent_pipeline.pdf",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig2_agent_pipeline.pdf",
             format="pdf")
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig2_agent_pipeline.png",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig2_agent_pipeline.png",
             format="png", dpi=300)
 print("Fig 2 saved.")

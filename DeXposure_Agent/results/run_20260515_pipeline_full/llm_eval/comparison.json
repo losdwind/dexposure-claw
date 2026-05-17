@@ -1,0 +1,50 @@
+{
+  "run_id": "llm_eval_20260515_212147",
+  "methods": {
+    "m6_fm_llm": {
+      "method": "m6_fm_llm",
+      "model": "claude-opus-4-7",
+      "n_weeks": 29,
+      "ticket_precision": 0.5698,
+      "audit_completeness": 0.0123,
+      "target_stability": 0.4885,
+      "severity_correlation": -0.0013,
+      "false_intervention_rate": 0.4483,
+      "grounding_score": 1.0,
+      "consistency": 0.7795,
+      "explanation_quality": 2.48,
+      "total_input_tokens": 43225,
+      "total_output_tokens": 30265
+    },
+    "m7_fm_llm_gated": {
+      "method": "m7_fm_llm_gated",
+      "model": "claude-opus-4-7",
+      "n_weeks": 29,
+      "ticket_precision": 0.5802,
+      "audit_completeness": 0.0119,
+      "target_stability": 0.4349,
+      "severity_correlation": -0.0025,
+      "false_intervention_rate": 0.4368,
+      "grounding_score": 1.0,
+      "consistency": 0.8551,
+      "explanation_quality": 2.69,
+      "total_input_tokens": 43225,
+      "total_output_tokens": 29435
+    },
+    "m2_snapshot_llm": {
+      "method": "m2_snapshot_llm",
+      "model": "claude-opus-4-7",
+      "n_weeks": 29,
+      "ticket_precision": 0.5747,
+      "audit_completeness": 0.0093,
+      "target_stability": 0.5319,
+      "severity_correlation": NaN,
+      "false_intervention_rate": 0.0,
+      "grounding_score": 1.0,
+      "consistency": 0.9157,
+      "explanation_quality": 2.03,
+      "total_input_tokens": 33607,
+      "total_output_tokens": 24379
+    }
+  }
+}

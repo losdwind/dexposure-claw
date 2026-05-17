@@ -1,0 +1,17 @@
+{
+  "benchmark": "b3_calibration",
+  "method": "m4_fm_only",
+  "timestamp": "2026-05-15T09:05:57.248948",
+  "elapsed_seconds": 2023.44,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030_rerun/b3_calibration__m4_fm_only__20260515_083213.log",
+  "results": [
+    {
+      "method": "m4_fm_only",
+      "ece": 0.018749999999999822,
+      "pi_coverage": 0.91875,
+      "pi_width": 0.14660059065936712,
+      "crps": 0.01471993633374626,
+      "n_predictions": 160
+    }
+  ]
+}

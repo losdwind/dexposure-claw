@@ -240,8 +240,8 @@ for i, claim in enumerate(claims):
     ax.text(6.5, claims_y - 0.15 - i * 0.28, claim, fontsize=7.5,
             ha="center", color=CHARCOAL, zorder=3)
 
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig3_evaluation_framework.pdf",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig3_evaluation_framework.pdf",
             format="pdf")
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig3_evaluation_framework.png",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig3_evaluation_framework.png",
             format="png", dpi=300)
 print("Fig 3 saved.")

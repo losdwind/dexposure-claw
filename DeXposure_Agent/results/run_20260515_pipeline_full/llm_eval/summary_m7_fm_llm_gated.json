@@ -1,0 +1,15 @@
+{
+  "method": "m7_fm_llm_gated",
+  "model": "claude-opus-4-7",
+  "n_weeks": 29,
+  "ticket_precision": 0.5802,
+  "audit_completeness": 0.0119,
+  "target_stability": 0.4349,
+  "severity_correlation": -0.0025,
+  "false_intervention_rate": 0.4368,
+  "grounding_score": 1.0,
+  "consistency": 0.8551,
+  "explanation_quality": 2.69,
+  "total_input_tokens": 43225,
+  "total_output_tokens": 29435
+}

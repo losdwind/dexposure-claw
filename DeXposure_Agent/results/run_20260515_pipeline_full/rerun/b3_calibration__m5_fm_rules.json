@@ -1,0 +1,17 @@
+{
+  "benchmark": "b3_calibration",
+  "method": "m5_fm_rules",
+  "timestamp": "2026-05-15T09:49:17.938591",
+  "elapsed_seconds": 2591.95,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_105030_rerun/b3_calibration__m5_fm_rules__20260515_090605.log",
+  "results": [
+    {
+      "method": "m5_fm_rules",
+      "ece": 0.012499999999999845,
+      "pi_coverage": 0.9125,
+      "pi_width": 0.14565966061383104,
+      "crps": 0.014880372704265135,
+      "n_predictions": 160
+    }
+  ]
+}

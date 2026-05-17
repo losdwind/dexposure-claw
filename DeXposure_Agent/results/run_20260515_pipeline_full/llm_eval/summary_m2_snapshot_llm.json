@@ -1,0 +1,15 @@
+{
+  "method": "m2_snapshot_llm",
+  "model": "claude-opus-4-7",
+  "n_weeks": 29,
+  "ticket_precision": 0.5747,
+  "audit_completeness": 0.0093,
+  "target_stability": 0.5319,
+  "severity_correlation": NaN,
+  "false_intervention_rate": 0.0,
+  "grounding_score": 1.0,
+  "consistency": 0.9157,
+  "explanation_quality": 2.03,
+  "total_input_tokens": 33607,
+  "total_output_tokens": 24379
+}

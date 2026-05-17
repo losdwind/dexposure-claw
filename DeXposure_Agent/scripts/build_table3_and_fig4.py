@@ -194,8 +194,9 @@ def write_table_files(rows: list[dict]) -> None:
                 return "N/A"
             return f"{v:.{digs}f}"
         explain_str = "N/A" if r["explanation_quality"] is None else f"{r['explanation_quality']:.1f}/5"
+        method_id_tex = r['method_id'].replace('_', r'\_')
         lines.append(
-            f"{r['method_id']} {r['method_name']} & "
+            f"\\texttt{{{method_id_tex}}} {r['method_name']} & "
             f"{fmt(r['ticket_precision'])} & "
             f"{fmt(r['audit_completeness'])} & "
             f"{fmt(r['target_stability'])} & "

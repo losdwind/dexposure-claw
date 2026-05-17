@@ -297,8 +297,8 @@ ax.text(rx + 0.05, r4, "Rationale:", fontsize=6, color=LIGHT)
 ax.text(rx + 1.0, r4, "Concentration rising; if top protocol fails, contagion could spread.",
         fontsize=5.5, va="center", color=DARK)
 
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.pdf",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.pdf",
             format="pdf")
-plt.savefig("/home/figurich/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.png",
+plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.png",
             format="png", dpi=300)
 print("Fig 1 saved.")

@@ -1,0 +1,224 @@
+{
+  "ablations": null,
+  "metadata": {
+    "args": {
+      "ablation_ids": "",
+      "ablations": false,
+      "benchmarks": "b5_decision",
+      "continue_on_error": true,
+      "data_dir": "/workspace/graph-dexposure/data/",
+      "methods": "m1_persistence_rules,m5_fm_rules",
+      "output": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_b5tkde",
+      "seed": 42,
+      "test_split": "2025-01~2025-08"
+    },
+    "benchmark_applicability": {
+      "b1_forecast": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b2_warning": [
+        "h1_weighted_degree"
+      ],
+      "b3_calibration": [
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b4_stress": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ],
+      "b5_decision": [
+        "m1_persistence_rules",
+        "m5_fm_rules"
+      ],
+      "b6_robustness": [
+        "m1_persistence_rules",
+        "m3_evolvegcn",
+        "m4_fm_only",
+        "m5_fm_rules"
+      ]
+    },
+    "checkpoint_sha256": {
+      "DeXposure_Agent/checkpoints/LimiX-16M.ckpt": "ee6d6ae865821ca790a40a0199d09a662f4509da5e4c26535809432e599e7a52",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h1.pt": "ddf6b33a07fb94886bf2adca219a75b899c8da2984afd344da1219eab22865f0",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h12.pt": "15271536fec92f1a32a5257461ea56b0e3a3937ac46cfba6ff7f8194ff90aaca",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h4.pt": "816c3d957045d3b0a5b3881e58419c0f91d7122ad5f77d5ae3b1eb0f47b155de",
+      "DeXposure_Agent/checkpoints/evolvegcn/evolvegcn_h8.pt": "2ff2cd5c9c79809bca1a0178a4131fd8d43ee8afaf5fdc18880ad230be529256",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h1.pt": "d867e66834f54d48ae4ca3d042faf28e04712316b580587e8837121ef76c6e30",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h4.pt": "ce8ea6a0e9b6fd966233fc2b79a697e22bcf29c9b5bc89cd1d4398c709e70250",
+      "checkpoints/dexposure-fm-release/dexposure-fm-h8-h12.pt": "a7773e85a66a8914822edd8e172f9e9b7bff2a076a94ca970dea630efb63b030",
+      "checkpoints/dexposure-fm-release/graphpfn-frozen-all-horizons.pt": "114183835be3de3689150fc2a21a3a941072500b1117db957cf02374dba6a14d",
+      "checkpoints/graphpfn-v1.ckpt": "5543a25b07b4be523490b7ef14adbb6c7a9ea763d93a4ef7a22584c0cee9a76d"
+    },
+    "ended_at": "2026-05-15T17:00:27+00:00",
+    "environment": {
+      "cuda_available": true,
+      "cuda_device_count": 1,
+      "cuda_devices": [
+        "NVIDIA GeForce RTX 4090"
+      ],
+      "dgl_backend": "pytorch",
+      "dgl_disable_graphbolt": "1",
+      "dgl_version": "2.1.0+cu121",
+      "platform": "Linux-6.5.0-41-generic-x86_64-with-glibc2.39",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "torch_version": "2.11.0+cu126"
+    },
+    "git_commit": "3a255646fe5e34583e4ea9ec1d5754945c8fa8bb",
+    "git_dirty": true,
+    "git_status_short": [
+      "?? DeXposure_Agent/checkpoints/",
+      "?? DeXposure_Agent/data",
+      "?? DeXposure_Agent/results/"
+    ],
+    "log_file": "DeXposure_Agent/results/run_20260515_b5tkde/experiment_20260515_155412.log",
+    "methods": {
+      "h1_weighted_degree": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "WeightedDegreeHeuristic",
+        "method_id": "h1_weighted_degree",
+        "notes": "Method-agnostic b2_warning early-warning heuristic.",
+        "policy": "heuristic",
+        "predictor": "current"
+      },
+      "m1_persistence_rules": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "Persistence+Rules",
+        "method_id": "m1_persistence_rules",
+        "notes": "",
+        "policy": "rules",
+        "predictor": "persistence"
+      },
+      "m2_snapshot_llm": {
+        "gpu_required": false,
+        "implemented": true,
+        "label": "CurrentSnapshot+LLM",
+        "method_id": "m2_snapshot_llm",
+        "notes": "",
+        "policy": "llm",
+        "predictor": "current"
+      },
+      "m3_evolvegcn": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "EvolveGCN",
+        "method_id": "m3_evolvegcn",
+        "notes": "Requires trained EvolveGCN checkpoints; fail closed if absent.",
+        "policy": "none",
+        "predictor": "evolvegcn"
+      },
+      "m4_fm_only": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FMOnly",
+        "method_id": "m4_fm_only",
+        "notes": "",
+        "policy": "none",
+        "predictor": "fm"
+      },
+      "m5_fm_rules": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+Rules",
+        "method_id": "m5_fm_rules",
+        "notes": "",
+        "policy": "rules",
+        "predictor": "fm"
+      },
+      "m6_fm_llm": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+LLM",
+        "method_id": "m6_fm_llm",
+        "notes": "",
+        "policy": "llm",
+        "predictor": "fm"
+      },
+      "m7_fm_llm_gated": {
+        "gpu_required": true,
+        "implemented": true,
+        "label": "FM+LLM+RulesGate",
+        "method_id": "m7_fm_llm_gated",
+        "notes": "",
+        "policy": "llm_rules_gate",
+        "predictor": "fm"
+      }
+    },
+    "runner": "experiments/run_all.py",
+    "schema_version": 2,
+    "seeded_libraries": [
+      "python.random",
+      "numpy",
+      "torch"
+    ],
+    "started_at": "2026-05-15T15:54:12+00:00",
+    "total_wall_seconds": 3970.88
+  },
+  "results": {
+    "b5_decision__m1_persistence_rules": {
+      "benchmark": "b5_decision",
+      "ended_at": "2026-05-15T16:28:56+00:00",
+      "method": "m1_persistence_rules",
+      "method_label": "Persistence+Rules",
+      "results": [
+        {
+          "audit_completeness": 0.0,
+          "false_intervention_rate": 0.0,
+          "method": "m1_persistence_rules",
+          "n_tickets_mean": 0.6896551724137931,
+          "n_weeks_evaluated": 29,
+          "risk_reduction": 0.09116506992977855,
+          "score_discrimination": 0.0,
+          "stress_pool_size_mean": 522.4827586206897,
+          "suppression_rate": 0.0,
+          "target_recall_at_k": 0.0,
+          "target_stability": 0.5138888888888888,
+          "ticket_precision": 0.0
+        }
+      ],
+      "started_at": "2026-05-15T15:54:16+00:00",
+      "status": "ok",
+      "wall_seconds": 2079.832
+    },
+    "b5_decision__m5_fm_rules": {
+      "benchmark": "b5_decision",
+      "ended_at": "2026-05-15T17:00:27+00:00",
+      "method": "m5_fm_rules",
+      "method_label": "FM+Rules",
+      "results": [
+        {
+          "audit_completeness": 6.631299734748011e-05,
+          "false_intervention_rate": 0.0,
+          "method": "m5_fm_rules",
+          "n_tickets_mean": 2.0,
+          "n_weeks_evaluated": 29,
+          "risk_reduction": 0.09135799897642574,
+          "score_discrimination": 0.0,
+          "stress_pool_size_mean": 522.4827586206897,
+          "suppression_rate": 0.0,
+          "target_recall_at_k": 6.631299734748011e-05,
+          "target_stability": 0.2569444444444445,
+          "ticket_precision": 0.006896551724137931
+        }
+      ],
+      "started_at": "2026-05-15T16:28:56+00:00",
+      "status": "ok",
+      "wall_seconds": 1891.047
+    }
+  },
+  "summary": {
+    "counts": {
+      "ok": 2
+    },
+    "n_executed": 2,
+    "n_ok": 2,
+    "n_total_records": 2
+  }
+}

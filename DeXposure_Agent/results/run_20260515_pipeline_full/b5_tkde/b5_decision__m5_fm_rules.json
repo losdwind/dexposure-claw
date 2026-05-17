@@ -1,0 +1,23 @@
+{
+  "benchmark": "b5_decision",
+  "method": "m5_fm_rules",
+  "timestamp": "2026-05-15T17:00:27.577449",
+  "elapsed_seconds": 1891.05,
+  "log_file": "/workspace/graph-dexposure/DeXposure_Agent/results/run_20260515_b5tkde/b5_decision__m5_fm_rules__20260515_162856.log",
+  "results": [
+    {
+      "method": "m5_fm_rules",
+      "ticket_precision": 0.006896551724137931,
+      "target_recall_at_k": 6.631299734748011e-05,
+      "score_discrimination": 0.0,
+      "target_stability": 0.2569444444444445,
+      "stress_pool_size_mean": 522.4827586206897,
+      "n_tickets_mean": 2.0,
+      "risk_reduction": 0.09135799897642574,
+      "audit_completeness": 6.631299734748011e-05,
+      "suppression_rate": 0.0,
+      "false_intervention_rate": 0.0,
+      "n_weeks_evaluated": 29
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+% =====================================================================
+%  Section: DeXposure-Bench (Contribution II)
+% =====================================================================
+% Top-level section, sits between Algorithm (Contribution I) and Experiments.
+
+\section{\textsc{DeXposure-Bench}: An Evaluation Suite for FM+LLM Decision Pipelines}
+\label{sec:bench}
+
+\subsection{Motivation: an evaluation gap}
+
+Foundation-model pipelines that pair a domain forecaster with a large
+language model decision layer are proliferating across finance,
+supply-chain risk, and infrastructure monitoring.  Despite this, the
+community lacks a standardised suite for evaluating the full
+\emph{pipeline}---most existing benchmarks evaluate a single stage in
+isolation.  Generic LLM-agent benchmarks
+(\textsc{SWE-bench}~\cite{jimenez2024swebench},
+\textsc{AgentBench}~\cite{liu2024agentbench},
+\textsc{HELM}~\cite{liang2022helm}) cover open-ended coding or tool use
+but not domain-grounded supervisory decisions.  Temporal-graph
+benchmarks (\textsc{TGB}~\cite{huang2023tgb},
+\textsc{OGB}~\cite{hu2020ogb}) measure structural prediction quality
+but stop short of any decision metric.  Domain-specific evaluations of
+DeFi risk forecasting exist as one-off experiments accompanying single
+papers, none of them packaged as a reusable harness.
+
+\textsc{DeXposure-Bench} fills this gap with a single, reproducible
+suite that scores a candidate pipeline on six axes spanning forecast
+quality, anomaly detection, predictive uncertainty, what-if query
+fidelity, downstream decision quality, and data-quality robustness, on
+a shared 16{,}610-protocol DeFi exposure dataset with a
+\emph{regulator-aligned} ground truth.
+
+\subsection{Suite schema}
+
+The suite is organised as six benchmarks, each producing an
+independently reportable scalar (or vector of scalars).  Pipelines may
+report against any subset; the full leaderboard requires all six.
+Table~\ref{tab:bench-schema} summarises each axis.
+
+\begin{table*}[t]
+\centering
+\caption{\textsc{DeXposure-Bench} schema. Each row is an independently
+reportable benchmark; the full leaderboard requires all six.}
+\label{tab:bench-schema}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}llXl@{}}
+\toprule
+ID & Capability tested & Primary metrics & Applicable methods \\
+\midrule
+\texttt{b1\_forecast}     & Temporal graph prediction quality
+  & PageRank MAE, HHI MAE, Gini MAE, trend consistency, rank correlation; per horizon $h\in\{1,4,8,12\}$
+  & Any predictor \\
+\texttt{b2\_warning}      & Streaming anomaly detection
+  & Precision, recall, F1, lead time, stability; per event $\times$ alert budget
+  & Any monitor + predictor \\
+\texttt{b3\_calibration}  & Predictive uncertainty quality
+  & PI coverage @ 0.90 target, PI width, ECE, CRPS
+  & Predictors with intervals \\
+\texttt{b4\_stress}       & What-if scenario fidelity
+  & Loss MAE, distressed-count MAE, propagation depth MAE, target overlap@$k$; per scenario $S_1\!\ldots\!S_5$
+  & Predictor + scenario engine \\
+\texttt{b5\_decision}     & Supervisory ticket quality
+  & Precision, recall@$k$, F1, target stability, judge score, FIR
+  & Predictor + decision policy \\
+\texttt{b6\_robustness}   & Data quality sensitivity
+  & Per-benchmark metrics under 5 degradation regimes; relative degradation
+  & Any predictor \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+The six axes were chosen so that they are: (i)~\emph{non-overlapping}
+in what they measure---a system can excel at b1 while failing b5; (ii)
+\emph{decomposable along the four-layer
+framework}~(\S\ref{sec:algorithm}), so that ablations on the
+predictor layer (b1, b3, b6), monitor layer (b2), scenario layer (b4),
+and decision layer (b5) can be reported independently; and
+(iii)~\emph{individually publishable}, so that downstream work may
+extend a single axis without re-running the whole suite.
+
+\subsection{Dataset and split}
+
+The benchmark draws on the \textsc{DeXposure} weekly exposure-graph
+dataset~\cite{wu2025dexposuredatasetbenchmarksinterprotocol}, a
+directed weighted graph $G_t = (V_t, E_t, w_t)$ at each weekly
+timestep $t$, with $V_t$ a subset of the 16{,}610-protocol universe
+observed over 2020-03--2025-08 (283 weeks).  Node features carry
+log-TVL, number of token types, maximum token share, Shannon entropy
+of the token distribution, and a 15-class category one-hot.  Edge
+weights are log-scaled USD inter-protocol exposures.  We adopt the
+strict no-leakage temporal split of Table~\ref{tab:bench-split}.
+
+\begin{table}[t]
+\centering
+\caption{\textsc{DeXposure-Bench} canonical split.  All reported
+numbers in this paper come from the test split.}
+\label{tab:bench-split}
+\footnotesize
+\setlength{\tabcolsep}{6pt}
+\begin{tabularx}{\linewidth}{@{}llrX@{}}
+\toprule
+Split & Period & Weeks & Usage \\
+\midrule
+Train       & 2020-03--2024-06 & $\sim$220 & Predictor training \\
+Validation  & 2024-07--2024-12 & $\sim$26  & Conformal calibration, threshold tuning \\
+Test        & 2025-01--2025-08 & $\sim$33  & Frozen leaderboard \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Ground truth: regulator-aligned absolute loss}
+\label{ssec:ground-truth}
+
+Prior systemic-risk evaluations rank protocols by \emph{fractional}
+weight change, which produces a ground-truth pool dominated by small
+protocols whose deterioration carries low systemic significance.  This
+choice silently biases every downstream metric and is not what
+supervisory authorities monitor in practice.
+
+\textsc{DeXposure-Bench} therefore defines its ground truth in terms
+of \emph{absolute} exposure loss.  Let $w_t(v)=\sum_{e\ni v} w_t(e)$
+be the total weight incident on protocol $v$ at time $t$.  For
+horizon~$h$ and lookahead window~$W$ we define the \emph{stressed
+set}~$\mathcal{S}_t^h$ as the top~$\pi$ fraction of active protocols
+ranked by absolute loss:
+\begin{equation}
+\Delta_t^h(v) \;=\; w_t(v) - w_{t+h}(v),
+\quad
+\mathcal{S}_t^h \;=\; \mathrm{top}_{\pi}\bigl\{ v : w_t(v) > 0, \Delta_t^h(v) > 0 \bigr\}.
+\label{eq:stressed}
+\end{equation}
+We fix $\pi = 0.05$ throughout (yielding an average pool of
+$|\mathcal{S}_t^h|\approx 283$ protocols per week, stable across the
+test split) and the lookahead window~$W=4$ weeks.
+
+Equation~\ref{eq:stressed} is the single ground-truth definition used
+by b2, b5, and the LLM-decision evaluation pipeline.  Aligning the
+metric with absolute economic magnitude---rather than fractional
+change---restores discrimination between methods that target central
+versus peripheral nodes and matches how a supervisor would
+prioritise.
+
+\subsection{Methods supported out of the box}
+
+Nine reference methods are bundled with the harness, sufficient to
+populate a complete leaderboard from a fresh checkout.  Each method
+exposes the same \texttt{predict\_graph} or
+\texttt{decide\_actions} interface, so adding a tenth method is a
+single-file change.
+
+\begin{table}[t]
+\centering
+\caption{Reference methods bundled with \textsc{DeXposure-Bench}.
+Heuristic identifiers use the \texttt{h} namespace; learned methods
+use \texttt{m}.}
+\label{tab:bench-methods}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}lllX@{}}
+\toprule
+ID & Predictor & Policy & Role \\
+\midrule
+\texttt{h1\_weighted\_degree}   & ---            & heuristic alert  & Streaming anomaly baseline \\
+\texttt{m1\_persistence\_rules} & $G_{t+h}=G_t$  & rule engine      & Decision baseline \\
+\texttt{m2\_snapshot\_llm}      & current snap   & LLM              & LLM-only ablation \\
+\texttt{m3\_evolvegcn}          & EvolveGCN      & ---              & Learned-GNN baseline \\
+\texttt{m4\_fm\_only}           & FM             & ---              & FM-only ablation \\
+\texttt{m5\_fm\_rules}          & FM             & rule engine      & FM + rules \\
+\texttt{m6\_fm\_llm}            & FM             & LLM              & Full FM + LLM stack \\
+\texttt{m7\_fm\_llm\_gated}     & FM             & LLM + safety gate & Safety-gated FM + LLM \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The seven listed in Table~\ref{tab:bench-methods} together expose all
+four cuts of the framework
+ablation: (i)~adding the predictor layer
+(\texttt{m1}$\!\to\!$\texttt{m5}), (ii)~swapping the decision layer
+(\texttt{m5}$\!\to\!$\texttt{m6}), (iii)~adding the safety gate
+(\texttt{m6}$\!\to\!$\texttt{m7}), and (iv)~removing the predictor
+from the LLM stack (\texttt{m2}$\!\leftrightarrow\!$\texttt{m6}).
+
+\subsection{Reporting protocol}
+
+To enter the leaderboard, a submission produces one JSON file per
+\{benchmark, method\} pair following the harness's published schema, and
+a single \texttt{results.json} aggregating the suite.  Required reports for the headline table are
+b1, b3, b5, and b6; b2 and b4 are required only for systems that
+implement a monitor or scenario layer respectively.  All metrics are
+computed on the frozen test split of Table~\ref{tab:bench-split};
+training and hyperparameter tuning may use train + validation freely.
+The harness fixes random seeds, snapshots library versions, and emits
+SHA-256 hashes of all checkpoint files so that any reported number can
+be reproduced bit-exactly.
+
+\subsection{Positioning in the benchmark landscape}
+
+Table~\ref{tab:bench-positioning} compares \textsc{DeXposure-Bench}
+against the closest existing evaluation suites.  No prior suite
+covers a domain-grounded decision metric on top of a forecasting
+backbone, which is the niche \textsc{DeXposure-Bench} addresses.
+
+\begin{table}[t]
+\centering
+\caption{\textsc{DeXposure-Bench} versus closest existing suites.
+A check mark indicates a covered axis; --- indicates the axis is out
+of scope.}
+\label{tab:bench-positioning}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}Xccccc@{}}
+\toprule
+Suite & Pred. & Anom. & Calib. & Scen. & Decision \\
+\midrule
+\textsc{OGB}~\cite{hu2020ogb}             & \checkmark & --- & --- & --- & --- \\
+\textsc{TGB}~\cite{huang2023tgb}          & \checkmark & --- & --- & --- & --- \\
+\textsc{HELM}~\cite{liang2022helm}        & ---        & --- & --- & --- & \checkmark \\
+\textsc{SWE-bench}~\cite{jimenez2024swebench} & ---    & --- & --- & --- & \checkmark \\
+\textsc{AgentBench}~\cite{liu2024agentbench}  & ---    & --- & --- & --- & \checkmark \\
+\textsc{DeXposure-Bench} (this work) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Reproducibility and extensibility}
+
+The harness, dataset, and reference implementations are released
+under an open licence at the project repository.  A complete
+leaderboard run, including all nine reference methods and the LLM
+evaluation pipeline, completes in under four GPU-hours on a single
+RTX~4090 plus approximately ten USD of LLM API spend, making the
+benchmark accessible to academic groups without industrial compute.
+Extending the suite---adding a method, an additional ground-truth
+formulation, or a new benchmark axis---is supported by single-file
+plug-in points documented alongside the harness.
