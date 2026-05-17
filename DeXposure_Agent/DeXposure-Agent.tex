@@ -35,7 +35,7 @@
 
 \begin{document}
 
-\title{DeXposure-Agent: An Agentic System for DeFi Risk Monitor and Decision based on Graph Times-Series Foundation Model}
+\title{DeXposure-Claw: An Agentic System for DeFi Risk Monitoring and Decision Recommendation Based on a Graph Time-Series Foundation Model}
 
 \author{Aijie~Shu and Fengxiang~He%
 \IEEEcompsocitemizethanks{%
@@ -44,7 +44,7 @@
 %\thanks{Manuscript received April 19, 2021; revised August 16, 2021.}}
 
 \markboth{IEEE Transactions on Knowledge and Data Engineering}%
-{Shu and He: DeXposure-Agent}
+{Shu and He: DeXposure-Claw}
 
 % The paper headers
 %\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2021}%{Shell \MakeLowercase{\textit{et al.}}: A Sample Article Using IEEEtran.cls for IEEE Journals}
@@ -55,11 +55,8 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk lack a dedicated forecasting backbone for graph-structured time series, which limits their data efficiency and uncertainty calibration. Building on DeXposure-FM, a graph time-series foundation model pre-trained on $43.7$ million exposure-graph entries, we present two contributions. First, \emph{DeXposure-Framework}: a four-layer query architecture---FM prediction, deterministic monitoring and scenario, LLM decision, and a data-health/confidence safety gate---that turns predicted exposure graphs into supervisory tickets. Second, \emph{DeXposure-Bench}: a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs, with a regulator-aligned ground truth defined by absolute exposure loss. The bench surfaces a non-trivial Pareto trade-off rather than uniform improvement: persistence remains strong on point-metric forecasting and ticket precision, while the FM turns forecasting into a deployable risk signal through trend consistency, calibrated uncertainty (PI coverage $0.912$ against a $0.90$ target), and robustness. In layer-wise decision ablations, the FM and LLM layers make additive contributions to ticket F1 ($+32\%$ from FM and $+27\%$ from LLM), while the safety gate improves explanation quality at a small F1 cost. We release the harness, dataset, and reference implementations to support extension.
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk lack a dedicated forecasting backbone for graph-structured time series, which limits their data efficiency and uncertainty calibration. Building on DeXposure-FM, a graph time-series foundation model pre-trained on $43.7$ million exposure-graph entries, we present two contributions. First, \emph{DeXposure-Claw}: a four-layer query architecture---FM prediction, deterministic monitoring and scenario, LLM decision, and a data-health/confidence safety gate---that turns predicted exposure graphs into supervisory tickets. Second, \emph{DeXposure-Bench}: a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs, with a regulator-aligned ground truth defined by absolute exposure loss. The bench surfaces a non-trivial Pareto trade-off rather than uniform improvement: persistence remains strong on point-metric forecasting and ticket precision, while the FM turns forecasting into a deployable risk signal through trend consistency, calibrated uncertainty (PI coverage $0.912$ against a $0.90$ target), and robustness. In layer-wise decision ablations, the FM and LLM layers make additive contributions to ticket F1 ($+32\%$ from FM and $+27\%$ from LLM), while the safety gate improves explanation quality at a small F1 cost. We release the harness, dataset, and reference implementations to support extension.
 
-Code: \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}
-
-Demo: \href{https://www.youtube.com/}{https://www.youtube.com/}
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -81,7 +78,7 @@ Agentic system, graph, time series, foundation model, decentralised finance, fin
 
 \section{Conclusion}
 
-We presented \textsc{DeXposure-Framework}, a four-layer query architecture that turns predicted exposure graphs into supervisory tickets with explicit data-health and confidence gates, and \textsc{DeXposure-Bench}, a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs.
+We presented \textsc{DeXposure-Claw}, a four-layer query architecture that turns predicted exposure graphs into supervisory tickets with explicit data-health and confidence gates, and \textsc{DeXposure-Bench}, a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs.
 
 The picture our benchmark surfaces is not one of uniform improvement. Persistence remains a strong baseline on point-metric forecasting and on raw ticket precision, but the FM contributes the pieces a monitoring agent needs for deployment: directional trend signal, calibrated prediction intervals, and lower degradation under data corruption. The LLM decision layer then raises recall and explanation quality at a non-trivial false-intervention cost, and the safety gate buys judge score at a small F1 cost. What the FM and LLM layers \emph{do} contribute is additive and decomposable: in the layer-wise ablation on \texttt{b5\_decision}, the FM signal lifts ticket F1 by $32\%$ and replacing the rule engine with the LLM lifts it by another $27\%$. We read this as evidence that the FM\,+\,LLM stack is the right configuration when recall, calibration, and explanation quality are the binding constraints; persistence\,+\,rules is the right configuration when minimising false interventions is paramount. The bench's value is in making this trade-off explicit rather than averaging it away.
 

@@ -3,7 +3,7 @@
 DeXposure Claw is a pluggable financial-risk agent extension for
 Claude Code, Hermes, OpenAI Codex, and other MCP-compatible runtimes.
 
-It exposes DeXposure-Bench and DeXposure-Agent workflows as:
+It exposes DeXposure-Bench and DeXposure-Claw workflows as:
 
 - MCP tools for benchmark execution, reporting, and audit metadata.
 - Runtime skills for repeatable financial-risk workflows.
