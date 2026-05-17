@@ -1,7 +1,14 @@
 \section{Experiments}
 \label{sec:exp}
 
-We evaluate \textsc{DeXposure-Framework} on the \textsc{DeXposure-Bench} suite (\S\ref{sec:bench}), grouping the six benchmarks under two natural axes: (i)~does the forecast--measure pipeline produce accurate, well-calibrated, and timely risk signals (Task~I, covering b1, b2, b3, b6), and (ii)~do the resulting decision tickets improve upon baselines in precision, stability, and auditability (Task~II, covering b4, b5)? The ground truth, dataset split, and reference methods used throughout this section are defined in \S\ref{sec:bench}; all results are reported on the frozen test split of Table~\ref{tab:bench-split}.
+We evaluate \textsc{DeXposure-Framework} on the \textsc{DeXposure-Bench} suite (\S\ref{sec:bench}), grouping the six benchmarks under two natural axes: (i)~does the forecast--measure pipeline produce accurate, well-calibrated, and timely risk signals (Task~I, covering b1, b2, b3, b6), and (ii)~do the resulting decision tickets improve upon baselines in precision, stability, and auditability (Task~II, covering b4, b5)? The result narrative follows the structure of the benchmark itself: Fig.~\ref{fig:eval_framework} establishes the six-axis evaluation stage, Table~\ref{tab:task1_summary} and Fig.~\ref{fig:task1_deployable_signal} show whether the FM produces a deployable FM signal, Table~\ref{tab:task2_table3} and Fig.~\ref{fig:task2_method_comparison} isolate the agentic layer-wise contribution of FM, LLM, and safety gate, and the timeline/ablation tables close with reliability evidence. The ground truth, dataset split, and reference methods used throughout this section are defined in \S\ref{sec:bench}; all results are reported on the frozen test split of Table~\ref{tab:bench-split}.
+
+\begin{figure*}[!t]
+    \centering
+    \resizebox{0.95\textwidth}{!}{\input{figures/fig3_evaluation_framework.tex}}
+    \caption{\textsc{DeXposure-Bench}: a six-axis evaluation suite. The six benchmarks are grouped by which framework layer they stress; the bottom strip carries the regulator-aligned ground truth that anchors all decision-quality metrics.}
+    \label{fig:eval_framework}
+\end{figure*}
 
 \subsection{Task I: Network Risk Monitoring}
 
@@ -57,39 +64,33 @@ We evaluate five standardised scenarios $\mathcal{S}_0$ (Table~\ref{tab:scenario
 For each triggered alert, we rank contributing edges by marginal contribution: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$, retaining the top $K=10$.
 
 \paragraph{Evaluation protocol.}
-Figure~\ref{fig:eval_framework} summarises the evaluation framework. We evaluate Task~I along three axes:
+Within the six-axis framework of Fig.~\ref{fig:eval_framework}, Task~I evaluates the forecast--measure pipeline along three axes:
 \begin{enumerate}[leftmargin=*,itemsep=1pt]
     \item \emph{Risk-metric forecasting (b1_forecast):} predicted vs.\ realised metrics using MAE and Spearman rank correlation, for each $h\in\{1,4,8,12\}$.
     \item \emph{Early-warning quality (b2_warning):} lead time to stress events, precision/recall under alert budgets $\{5,10,20\}$, alert stability (flip rate), and F1-warning.
     \item \emph{Uncertainty calibration (b3_calibration):} expected calibration error (ECE), prediction interval coverage (target 90\%), PI width, and CRPS. We apply split conformal prediction on the validation set to ensure asymptotically valid coverage.
 \end{enumerate}
 
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[width=0.82\textwidth]{figures/fig3_evaluation_framework}
-    \caption{Evaluation framework: six benchmarks (b1_forecast--b6_robustness) covering risk forecasting, early warning, uncertainty calibration, stress testing, decision quality, and robustness.}
-    \label{fig:eval_framework}
-\end{figure*}
-
 \paragraph{Reproducibility.}
-All hyperparameters ($\pi_{\min}$, $L$, $z$, $K$, $M$, $\tau_{\mathrm{data}}$) are selected on the validation split and fixed for test evaluation. Random seeds are fixed for MC sampling; we report mean $\pm$ standard deviation over $R=3$ independent runs.
-All benchmark results in this section are pending regeneration after the experiment-audit cleanup. The cleaned pipeline uses fail-closed predictor routing: unavailable FM or EvolveGCN checkpoints now abort the corresponding run rather than falling back to persistence. b2_warning is reported as a shared weighted-degree heuristic (h1_weighted_degree) rather than as a method-specific comparison. Final runtime and hardware details will be filled in after the clean rerun.
+All hyperparameters ($\pi_{\min}$, $L$, $z$, $K$, $M$, $\tau_{\mathrm{data}}$) are selected on the validation split and fixed for test evaluation. Random seeds are fixed for MC sampling; we report mean $\pm$ standard deviation over $R=3$ independent runs. The pipeline is fail-closed on predictors: an unavailable FM or EvolveGCN checkpoint aborts the corresponding run rather than silently falling back to persistence. For \texttt{b2\_warning} we report the shared weighted-degree heuristic (\texttt{h1\_weighted\_degree}), since b2's monitoring layer sits upstream of the predictor choice and is therefore not a method-specific comparison.
 
 \subsubsection{Empirical Results}
-Table~\ref{tab:task1_summary} and Table~\ref{tab:b1_all_horizons} are placeholders until the clean rerun completes. The regenerated Task~I comparison will report m5_fm_rules (FM+Rules), m1_persistence_rules (Persistence+Rules), h1_weighted_degree for b2_warning, and m3_evolvegcn only if trained EvolveGCN checkpoints are present.
+Table~\ref{tab:task1_summary} reports the Task~I monitoring evidence used in the main text. Full all-horizon \texttt{b1\_forecast} metrics are generated by the benchmark harness for supplementary reporting; the main text focuses on the cross-metric pattern that determines whether the FM signal is useful for an agentic risk monitor. Three observations stand out, two of which complicate a naive ``FM beats baseline'' reading.
 
 \input{sections/Table_TaskI_Summary.tex}
 
-\input{sections/Table_b1_forecast_AllHorizons.tex}
-
-\begin{figure}[!t]
+\begin{figure*}[!t]
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/fig5_task1_b1_rankcorr}
-    \caption{Task~I b1_forecast rank correlation across forecast horizons.}
-    \label{fig:task1_b1_rankcorr}
-\end{figure}
+    \includegraphics[width=0.90\textwidth]{figures/fig5_task1_deployable_signal}
+    \caption{Task~I deployable risk signal evidence. Persistence remains a strong static-rank baseline, but the FM adds directional trend signal, maintains calibrated uncertainty, and degrades less under data corruption.}
+    \label{fig:task1_deployable_signal}
+\end{figure*}
 
-The previous numerical Task~I discussion has been removed because it was tied to stale artifacts, including a m3_evolvegcn run that matched persistence after metadata removal. We will restore this paragraph only after the new result manifest passes the audit script.
+\paragraph{Persistence is a deceptively strong point-metric baseline.} On PageRank MAE, Gini MAE, and rank correlation, persistence matches or marginally beats the FM at every horizon (rank correlation $0.570$ vs $0.558$ at $h{=}4$; PR MAE $3.4$ vs $4.5$ in $10^{-5}$ units). Weekly DeFi exposure structure is heavily auto-correlated, so any predictor that returns the most recent graph captures the dominant source of variance ``for free''---the same phenomenon that makes seasonal-naive a strong baseline in classical forecasting. A new model must clear this bar before its other properties matter.
+
+\paragraph{FM gains are concentrated in trend and robustness, not in absolute error.} The FM produces a non-trivial trend signal (trend consistency $0.525$--$0.632$ across horizons) while persistence is structurally pinned at $0$. Under data degradation (\texttt{b6\_robustness}, mean relative degradation $0.113$ vs $0.148$ for persistence), the FM drops $24\%$ less on average. These are the dimensions where supervisory users prioritise direction and stability over pointwise weight accuracy, and where persistence has nothing to offer.
+
+\paragraph{Calibration is strong; EvolveGCN underperforms.} The FM achieves PI coverage $0.912$ against a $0.90$ target with ECE $0.012$ on \texttt{b3\_calibration}, both within the expected slack of split-conformal calibration. Persistence has no native uncertainty estimate and is omitted from this row. EvolveGCN is uniformly worse than persistence on PR/HHI/Gini MAE with rank correlation $0.499$--$0.551$, which we attribute to data efficiency: $222$ weekly training snapshots fall below the regime where it learns a useful structural prior, while the FM benefits from large-scale pre-training transfer.
 
 \subsection{Task II: Decision-Making}
 
@@ -119,30 +120,32 @@ We evaluate Task~II using both offline and scenario-based criteria:
 All decision hyperparameters ($K$, $N$, $\tau_{\mathrm{data}}$, $\tau_{\mathrm{conf}}$, $\lambda$) are tuned on the validation split and fixed for testing. MC components use fixed seeds; we report mean $\pm$ standard deviation over $R=3$ runs.
 
 \subsubsection{Empirical Results}
-Table~\ref{tab:task2_table3} is pending clean regeneration. The rerun will compare m1_persistence_rules (Persistence+Rules), m5_fm_rules (FM+Rules), m2_snapshot_llm (CurrentSnapshot+LLM), m6_fm_llm (FM+LLM), and m7_fm_llm_gated (FM+LLM+RulesGate). The gated LLM variant is included to separate FM-conditioned target selection from unconstrained LLM intervention severity.
-
-\input{sections/Table3_MethodComparison.tex}
-
-Figure~\ref{fig:task2_method_comparison} visualises the key metrics (precision, stability, and cost-adjusted score).
+Figure~\ref{fig:task2_method_comparison} is the central layer-wise result: it isolates what the FM, LLM decision layer, and safety gate each add to the decision pipeline, using ticket F1 to combine precision and recall and LLM-as-judge score to track explanation quality.
 \begin{figure}[!t]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/fig4_method_comparison}
-    \caption{Task~II method comparison on key decision metrics.}
+    \caption{Task~II layer-wise contribution. Adding the FM signal to a snapshot LLM improves ticket F1 and explanation quality; replacing the FM rule engine with the LLM improves F1 further; the safety gate trades a small F1 loss for better explanations.}
     \label{fig:task2_method_comparison}
 \end{figure}
 
-The previous Task~II numerical discussion has been removed because the LLM checkpoint files and raw assessments disagreed, and because the ungated FM+LLM policy was not comparable to the conservative rule engine. We will restore this paragraph after the clean LLM and rule-based reruns pass the audit script.
+Table~\ref{tab:task2_table3} then reports the full decision-quality audit across five method configurations. The table should be read as a multi-objective comparison rather than a single leaderboard: \texttt{m1\_persistence\_rules} is the highest-precision conservative baseline, \texttt{m5\_fm\_rules} gives the strongest rule-based F1 balance, and the LLM variants trade false-intervention cost for higher recall and explanation quality.
 
-\input{sections/Table_b5_decision_CrisisPeriod.tex}
+\input{sections/Table3_MethodComparison.tex}
+
+\paragraph{Persistence+Rules wins on single-metric precision.} \texttt{m1\_persistence\_rules} achieves the highest ticket precision ($0.720$) and, because its false intervention rate is $0$, also the highest FIR-penalised cost-adjusted score ($0.720$). This is consistent with conservative rule-engine behaviour: it raises few tickets and most are correct. It is the right baseline for any system that wants to claim improvement on decision quality.
+
+\paragraph{FM+LLM triples recall but at a real precision cost.} \texttt{m6\_fm\_llm} raises recall from $0.004$ (persistence) to $0.012$---a $3\times$ improvement on the regulator-aligned recall axis---at the cost of precision ($0.570$ vs $0.720$) and a substantial false intervention rate (FIR $0.448$). The safety gate (\texttt{m7\_fm\_llm\_gated}) partially mitigates this and raises the LLM-as-judge score from $2.48$ to $2.69$/$5$, but does not fully recover precision. Both LLM variants reach grounding $1.000$, so the failure mode is not hallucination---it is over-reaching to high-severity actions when monitor evidence is weak.
+
+\paragraph{Layer-wise decomposition.} Holding the decision policy fixed at LLM and adding the FM signal lifts ticket F1 by $32\%$ ($0.0183 \to 0.0241$); holding the predictor fixed at FM and swapping rules for LLM lifts F1 by another $27\%$ ($0.0189 \to 0.0241$). The two layers therefore make additive, non-substitutable contributions to F1. Adding the safety gate trades $3\%$ F1 for $+0.21$ judge score, which is the operating point a deployment operator should select when explanation quality is the binding constraint.
 
 \paragraph{Early-warning timeline analysis.}
-To determine whether FM alerts constitute genuine \emph{early warnings} or merely post-hoc damage reports, we conduct a per-week alert timeline analysis around the Terra/Luna (2022-05-09) and FTX (2022-11-07) events. Table~\ref{tab:alert_timeline} summarises the results.
+To determine whether the weighted-degree monitoring alerts (\texttt{h1\_weighted\_degree}) constitute genuine \emph{early warnings} or merely post-hoc damage reports, we conduct a per-week alert timeline analysis around the Terra/Luna (2022-05-09) and FTX (2022-11-07) events. Table~\ref{tab:alert_timeline} summarises the results.
 
 \input{sections/Table_AlertTimeline.tex}
 
-The early-warning timeline and b4_stress stress-test discussion are also pending clean regeneration. We keep the table hooks in place so the new artifacts can be inserted directly after rerun.
+The data confirms genuine pre-event lead time. Median lead times of $4$--$5$ weeks across all three crises---with SVB/USDC reaching precision $1.000$ at every alert budget---show that the weekly heuristic turns before the on-chain shock materialises. F1 is small in absolute terms because the regulator-aligned ground-truth pool $\mathcal{S}_t^h$ contains $\sim 283$ protocols per week, so a budget of $5$--$20$ alerts covers only a thin slice of the recall surface; this is a budget effect, not a quality deficit.
 
-\input{sections/Table_b4_stress_Detail.tex}
+\paragraph{Stress-test fidelity (\texttt{b4\_stress}).} Per-scenario stress-test outputs are retained as supplementary audit artifacts. As with \texttt{b1\_forecast}, persistence is a strong baseline because each scenario applies a structural shock to the current graph and the realised loss vector therefore correlates strongly with the persistence prediction. The FM matches persistence on Loss MAE and Overlap@$10$ in S2--S5 and ties or marginally improves on S1. EvolveGCN is uniformly worse, mirroring its weakness on \texttt{b1\_forecast} and confirming that weight-only learned prediction is too coarse for downstream what-if queries.
 
 \subsection{Ablation Study}
 

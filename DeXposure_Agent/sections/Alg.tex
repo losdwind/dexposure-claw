@@ -7,8 +7,8 @@ Figure~\ref{fig:system_overview} provides an architectural overview of the full 
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[width=0.82\textwidth]{figures/fig1_system_overview}
-    \caption{System overview of DeXposure-Agent. The agent ingests weekly exposure snapshots, queries the DeXposure-FM backbone for multi-horizon forecasts, computes risk metrics and stress scenarios, and emits auditable recommendation tickets under data-health and confidence gates.}
+    \resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview.tex}}
+    \caption{\textsc{DeXposure-Framework}: a four-layer query architecture. The system ingests the weekly exposure graph $G_t$, runs FM prediction (Layer~1), monitoring and scenario engines (Layer~2), an LLM decision layer (Layer~3), and a safety gate (Layer~4) that emits either the supervisory ticket $\tau^\star$ or a safe-mode notice.}
     \label{fig:system_overview}
 \end{figure*}
 

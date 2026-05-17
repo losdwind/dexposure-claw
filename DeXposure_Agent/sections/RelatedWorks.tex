@@ -1,26 +1,133 @@
 \section{Related Works}
 
-This section surveys prior work most closely related to our setting.
+This section positions \textsc{DeXposure-Agent} against five neighbouring
+threads: financial-network contagion, temporal graph learning, foundation
+models for time series and graphs, LLM agents in finance and DeFi, and
+benchmark design.
 
-\subsection{Financial Network Risk Modelling}
-In traditional finance, credit risk modelling typically spans both entity-level default modelling and system-level network perspectives. Classical structural and reduced-form approaches focus on estimating default likelihoods for individual institutions, whereas network contagion models study how distress can cascade through interconnected balance sheets. For instance, Dolfin et al. use network epidemic models to study credit contagion, showing that dense interconnections and overlapping portfolios can magnify systemic credit risk \cite{math7080713}.
+\subsection{Financial Network Risk and DeFi Contagion}
 
-In decentralised finance, credit risk takes a different form because lending is commonly over-collateralised and enforced by smart contracts. Bertomeu et al. introduce parsimonious aggregate risk measures for DeFi lending protocols based only on total deposits and borrowings, and find that systemic fragility rose sharply around mid-2021 during periods of crypto-market stress \cite{BERTOMEU2024105321}. Bridging conceptual links between TradFi and DeFi, Aufiero et al. review mechanisms of systemic risk and argue that, while familiar ingredients (leverage, liquidity shocks, correlated exposures) exist in both systems, DeFi’s algorithmic execution and composability introduce distinctive channels through which shocks may propagate \cite{aufiero2025mappingmicroscopicsystemicrisks}.
+Systemic-risk analysis in traditional finance has long treated the financial
+system as a network of balance-sheet obligations, funding links, and correlated
+asset exposures. Clearing-network models formalise how defaults propagate
+through interbank liabilities~\cite{EisenbergNoe2001}, while subsequent work
+studies when dense connections stabilise the system and when they amplify
+shocks~\cite{Acemoglu2015SystemicRisk,GlassermanYoung2016Contagion}.
+DebtRank-style measures further emphasise that a node can be ``too central to
+fail'' even when it has not yet defaulted~\cite{BattistonEtAl2012DebtRank}.
+These models motivate our focus on network position, concentration, and
+stress-test loss rather than protocol-level indicators alone.
 
-\subsection{Machine Learning Approaches}
+DeFi changes the object being measured. Smart contracts replace part of the
+legal and operational layer, but composability, shared collateral, stablecoins,
+bridges, and liquidations create new contagion channels~\cite{Schar2021DeFi,
+gogol2024sokdecentralizedfinancedefi,ESRB2025}. Recent work measures DeFi
+risk from aggregate deposits and borrowings~\cite{BERTOMEU2024105321}, maps
+microscopic and systemic mechanisms across TradFi and
+DeFi~\cite{aufiero2025mappingmicroscopicsystemicrisks}, and studies fragility
+in TVL dynamics~\cite{ZhangEtAl2026TVLDynamics}. In contrast, our setting is
+an inter-protocol credit-exposure network: the units of analysis are weighted
+links between protocols, and the downstream task is not only to detect stress
+but also to produce traceable supervisory tickets.
 
-Machine learning methods are increasingly used for systemic-risk detection and contagion analysis \cite{BALMASEDA2023200240, gonon2025computingsystemicriskmeasures}. In particular, graph neural networks (GNNs) exploit relational structure to strengthen predictive performance on networked risk problems \cite{KipfWelling2017, veličković2018graphattentionnetworks}. Balmaseda et al. demonstrate that GNN-based models can substantially outperform conventional ML when classifying the systemic importance of banks in simulated financial networks \cite{BALMASEDA2023200240}. Gonon et al. combine GNNs with explicit interbank liability networks to compute systemic risk measures defined via the minimum capital required to stabilise the system \cite{gonon2025computingsystemicriskmeasures}. Their formulation effectively captures contagion channels (e.g., Eisenberg--Noe-style clearing) by embedding graph-structured information directly into the risk aggregation procedure.
+\subsection{Temporal Graph Learning for Dynamic Risk}
 
-\subsection{Foundation Models}
+Graph neural networks have become a natural tool for financial networks
+because they use both node attributes and relational structure. Prior work
+shows that GNNs can improve systemic-importance classification and systemic
+risk computation in simulated or interbank-style financial
+networks~\cite{BALMASEDA2023200240,gonon2025computingsystemicriskmeasures},
+building on general graph convolution and attention
+architectures~\cite{KipfWelling2017,veličković2018graphattentionnetworks}.
+These studies support the premise that risk is partly encoded in graph
+topology, not just in independent node features.
 
-Foundation models are increasingly influencing finance and economics by shifting from narrowly tuned, task-specific models towards reusable representations learned from broad data. Rather than training a bespoke model per downstream objective, recent work pretrains large neural networks---predominantly transformer-based architectures \cite{VaswaniEtAl2017Attention} and related variants---on massive corpora, then transfers these models across tasks via prompting or lightweight adaptation \cite{AnsariEtAl2024Chronos,RasulEtAl2023LagLlama,DasEtAl2024TimesFM}. Alongside this, an emerging policy-oriented literature uses large language models to extract quantitative signals from narrative sources (e.g., reports, releases, and news) and to integrate them into nowcasting pipelines, suggesting that relatively small yet information-rich text inputs can improve real-time forecasting when paired with standard indicators \cite{deBondtSun2025ChatGPTNowcast,KwonEtAl2024BISLLMprimer,CarrieroEtAl2024MacroLLM}. 
+Our problem is additionally temporal: exposure weights, active protocols, and
+contagion paths evolve week by week. Dynamic-graph models such as DySAT,
+TGAT, EvolveGCN, and Temporal Graph Networks model changing neighbourhoods,
+temporal attention, recurrent graph filters, or event streams~\cite{
+SankarEtAl2020DySAT,XuEtAl2020TGAT,ParejaEtAl2020EvolveGCN,
+rossi2020temporalgraphnetworksdeep}. Temporal graph benchmarks standardise
+link-prediction and node-classification tasks on dynamic
+graphs~\cite{huang2023tgb}. However, these settings typically optimise
+task-specific structural prediction. \textsc{DeXposure-Agent} instead uses
+temporal graph forecasts as inputs to monitoring, scenario stress tests, and
+LLM-based decisions; the forecasting layer is therefore evaluated by its
+effect on calibrated risk signals and recommendation tickets, not only by
+edge-level accuracy.
 
-Foundation-model ideas are also being extended to graph-structured inputs by augmenting self-attention with graph-aware structural encodings, illustrating the viability of large pretrained models for networks that resemble webs of financial contracts or cross-asset relationships; Graphormer provides a representative example \cite{Ying2021Graphormer}. For tabular settings, the Graph Prior-data Fitted Network (GraphPFN) \cite{eremeev2025turningtabularfoundationmodels} is pretrained on millions of synthetic tabular tasks and reports strong out-of-the-box performance across a range of benchmarks.
+\subsection{Foundation Models for Time Series and Graphs}
 
-\subsection{Agentic Systems in Finance}
+Foundation models aim to replace narrowly trained task models with reusable
+representations learned from broad pretraining data~\cite{
+BommasaniEtAl2021FoundationModels}. Earlier neural forecasting architectures
+such as Temporal Fusion Transformers, Informer, and Autoformer established
+multi-horizon attention-based forecasting for long and heterogeneous time
+series~\cite{LimEtAl2021TFT,ZhouEtAl2021Informer,WuEtAl2021Autoformer}. More
+recently, Chronos, Lag-Llama, and TimesFM show that large pretrained sequence
+models can transfer across forecasting tasks and provide probabilistic
+forecasts~\cite{AnsariEtAl2024Chronos,RasulEtAl2023LagLlama,
+DasEtAl2024TimesFM}. In finance and economics, LLMs have also been used to
+extract signals from news and policy text for nowcasting pipelines~\cite{
+deBondtSun2025ChatGPTNowcast,KwonEtAl2024BISLLMprimer,CarrieroEtAl2024MacroLLM}.
 
-The recent proliferation of large language model (LLM) agents has prompted several applications in finance and DeFi security. In portfolio management, Luo et al.\ propose a multi-agent LLM framework for automated crypto portfolio construction with team-level collaboration, though without graph-structured market models~\cite{luo2025llmcrypto}. BlindTrade~\cite{jeon2026blindtrade} combines GNN encoders with four LLM agents for stock portfolio optimisation, representing the closest integration of graph models and LLM agents in finance; however, it targets equity markets and does not address systemic risk in DeFi networks.
+Graph foundation modelling is less settled. Graphormer demonstrates that
+transformers can be made graph-aware through structural
+encodings~\cite{Ying2021Graphormer}; self-supervised graph representation
+learning methods such as Deep Graph Infomax, GraphCL, and GraphMAE pretrain
+encoders through mutual information, contrastive augmentations, or masked
+attribute reconstruction~\cite{VelickovicEtAl2019DGI,YouEtAl2020GraphCL,
+HouEtAl2022GraphMAE}; and GraphPFN and TabPFN-style work explores how
+pretrained tabular predictors can transfer to graph-structured tasks~\cite{
+HollmannEtAl2025TabPFN,eremeev2025turningtabularfoundationmodels}. Heterogeneous
+graph pretraining has also been applied to default-risk propagation among bond
+issuers~\cite{li2025hgmae}. These systems motivate a foundation-model backbone
+for risk forecasting, but they do not directly address weighted temporal DeFi
+exposure graphs or the downstream requirements of uncertainty-gated supervisory
+decision making.
 
-Within DeFi, agentic pipelines have been developed primarily for security auditing and transaction analysis. Arbiter~\cite{yao2025arbiter} employs a Graph-of-Thoughts reasoning framework to verify intent--transaction alignment in DeFi, while Know Your Intent~\cite{mao2025knowyourintent} uses a multi-perspective LLM agent to mine user transaction intents. On the security side, Heimdallr~\cite{hu2026heimdallr} and Knowdit~\cite{kong2026knowdit} apply agentic pipelines for smart contract vulnerability detection, and PMDetector~\cite{liu2025pmdetector} uses static analysis augmented by LLM reasoning to identify DeFi price manipulation vulnerabilities.
+\subsection{LLM Agents in Finance and DeFi}
 
-Notably, none of these systems combine a dedicated graph time-series foundation model with an agentic decision pipeline for \emph{systemic risk monitoring} in DeFi exposure networks. Watson et al.~\cite{watson2025explainfirst} use GCN anomaly detection with LLM-generated explanations for Bitcoin fraud, but their pipeline is not agentic (human-in-the-loop) and targets individual transactions rather than network-level risk. In traditional finance, Li et al.~\cite{li2025hgmae} pretrain a heterogeneous graph autoencoder for bond default risk propagation, demonstrating graph pretraining for risk but without agent or DeFi components. DeXposure-Agent bridges this gap by integrating a graph time-series foundation model backbone with a structured agent pipeline for DeFi exposure-network risk.
+LLM agents are increasingly used for financial analysis, trading, and
+blockchain security. General agent patterns such as ReAct combine reasoning
+traces with tool-using actions~\cite{YaoEtAl2023ReAct}, while financial LLM
+work such as FinGPT adapts language models to financial data and
+tasks~\cite{YangEtAl2023FinGPT}. In crypto portfolio management, multi-agent
+LLM systems coordinate market analysis and allocation decisions~\cite{
+luo2025llmcrypto}, and BlindTrade combines graph encoders with LLM agents for
+anonymised stock portfolio optimisation~\cite{jeon2026blindtrade}. These
+systems are closest to ours in combining graph representations with
+language-model reasoning, but their objective is portfolio construction rather
+than systemic-risk supervision.
+
+Within DeFi, agentic systems have focused mainly on security auditing,
+transaction understanding, and manipulation detection. Arbiter uses
+Graph-of-Thoughts reasoning for intent--transaction alignment~\cite{
+yao2025arbiter}; Know Your Intent mines transaction intent with a
+multi-perspective LLM agent~\cite{mao2025knowyourintent}; Heimdallr and
+Knowdit target smart-contract vulnerability detection~\cite{
+hu2026heimdallr,kong2026knowdit}; and PMDetector applies LLM reasoning to
+price manipulation detection~\cite{liu2025pmdetector}. Watson et al. combine
+graph anomaly detection with LLM-generated explanations for Bitcoin
+fraud~\cite{watson2025explainfirst}. These works show that LLMs can help
+explain or audit crypto systems, but they do not couple the agent with a
+dedicated graph time-series forecaster for network-level exposure risk.
+
+\subsection{Benchmarks for Graph, Forecasting, and Agentic Systems}
+
+The benchmark literature provides useful pieces but not the complete
+evaluation target required here. OGB and TGB standardise graph and temporal
+graph evaluation~\cite{hu2020ogb,huang2023tgb}; time-series forecasting work
+emphasises temporally valid splits and robust model selection~\cite{
+BergmeirBenitez2012CVTS}; and general LLM-agent benchmarks such as HELM,
+SWE-bench, and AgentBench evaluate language capabilities, software repair, or
+generic agent behaviour~\cite{liang2022helm,jimenez2024swebench,
+liu2024agentbench}.
+
+\textsc{DeXposure-Bench} occupies a different point in this space. It evaluates
+forecasting, early warning, calibration, scenario stress fidelity, decision
+quality, and data-quality robustness in one harness, with ground truth tied to
+absolute exposure loss. This lets us ask whether a foundation-model forecast
+actually improves downstream risk monitoring and ticket generation, and also
+whether safety gates reduce harmful recommendations under missingness or weak
+evidence.

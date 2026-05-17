@@ -182,6 +182,67 @@ class ExperimentIntegrityTests(unittest.TestCase):
             self.assertNotIn("20260409", source)
             self.assertIn("latest", source)
 
+    def test_task2_figure_tells_layer_contribution_story(self):
+        script_source = read("scripts/build_table3_and_fig4.py")
+        exp_source = read("sections/Exp.tex")
+
+        self.assertIn("Layer-wise Contribution", script_source)
+        self.assertIn("Ticket F1", script_source)
+        self.assertIn("Judge Score", script_source)
+        self.assertIn("m2_snapshot_llm", script_source)
+        self.assertIn("m5_fm_rules", script_source)
+        self.assertIn("layer-wise contribution", exp_source)
+        self.assertNotIn(
+            "precision, stability, and cost-adjusted score",
+            exp_source,
+        )
+        self.assertNotIn("recall--cost trade-off", exp_source)
+        self.assertNotIn("+33%", script_source)
+        self.assertNotIn("+33\\%", exp_source)
+        self.assertIn("32\\%", exp_source)
+
+    def test_task2_table_explains_predictor_only_methods_are_not_applicable(self):
+        table_source = read("sections/Table3_MethodComparison.tex")
+
+        self.assertIn("predictor-only", table_source)
+        self.assertIn(r"\texttt{m3\_evolvegcn}", table_source)
+        self.assertIn(r"\texttt{m4\_fm\_only}", table_source)
+        self.assertIn("do not emit supervisory tickets", table_source)
+
+    def test_task1_figure_tells_deployable_fm_signal_story(self):
+        script_source = read("scripts/build_task1_artifacts.py")
+        exp_source = read("sections/Exp.tex")
+
+        self.assertIn("FM deployable risk signal", script_source)
+        self.assertIn("TrendCons@h4", script_source)
+        self.assertIn("PI coverage", script_source)
+        self.assertIn("Robust degradation", script_source)
+        self.assertIn("fig5_task1_deployable_signal", script_source)
+        self.assertIn("fig5_task1_deployable_signal", exp_source)
+        self.assertIn("deployable risk signal", exp_source)
+        self.assertNotIn("fig5_task1_b1_rankcorr", exp_source)
+        self.assertNotIn(
+            "Task~I b1_forecast rank correlation across forecast horizons",
+            exp_source,
+        )
+
+    def test_main_text_matches_experiment_chord_narrative(self):
+        main_source = (REPO_ROOT / "DeXposure_Agent" / "DeXposure-Agent.tex").read_text()
+        intro_source = read("sections/Intro.tex")
+        exp_source = read("sections/Exp.tex")
+        task1_table = read("sections/Table_TaskI_Summary.tex")
+        combined = "\n".join([main_source, intro_source, exp_source, task1_table])
+
+        self.assertIn("Task I evidence for deployable risk monitoring", task1_table)
+        self.assertIn("deployable FM signal", exp_source)
+        self.assertIn("agentic layer-wise", exp_source)
+        self.assertIn("reliability evidence", exp_source)
+        self.assertIn("+32\\%", intro_source)
+        self.assertIn("coverage 0.912", intro_source)
+        self.assertNotIn("+33\\%", combined)
+        self.assertNotIn("+33%", combined)
+        self.assertNotIn("0.913--0.919", combined)
+
     def test_result_audit_passes_after_old_artifacts_are_removed(self):
         audit_script = AGENT_ROOT / "experiments" / "audit_results.py"
         result = subprocess.run(

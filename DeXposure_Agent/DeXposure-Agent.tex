@@ -1,4 +1,4 @@
-\documentclass[10pt,journal,compsoc]{IEEEtran}
+\documentclass[10pt,journal,compsoc,onecolumn]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{mathtools}
 \usepackage{algorithm}
@@ -23,6 +23,7 @@
 \usepackage{tabularx}
 \usepackage{algpseudocode}
 \usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
 \usepackage[strings]{underscore}
 \usepackage{hyperref}
 \usepackage{cleveref}
@@ -38,9 +39,8 @@
 
 \author{Aijie~Shu and Fengxiang~He%
 \IEEEcompsocitemizethanks{%
-\IEEEcompsocthanksitem A. Shu is an independent scholar in Edinburgh, Scotland.
-\IEEEcompsocthanksitem F. He is with the School of Informatics, University of Edinburgh, Edinburgh EH8 9AB, Scotland.
-\IEEEcompsocthanksitem Correspondence to F. He, email: F.He@ed.ac.uk.}}%
+\IEEEcompsocthanksitem A. Shu and F. He are with the School of Informatics, University of Edinburgh, Edinburgh EH8 9AB, U.K. (e-mail: v1ashu@ed.ac.uk; F.He@ed.ac.uk).
+\IEEEcompsocthanksitem Corresponding author: Fengxiang He.}}%
 %\thanks{Manuscript received April 19, 2021; revised August 16, 2021.}}
 
 \markboth{IEEE Transactions on Knowledge and Data Engineering}%
@@ -55,7 +55,7 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. While recent ``agentic'' pipelines promise automated surveillance and intervention planning, this direction remains premature in practice, in part because of the lack of a reliable \emph{foundation model backbone} that can forecast the evolving exposure network with calibrated uncertainty and sufficient data efficiency. Building on DeXposure-FM, a graph time-series foundation model trained on over 43.7 million data entries, we present two coupled contributions. First, \emph{DeXposure-Framework}: a four-layer query architecture (prediction $\to$ monitoring and scenario $\to$ LLM decision $\to$ safety gate) that transforms FM-predicted exposure graphs into auditable supervisory tickets. Second, \emph{DeXposure-Bench}: the first standardised evaluation suite for FM+LLM decision pipelines on temporal exposure graphs, comprising six benchmarks with a regulator-aligned ground truth defined by absolute weight loss. Across the suite we show that (1) the FM signal and the LLM decision layer each contribute independently to decision quality (F1 +33\% / +27\% in layer-wise ablations), (2) prediction intervals are well-calibrated (coverage 0.913 vs the 0.90 target), and (3) the gated stack produces grounded, high-quality recommendations (grounding 1.0, judge 2.69 / 5). 
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk lack a dedicated forecasting backbone for graph-structured time series, which limits their data efficiency and uncertainty calibration. Building on DeXposure-FM, a graph time-series foundation model pre-trained on $43.7$ million exposure-graph entries, we present two contributions. First, \emph{DeXposure-Framework}: a four-layer query architecture---FM prediction, deterministic monitoring and scenario, LLM decision, and a data-health/confidence safety gate---that turns predicted exposure graphs into supervisory tickets. Second, \emph{DeXposure-Bench}: a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs, with a regulator-aligned ground truth defined by absolute exposure loss. The bench surfaces a non-trivial Pareto trade-off rather than uniform improvement: persistence remains strong on point-metric forecasting and ticket precision, while the FM turns forecasting into a deployable risk signal through trend consistency, calibrated uncertainty (PI coverage $0.912$ against a $0.90$ target), and robustness. In layer-wise decision ablations, the FM and LLM layers make additive contributions to ticket F1 ($+32\%$ from FM and $+27\%$ from LLM), while the safety gate improves explanation quality at a small F1 cost. We release the harness, dataset, and reference implementations to support extension.
 
 Code: \href{https://github.com/EVIEHub/DeXposure-Agent}{https://github.com/EVIEHub/DeXposure-Agent}
 
@@ -77,9 +77,15 @@ Agentic system, graph, time series, foundation model, decentralised finance, fin
 \input{sections/Bench}
 \input{sections/Exp}
 
+\input{sections/Limitations}
+
 \section{Conclusion}
 
-DeFi has grown into a tightly coupled financial ecosystem where tokenised liabilities link protocols into a dynamic web of credit exposures, so fast and reliable \emph{risk monitoring} and \emph{decision recommendation} are increasingly critical for investors, protocol teams, and regulators. Although recent ``agentic'' workflows aim to automate surveillance and intervention planning, they are often not yet dependable in real deployments, largely because they lack a trustworthy \emph{foundation model backbone} capable of forecasting the evolving exposure network with strong data efficiency and well-calibrated uncertainty. Leveraging {DeXposure-FM}, a graph time-series foundation model trained on more than $43.7$ million data entries, we introduce \emph{DeXposure-Agent}, which to the best of our knowledge is the first agentic system that integrates a graph time-series foundation model backbone for DeFi exposure-network risk monitoring and decision recommendation. DeXposure-Agent continuously ingests exposure snapshots, uses {DeXposure-FM} to predict future credit-exposure graphs, derives systemic risk indicators and standardised stress-test scenarios, and produces auditable alerts together with conservative, playbook-driven recommendations governed by explicit data-health and uncertainty gates. Across six benchmarks and stress-test settings, including low-data and weakly supervised regimes, DeXposure-Agent (1) delivers earlier and more stable early-warning signals of systemic fragility, (2) improves risk-metric forecasting and trend detection beyond na\"ive baselines, and (3) generates higher-quality recommendation tickets with improved grounding and consistency when combining the foundation model backbone with LLM-based reasoning.
+We presented \textsc{DeXposure-Framework}, a four-layer query architecture that turns predicted exposure graphs into supervisory tickets with explicit data-health and confidence gates, and \textsc{DeXposure-Bench}, a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs.
+
+The picture our benchmark surfaces is not one of uniform improvement. Persistence remains a strong baseline on point-metric forecasting and on raw ticket precision, but the FM contributes the pieces a monitoring agent needs for deployment: directional trend signal, calibrated prediction intervals, and lower degradation under data corruption. The LLM decision layer then raises recall and explanation quality at a non-trivial false-intervention cost, and the safety gate buys judge score at a small F1 cost. What the FM and LLM layers \emph{do} contribute is additive and decomposable: in the layer-wise ablation on \texttt{b5\_decision}, the FM signal lifts ticket F1 by $32\%$ and replacing the rule engine with the LLM lifts it by another $27\%$. We read this as evidence that the FM\,+\,LLM stack is the right configuration when recall, calibration, and explanation quality are the binding constraints; persistence\,+\,rules is the right configuration when minimising false interventions is paramount. The bench's value is in making this trade-off explicit rather than averaging it away.
+
+Beyond the limitations in \S\ref{sec:limitations}, two directions are most pressing. First, a controlled live evaluation with a regulator-in-the-loop, which the offline benchmark approximates but cannot replace. Second, extending the suite to sub-daily resolution, where shock dynamics are fastest and the gap between weekly and event-time evaluation is widest. We release the harness, dataset, and reference implementations to invite both.
 
 %\section*{Acknowledgments}
 
@@ -123,9 +129,6 @@ DeFi has grown into a tightly coupled financial ecosystem where tokenised liabil
 
 
 \vfill
-
-\newpage
-\onecolumn
 
 \appendices
 
