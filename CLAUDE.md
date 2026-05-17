@@ -1,9 +1,8 @@
-markdown尽量写兼容txt的语法
-所有需要算力的算法程序都访问 ssh gpu-server 跑
-跑算法之前记得确保同步了本地的最新代码到云端
-尽量多利用算力，不要让算力闲下来，如果需要跑云端训练，那么一次性的规划顺序任务，不要只跑一个小任务就停下来要我告诉你继续或者下一步跑什么，一次规划到位。
-一定要设置好完善的log日志记录
-记得要有保存模型权重和checkpoint的机制
+Write Markdown in a style that remains as compatible with plain text as possible.
+Run all compute-intensive algorithm programs on the remote machine via `ssh gpu-server`.
+Before running any algorithm, make sure the latest local code has been synchronized to the cloud.
+Make full use of available compute resources and avoid leaving them idle. If cloud training is needed, plan the sequence of tasks all at once instead of running only one small task and then waiting for me to say what to do next.
+Always set up comprehensive logging.
+Make sure there is a mechanism for saving model weights and checkpoints.
 
-在回答我的时候，如果用到了模型编号或者方法编号，比如 M1, M2, B1, B2, C1, C2, 请务必标注他们的缩略名字或者可以理解的标识。降低认知负担
-
+When replying to me, if you use model or method identifiers such as M1, M2, B1, B2, C1, or C2, always include their abbreviated names or another understandable label to reduce cognitive load.
