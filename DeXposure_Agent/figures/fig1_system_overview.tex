@@ -1,0 +1,93 @@
+% Fig. 1 -- DeXposure-Framework block diagram (TikZ, TKDE classic style)
+% Drop-in replacement for figures/fig1_system_overview.{pdf,png}.
+% Loaded from sections/Alg.tex via \input{figures/fig1_system_overview}
+%
+% Required packages (already in main DeXposure-Agent.tex):
+%   \usepackage{tikz}
+%
+\begin{tikzpicture}[
+  font=\small,
+  layer/.style    = {draw, thick, rectangle, minimum width=2.8cm, minimum height=2.6cm,
+                     align=center, inner sep=4pt},
+  io/.style       = {draw, thick, rectangle, minimum width=2.0cm, minimum height=2.6cm,
+                     align=center, inner sep=4pt},
+  flow/.style     = {-{Latex[length=2.2mm,width=1.8mm]}, thick},
+  tag/.style      = {font=\scriptsize\sffamily, text=black!55},
+  hint/.style     = {font=\scriptsize\itshape, text=black!55},
+  rule/.style     = {draw=black!22, line width=0.35pt},
+  ablation/.style = {font=\scriptsize\sffamily\bfseries, text=red!75!black},
+]
+
+% --- input box -------------------------------------------------------------
+\node[io] (in) {%
+  \scriptsize\sffamily INPUT \\[2pt]
+  \rule{1.4cm}{0.3pt} \\[6pt]
+  $G_t$ \\[2pt]
+  \scriptsize\textit{weekly exposure} \\
+  \scriptsize\textit{graph snapshot}
+};
+
+% --- four layers -----------------------------------------------------------
+\node[layer, right=0.55cm of in]   (l1) {%
+  {\scriptsize\sffamily LAYER 1} \\[2pt]
+  {\textbf{FM Prediction}} \\[3pt]
+  {\scriptsize\itshape DeXposure-FM} \\
+  {\scriptsize\itshape (GraphPFN hybrid)} \\[6pt]
+  \rule{2.2cm}{0.3pt} \\[3pt]
+  {\scriptsize OUT} \\
+  {\small $\hat G_{t+h},\; \tilde G^{(1..S)}_{t+h}$}
+};
+
+\node[layer, right=0.55cm of l1]   (l2) {%
+  {\scriptsize\sffamily LAYER 2} \\[2pt]
+  {\textbf{Monitor \& Scenario}} \\[3pt]
+  {\scriptsize\itshape 7 metrics + z-scores} \\
+  {\scriptsize\itshape 5 scenarios $S_1..S_5$} \\[6pt]
+  \rule{2.2cm}{0.3pt} \\[3pt]
+  {\scriptsize OUT} \\
+  {\small alerts $\mathcal{A}_t$,\; losses $\mathcal{L}_t$}
+};
+
+\node[layer, right=0.55cm of l2]   (l3) {%
+  {\scriptsize\sffamily LAYER 3} \\[2pt]
+  {\textbf{LLM Decision}} \\[3pt]
+  {\scriptsize\itshape Claude Opus 4.7} \\
+  {\scriptsize\itshape reasons over evidence} \\[6pt]
+  \rule{2.2cm}{0.3pt} \\[3pt]
+  {\scriptsize OUT} \\
+  {\small draft ticket $\tau$}
+};
+
+\node[layer, right=0.55cm of l3]   (l4) {%
+  {\scriptsize\sffamily LAYER 4} \\[2pt]
+  {\textbf{Safety Gate}} \\[3pt]
+  {\scriptsize\itshape DH$_t \geq \tau_{\mathrm{data}}$} \\
+  {\scriptsize\itshape C$_t \geq \tau_{\mathrm{conf}}$} \\[6pt]
+  \rule{2.2cm}{0.3pt} \\[3pt]
+  {\scriptsize OUT} \\
+  {\small $\tau^\star$ or SafeMode}
+};
+
+% --- output ---------------------------------------------------------------
+\node[io, right=0.55cm of l4] (out) {%
+  \scriptsize\sffamily OUTPUT \\[2pt]
+  \rule{1.4cm}{0.3pt} \\[6pt]
+  $\tau^\star$ \\[2pt]
+  \scriptsize\textit{supervisory} \\
+  \scriptsize\textit{ticket}
+};
+
+% --- arrows --------------------------------------------------------------
+\draw[flow] (in.east)  -- (l1.west);
+\draw[flow] (l1.east)  -- (l2.west);
+\draw[flow] (l2.east)  -- (l3.west);
+\draw[flow] (l3.east)  -- (l4.west);
+\draw[flow] (l4.east)  -- (out.west);
+
+% --- bottom annotation row: layer-wise ablation lifts -------------------
+\node[hint, below=4pt of l1, anchor=north] {\textit{vs persistence: trend $\uparrow$}};
+\node[hint, below=4pt of l2, anchor=north] {\textit{CVaR aggregation}};
+\node[ablation, below=4pt of l3, anchor=north] {F1 +27\% over rules};
+\node[ablation, below=4pt of l4, anchor=north] {judge +0.21};
+
+\end{tikzpicture}

@@ -1,304 +1,327 @@
 #!/usr/bin/env python3
 """
-Figure 1: DeXposure-Agent -- System Overview
-Style: The Economist — red accent, clean serif, no box borders, thin rule dividers.
+Figure 1: DeXposure-Framework -- Four-Layer Architecture (cover figure)
+
+A single horizontal flow that reads left-to-right: G_t enters as a directed
+weighted exposure graph; four layers transform it into a supervisory ticket;
+the gate emits either the ticket or a safe-mode notice. Layer boundaries are
+the unit of ablation (Tab.~Table_b5_decision_CrisisPeriod).
+
+Style: The Economist -- cream paper, single red accent, serif title,
+restrained colour beyond red. No 3-D, no shadow, no gradient.
 """
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch, Rectangle, Circle, FancyArrowPatch
+from matplotlib.lines import Line2D
 import numpy as np
 
 plt.rcParams.update({
     "font.family": "serif",
-    "font.size": 9,
+    "font.size": 9.5,
     "figure.dpi": 300,
     "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.12,
+    "savefig.pad_inches": 0.10,
 })
 
-# -- The Economist palette --
-RED       = "#E3120B"
-DARK      = "#1A1A1A"
-MID       = "#555555"
-LIGHT     = "#999999"
-RULE      = "#CCCCCC"
-WHITE     = "#FFFFFF"
-BLUE_NODE = "#B8D4E8"
-RED_NODE  = "#F5C6C6"
-BLUE_EDGE = "#5B8FA8"
-RED_EDGE  = "#C0392B"
-BAR_MAIN  = "#E3120B"
-BAR_MUTED = "#D4C5A9"
-BAR_STEEL = "#3D6B8E"
+# ── Economist palette ─────────────────────────────────────────────
+PAPER     = "#FAF6EC"   # warm cream background
+INK       = "#1A1A1A"
+INK_2     = "#2A2A2A"
+MUTE      = "#67635A"
+DIM       = "#9A9588"
+RULE      = "#D8D2C0"
+RED       = "#C8102E"   # Economist red
+RED_DK    = "#9A0C23"
+BLUE      = "#2E5077"   # secondary cool tone
+GREEN     = "#4A7C3E"
+AMBER     = "#C5A55A"
+HIGHLIGHT = "#FFF4D1"
+SUBTLE    = "#F1ECDD"
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 5.5))
+# ── Canvas ────────────────────────────────────────────────────────
+fig, ax = plt.subplots(1, 1, figsize=(14, 6.4))
+fig.patch.set_facecolor(PAPER)
+ax.set_facecolor(PAPER)
 ax.set_xlim(0, 14)
-ax.set_ylim(0, 5.5)
+ax.set_ylim(0, 6.4)
 ax.axis("off")
-fig.patch.set_facecolor(WHITE)
 
-TOP = 5.15
+# ── Top masthead: serif title + red rule (Economist signature) ────
+ax.plot([0.4, 13.6], [6.18, 6.18], color=RED, lw=2.4)
+ax.text(0.4, 6.30, "DeXposure-Framework",
+        fontsize=18, fontweight="bold", color=INK, ha="left", va="bottom",
+        fontstyle="italic", family="serif")
+ax.text(13.6, 6.30, "A four-layer query architecture for DeFi supervisory decisions",
+        fontsize=10, color=MUTE, ha="right", va="bottom", fontstyle="italic")
 
-# ══════════════════════════════════════════════════════
-#  TITLES — Economist uses bold serif + thin red rule
-# ══════════════════════════════════════════════════════
-ax.text(1.5, TOP + 0.05, "Input", fontsize=12, fontweight="bold", ha="center", color=DARK)
-ax.plot([0.2, 2.8], [TOP - 0.12, TOP - 0.12], color=RED, lw=2, zorder=3)
+# ── Input column ─────────────────────────────────────────────────
+INPUT_X = 0.4
+INPUT_W = 1.6
+INPUT_Y0, INPUT_Y1 = 1.4, 5.4
 
-ax.text(5.0, TOP + 0.05, "DeXposure-Agent", fontsize=12, fontweight="bold", ha="center", color=DARK)
-ax.plot([3.3, 6.7], [TOP - 0.12, TOP - 0.12], color=RED, lw=2, zorder=3)
-
-ax.text(10.7, TOP + 0.05, "Output (weekly)", fontsize=12, fontweight="bold", ha="center", color=DARK)
-ax.plot([8.15, 13.75], [TOP - 0.12, TOP - 0.12], color=RED, lw=2, zorder=3)
-
-ax.text(1.5, TOP - 0.35, "Credit exposure network G_t",
-        fontsize=7.5, ha="center", color=LIGHT, fontstyle="italic")
-
-# ══════════════════════════════════════════════════════
-#  LEFT: Network Graph
-# ══════════════════════════════════════════════════════
-ncx, ncy = 1.5, 3.0
-sc = 0.4
+# Mini graph visualisation
+gcx, gcy = INPUT_X + INPUT_W/2, (INPUT_Y0 + INPUT_Y1)/2 + 0.1
+sc = 0.34
 protocols = {
-    "Aave":     (ncx - 1.4*sc, ncy + 1.5*sc),
-    "Compound": (ncx + 1.4*sc, ncy + 1.5*sc),
-    "Lido":     (ncx - 1.8*sc, ncy + 0.0),
-    "Uniswap":  (ncx + 1.8*sc, ncy + 0.0),
-    "MakerDAO": (ncx,          ncy + 0.6*sc),
-    "Curve":    (ncx - 1.0*sc, ncy - 1.4*sc),
-    "Pendle":   (ncx + 1.0*sc, ncy - 1.4*sc),
+    "Aave":     (gcx - 1.05*sc, gcy + 1.20*sc),
+    "Compound": (gcx + 1.05*sc, gcy + 1.20*sc),
+    "Lido":     (gcx - 1.45*sc, gcy - 0.10*sc),
+    "Uniswap":  (gcx + 1.45*sc, gcy - 0.10*sc),
+    "MakerDAO": (gcx,           gcy + 0.45*sc),
+    "Curve":    (gcx - 0.80*sc, gcy - 1.20*sc),
+    "Pendle":   (gcx + 0.80*sc, gcy - 1.20*sc),
 }
 edges = [
-    ("Aave", "MakerDAO", 2.0), ("Compound", "MakerDAO", 1.5),
-    ("Lido", "Aave", 2.5), ("Lido", "Curve", 1.0),
-    ("Uniswap", "Compound", 1.2), ("MakerDAO", "Curve", 1.8),
-    ("Curve", "Pendle", 0.8), ("Pendle", "Uniswap", 1.0),
-    ("MakerDAO", "Lido", 1.3), ("Aave", "Uniswap", 0.9),
+    ("Aave","MakerDAO",2.0),("Compound","MakerDAO",1.5),
+    ("Lido","Aave",2.5),("Lido","Curve",1.0),
+    ("Uniswap","Compound",1.2),("MakerDAO","Curve",1.8),
+    ("Curve","Pendle",0.8),("Pendle","Uniswap",1.0),
+    ("MakerDAO","Lido",1.3),("Aave","Uniswap",0.9),
+]
+for s, d, w in edges:
+    x0, y0 = protocols[s]; x1, y1 = protocols[d]
+    dx, dy = x1-x0, y1-y0; L = (dx*dx+dy*dy)**0.5
+    sh = 0.14
+    ax.annotate("", xy=(x1-dx/L*sh, y1-dy/L*sh),
+                xytext=(x0+dx/L*sh, y0+dy/L*sh),
+                arrowprops=dict(arrowstyle="-|>", color=DIM,
+                                lw=0.4 + w*0.28, alpha=0.55,
+                                connectionstyle="arc3,rad=0.10"))
+for n, (x, y) in protocols.items():
+    stressed = n in ("MakerDAO", "Curve")
+    ax.add_patch(Circle((x, y), 0.12,
+                        fc="#F0CACA" if stressed else "#D8E3F0",
+                        ec=RED if stressed else BLUE,
+                        lw=1.4 if stressed else 0.7, zorder=5))
+
+# Input label cluster
+ax.text(INPUT_X + INPUT_W/2, INPUT_Y1 - 0.10, "INPUT",
+        fontsize=10.5, fontweight="bold", color=RED, ha="center")
+ax.plot([INPUT_X + 0.35, INPUT_X + INPUT_W - 0.35],
+        [INPUT_Y1 - 0.28, INPUT_Y1 - 0.28], color=RED, lw=1.2)
+ax.text(INPUT_X + INPUT_W/2, INPUT_Y0 + 0.30,
+        r"Weekly exposure graph",
+        fontsize=8.5, color=INK, ha="center", fontstyle="italic")
+ax.text(INPUT_X + INPUT_W/2, INPUT_Y0 + 0.08,
+        r"$G_t = (V_t, E_t, w_t)$",
+        fontsize=10, color=INK, ha="center", family="serif")
+
+# Input → Layer1 arrow
+ax.annotate("", xy=(2.30, 3.5), xytext=(INPUT_X + INPUT_W + 0.02, 3.5),
+            arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.3))
+
+# ── Four layers (the contribution): equal columns ────────────────
+LAYER_Y0, LAYER_Y1 = 1.20, 5.40
+LAYER_W = 2.45
+LAYER_GAP = 0.18
+COL_X = [2.40, 2.40 + LAYER_W + LAYER_GAP,
+         2.40 + 2*(LAYER_W + LAYER_GAP),
+         2.40 + 3*(LAYER_W + LAYER_GAP)]
+
+layers = [
+    dict(
+        roman="I", title="FM Prediction",
+        accent=RED,
+        comp_lines=[
+            ("DeXposure-FM", True),
+            ("hybrid predictor", False),
+            (r"• keep edges of  $G_t$", False),
+            ("• reweight by FM residual", False),
+            (r"• add  $\pi \geqq \pi_{\min}$  edges", False),
+        ],
+        out_label="OUT",
+        out_value=r"$\hat G_{t+h},\ \tilde G^{(1..S)}_{t+h}$",
+        out_sub="predicted graph + MC samples",
+        layer_tag="Layer 1",
+    ),
+    dict(
+        roman="II", title="Monitor & Scenario",
+        accent=BLUE,
+        comp_lines=[
+            ("monitor.py", True),
+            ("• 7 network metrics", False),
+            ("• rolling-baseline z-scores", False),
+            ("scenario.py", True),
+            ("• 5 shocks  $S_1$..$S_5$  + CVaR", False),
+        ],
+        out_label="OUT",
+        out_value=r"alerts $\mathcal{A}_t$,  losses $\mathcal{L}_t$",
+        out_sub="anomalies + contagion estimates",
+        layer_tag="Layer 2",
+    ),
+    dict(
+        roman="III", title="LLM Decision",
+        accent=GREEN,
+        comp_lines=[
+            ("Claude Opus 4.7", True),
+            ("• reads metrics + alerts", False),
+            ("• reasons over evidence", False),
+            ("• cites traceable values", False),
+            ("• grounding $= 1.00$", False),
+        ],
+        out_label="OUT",
+        out_value=r"ticket  $\tau$  (action, targets, rationale)",
+        out_sub="auditable recommendation",
+        layer_tag="Layer 3",
+    ),
+    dict(
+        roman="IV", title="Safety Gate",
+        accent=AMBER,
+        comp_lines=[
+            ("decision.py", True),
+            ("• data-health  $\mathrm{DH}_t \geq \\tau_{\mathrm{data}}$", False),
+            ("• confidence  $C_t \geq \\tau_{\mathrm{conf}}$", False),
+            ("• action gate (Recommend / hold)", False),
+            ("else $\\Rightarrow$ safe-mode notice", False),
+        ],
+        out_label="OUT",
+        out_value=r"$\tau^\star$  or  SafeMode",
+        out_sub="defensible supervisory output",
+        layer_tag="Layer 4",
+    ),
 ]
 
-for src, dst, w in edges:
-    x0, y0 = protocols[src]
-    x1, y1 = protocols[dst]
-    dx, dy = x1 - x0, y1 - y0
-    d = np.sqrt(dx**2 + dy**2)
-    sh = 0.18
-    ax.annotate("", xy=(x1 - dx/d*sh, y1 - dy/d*sh),
-                xytext=(x0 + dx/d*sh, y0 + dy/d*sh),
-                arrowprops=dict(arrowstyle="-|>", color=LIGHT,
-                                lw=0.3 + w*0.35, alpha=0.4,
-                                connectionstyle="arc3,rad=0.1"))
+for i, L in enumerate(layers):
+    x = COL_X[i]
+    accent = L["accent"]
 
-for name, (x, y) in protocols.items():
-    stressed = name in ("MakerDAO", "Curve")
-    circle = plt.Circle((x, y), 0.15,
-                         facecolor=RED_NODE if stressed else BLUE_NODE,
-                         edgecolor=RED_EDGE if stressed else BLUE_EDGE,
-                         linewidth=1.5 if stressed else 0.8, zorder=5)
-    ax.add_patch(circle)
-    ax.text(x, y - 0.23, name, fontsize=5, ha="center", va="top",
-            color=RED_EDGE if stressed else DARK, fontstyle="italic",
-            fontweight="bold" if stressed else "normal")
+    # outer rounded card (very subtle)
+    card = FancyBboxPatch((x, LAYER_Y0), LAYER_W, LAYER_Y1 - LAYER_Y0,
+                          boxstyle="round,pad=0.04,rounding_size=0.05",
+                          facecolor="#FFFFFF", edgecolor=RULE, linewidth=0.7,
+                          zorder=2)
+    ax.add_patch(card)
 
-# Legend — minimal, no boxes
-lx, ly = 0.5, 1.5
-ax.add_patch(plt.Circle((lx, ly), 0.07, fc=BLUE_NODE, ec=BLUE_EDGE, lw=0.6))
-ax.text(lx + 0.15, ly, "Protocol", fontsize=5, va="center", color=MID)
-ax.add_patch(plt.Circle((lx + 1.0, ly), 0.07, fc=RED_NODE, ec=RED_EDGE, lw=1.0))
-ax.text(lx + 1.15, ly, "Stressed", fontsize=5, va="center", color=RED_EDGE)
-ax.annotate("", xy=(lx + 2.15, ly), xytext=(lx + 1.8, ly),
-            arrowprops=dict(arrowstyle="-|>", color=LIGHT, lw=0.7))
-ax.text(lx + 2.25, ly, "Exposure", fontsize=5, va="center", color=MID)
+    # accent ribbon at top
+    ax.add_patch(Rectangle((x, LAYER_Y1 - 0.18), LAYER_W, 0.18,
+                           facecolor=accent, alpha=0.16, edgecolor="none", zorder=3))
 
-# ══════════════════════════════════════════════════════
-#  ARROW: Input -> Agent
-# ══════════════════════════════════════════════════════
-ax.annotate("", xy=(3.5, 3.3), xytext=(2.8, 3.3),
-            arrowprops=dict(arrowstyle="-|>", color=DARK, lw=1.5))
-ax.text(3.1, 3.52, "G_t", fontsize=10, ha="center", fontstyle="italic",
-        color=DARK, fontweight="bold")
+    # layer tag (small, top-left)
+    ax.text(x + 0.12, LAYER_Y1 - 0.10, L["layer_tag"].upper(),
+            fontsize=8, fontweight="bold", color=accent,
+            ha="left", va="center", zorder=5,
+            family="sans-serif")
+    # roman numeral large
+    ax.text(x + LAYER_W - 0.12, LAYER_Y1 - 0.10, L["roman"],
+            fontsize=14, fontweight="bold", color=accent,
+            ha="right", va="center", zorder=5,
+            family="serif", fontstyle="italic")
 
-# ══════════════════════════════════════════════════════
-#  CENTER: Pipeline — no box borders, just text + thin rules
-# ══════════════════════════════════════════════════════
-px = 3.65
-pw = 2.7
-stages = [
-    ("Data Health Gate",  4.5),
-    ("FM Forecast",       3.9),
-    ("Risk Monitor",      3.3),
-    ("Stress Scenarios",  2.7),
-    ("Decision Engine",   2.1),
-]
-bh = 0.35
+    # title
+    ax.text(x + LAYER_W/2, LAYER_Y1 - 0.55, L["title"],
+            fontsize=13, fontweight="bold", color=INK,
+            ha="center", va="center", family="serif", zorder=5)
+    ax.plot([x + 0.55, x + LAYER_W - 0.55],
+            [LAYER_Y1 - 0.78, LAYER_Y1 - 0.78],
+            color=accent, lw=1.2, zorder=5)
 
-for i, (label, y) in enumerate(stages):
-    # Light background box, very subtle
-    box = FancyBboxPatch((px, y - bh/2), pw, bh,
-                          boxstyle="round,pad=0.06", facecolor="#F9F9F9",
-                          edgecolor=RULE, linewidth=0.5, zorder=3)
-    ax.add_patch(box)
-    ax.text(px + pw/2, y, f"({i+1})  {label}", fontsize=8, fontweight="bold",
-            ha="center", va="center", color=DARK, zorder=4)
+    # components
+    cy = LAYER_Y1 - 1.10
+    for j, (txt, bold) in enumerate(L["comp_lines"]):
+        if bold:
+            ax.text(x + 0.20, cy, txt, fontsize=9, fontweight="bold",
+                    color=INK_2, ha="left", va="top", zorder=5, family="serif")
+            cy -= 0.32
+        else:
+            ax.text(x + 0.34, cy, txt, fontsize=8.2, color=MUTE,
+                    ha="left", va="top", zorder=5, family="serif")
+            cy -= 0.28
 
-for i in range(len(stages) - 1):
-    ax.annotate("", xy=(px + pw/2, stages[i+1][1] + bh/2),
-                xytext=(px + pw/2, stages[i][1] - bh/2),
-                arrowprops=dict(arrowstyle="-|>", color=DARK, lw=1.0))
+    # OUT section (bottom)
+    out_y = LAYER_Y0 + 0.45
+    ax.plot([x + 0.18, x + LAYER_W - 0.18],
+            [out_y + 0.42, out_y + 0.42],
+            color=RULE, lw=0.6, zorder=5)
+    ax.text(x + 0.20, out_y + 0.28, L["out_label"], fontsize=8,
+            fontweight="bold", color=accent, ha="left", va="center",
+            family="sans-serif", zorder=5)
+    ax.text(x + LAYER_W/2, out_y + 0.05, L["out_value"], fontsize=9.2,
+            color=INK, ha="center", va="center", family="serif", zorder=5)
+    ax.text(x + LAYER_W/2, out_y - 0.20, L["out_sub"], fontsize=7.5,
+            color=DIM, ha="center", va="center", fontstyle="italic",
+            family="serif", zorder=5)
 
-# FM bracket
-bk_x = px + pw + 0.08
-bk_top = stages[1][1] + bh/2
-bk_bot = stages[3][1] - bh/2
-bk_w = 0.1
-ax.plot([bk_x, bk_x + bk_w], [bk_top, bk_top], color=RED, lw=1.2)
-ax.plot([bk_x + bk_w, bk_x + bk_w], [bk_top, bk_bot], color=RED, lw=1.2)
-ax.plot([bk_x, bk_x + bk_w], [bk_bot, bk_bot], color=RED, lw=1.2)
-ax.text(bk_x + bk_w + 0.08, (bk_top + bk_bot)/2 + 0.08, "DeXposure-FM",
-        fontsize=5.5, ha="left", va="center", color=RED, fontweight="bold")
-ax.text(bk_x + bk_w + 0.08, (bk_top + bk_bot)/2 - 0.08, "(GraphPFN)",
-        fontsize=4.5, ha="left", va="center", color=MID)
+    # inter-layer arrow (between this column and next)
+    if i < len(layers) - 1:
+        x_arr = COL_X[i+1] - LAYER_GAP/2
+        ax.annotate("", xy=(x_arr + 0.08, 3.30), xytext=(x_arr - 0.08, 3.30),
+                    arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.0))
 
-# LLM bracket
-lk_top = stages[4][1] + bh/2
-lk_bot = stages[4][1] - bh/2
-ax.plot([bk_x, bk_x + bk_w], [lk_top, lk_top], color=BAR_STEEL, lw=1.2)
-ax.plot([bk_x + bk_w, bk_x + bk_w], [lk_top, lk_bot], color=BAR_STEEL, lw=1.2)
-ax.plot([bk_x, bk_x + bk_w], [lk_bot, lk_bot], color=BAR_STEEL, lw=1.2)
-ax.text(bk_x + bk_w + 0.08, stages[4][1] + 0.08, "LLM Agent",
-        fontsize=5.5, ha="left", va="center", color=BAR_STEEL, fontweight="bold")
-ax.text(bk_x + bk_w + 0.08, stages[4][1] - 0.08, "(Claude)",
-        fontsize=4.5, ha="left", va="center", color=MID)
+# ── Final arrow to output token ──────────────────────────────────
+final_x = COL_X[-1] + LAYER_W + 0.05
+ax.annotate("", xy=(final_x + 0.50, 3.50), xytext=(final_x, 3.50),
+            arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.3))
 
-# ══════════════════════════════════════════════════════
-#  ARROW: Agent -> Output
-# ══════════════════════════════════════════════════════
-ax.annotate("", xy=(8.0, 3.3), xytext=(7.35, 3.3),
-            arrowprops=dict(arrowstyle="-|>", color=DARK, lw=1.5))
+# Output token cluster (a small card with a ticket-style mock)
+TICKET_X = final_x + 0.55
+TICKET_Y0, TICKET_Y1 = 1.4, 5.4
+TICKET_W = 13.6 - TICKET_X
 
-# ══════════════════════════════════════════════════════
-#  RIGHT: Output — Economist style: thin rules, no box borders
-# ══════════════════════════════════════════════════════
-rx = 8.15
-rw = 5.6
-bar_left = rx + 0.12
-bar_w = rw - 0.25
-bar_h = 0.12
-gap = 0.15
+ax.text(TICKET_X + TICKET_W/2, TICKET_Y1 - 0.10, "OUTPUT",
+        fontsize=10.5, fontweight="bold", color=RED, ha="center")
+ax.plot([TICKET_X + 0.35, TICKET_X + TICKET_W - 0.35],
+        [TICKET_Y1 - 0.28, TICKET_Y1 - 0.28], color=RED, lw=1.2)
 
-# ── Alerts ──
-A_TOP = TOP - 0.35
-A_H = 1.25
-A_BOT = A_TOP - A_H
+# Ticket mock
+tk_x = TICKET_X + 0.10
+tk_y0 = 1.50
+tk_y1 = 4.85
+tk_w = TICKET_W - 0.20
+ax.add_patch(FancyBboxPatch((tk_x, tk_y0), tk_w, tk_y1 - tk_y0,
+                            boxstyle="round,pad=0.04,rounding_size=0.05",
+                            facecolor="#FFFFFF", edgecolor=RULE, linewidth=0.7))
+ax.add_patch(Rectangle((tk_x, tk_y1 - 0.32), tk_w, 0.32,
+                       facecolor=RED, alpha=0.12, edgecolor="none"))
+ax.text(tk_x + tk_w/2, tk_y1 - 0.16, "SUPERVISORY TICKET",
+        fontsize=8.5, fontweight="bold", color=RED_DK, ha="center", va="center",
+        family="sans-serif")
 
-# Section divider (thin red rule at top, gray rule at bottom)
-ax.plot([rx, rx + rw], [A_TOP + 0.02, A_TOP + 0.02], color=RED, lw=1.5)
-ax.text(rx, A_TOP - 0.12, "Alerts (h = 4 weeks)", fontsize=8.5,
-        fontweight="bold", color=DARK)
-ax.text(rx + 2.5, A_TOP - 0.12, "How abnormal vs. history?",
-        fontsize=5.5, color=LIGHT, fontstyle="italic")
+# Ticket fields
+fy = tk_y1 - 0.60
+def field(label, value, col=INK):
+    global fy
+    ax.text(tk_x + 0.18, fy, label, fontsize=7.5, color=MUTE,
+            fontstyle="italic", ha="left", va="top")
+    ax.text(tk_x + 0.18, fy - 0.22, value, fontsize=9, color=col,
+            fontweight="bold", ha="left", va="top", family="serif")
+    fy -= 0.55
 
-metrics = ["Dominance", "Concentration", "Connectivity", "PR Inequality", "Deg Inequality"]
-z_vals  = [1.2,         2.41,           0.8,            1.87,            1.1]
+field("Action", "INVESTIGATE", RED_DK)
+field("Severity", "Medium  ·  score 0.82")
+field("Targets", "MakerDAO  ·  Curve", RED_DK)
+field("Evidence", "Concentration z=2.41")
+field("Confidence", "0.83  (gate: passed)")
 
-by0 = A_TOP - 0.35
-bdy = 0.16
-for i, (m, z) in enumerate(zip(metrics, z_vals)):
-    by = by0 - i * bdy
-    bw = min(z / 3.0, 1.0) * bar_w
-    triggered = z >= 2.0
-    ax.barh(by, bw, height=bar_h, left=bar_left,
-            color=RED if triggered else BAR_MUTED,
-            alpha=0.85 if triggered else 0.5, edgecolor="none", zorder=3)
-    ax.text(bar_left + 0.05, by, m, fontsize=5, ha="left", va="center",
-            color=WHITE if (triggered and bw > 1.5) else DARK,
-            fontweight="bold", zorder=4)
-    ax.text(bar_left + bw + 0.08, by, f"z={z:.1f}", fontsize=5, ha="left",
-            va="center", color=RED if triggered else LIGHT,
-            fontweight="bold" if triggered else "normal")
+# ── Bottom callout: dual-contribution framing ────────────────────
+ax.add_patch(Rectangle((0.4, 0.36), 13.2, 0.78,
+                       facecolor=HIGHLIGHT, edgecolor=RULE, lw=0.7))
+ax.text(0.65, 0.95, "CONTRIBUTION I  ·  DeXposure-Framework",
+        fontsize=9, fontweight="bold", color=RED_DK, ha="left", va="center",
+        family="sans-serif")
+ax.text(0.65, 0.65,
+        "The architecture above is the unit of contribution: each layer is "
+        "independently ablatable, with measurable F1 and explanation-quality lifts.",
+        fontsize=8.5, color=INK_2, ha="left", va="center",
+        family="serif", fontstyle="italic")
 
-tx = bar_left + (2.0 / 3.0) * bar_w
-ax.plot([tx, tx], [by0 + 0.1, by0 - 4*bdy - 0.08],
-        color=RED, lw=0.7, ls="--", zorder=4)
-ax.text(tx, by0 - 4*bdy - 0.16, "abnormal", fontsize=4.5,
-        ha="center", color=RED)
+# Ablation tally on the right
+ablation_x = 9.4
+ax.text(ablation_x, 0.95, "Layer-wise ablation lifts (b5 decision quality)",
+        fontsize=8, fontweight="bold", color=INK, ha="left", va="center",
+        family="sans-serif")
+ax.text(ablation_x, 0.65,
+        r"$+\mathrm{FM}$  F1 +33\%   ·   $+\mathrm{LLM}$  F1 +27\%   ·   "
+        r"$+\mathrm{Gate}$  Judge $+0.21$",
+        fontsize=8.5, color=RED_DK, ha="left", va="center",
+        family="serif")
 
-# ── Stress Tests ──
-B_H = 1.3
-B_TOP = A_BOT - gap
-B_BOT = B_TOP - B_H
-
-ax.plot([rx, rx + rw], [B_TOP + 0.02, B_TOP + 0.02], color=RULE, lw=0.7)
-ax.text(rx, B_TOP - 0.12, "Stress Tests", fontsize=8.5,
-        fontweight="bold", color=DARK)
-ax.text(rx + 1.5, B_TOP - 0.12, "What if ... happens? How much value lost?",
-        fontsize=5.5, color=LIGHT, fontstyle="italic")
-
-scenarios = ["Top-protocol fail", "Bridge cluster", "Stablecoin de-peg",
-             "Lending shock", "Correlated top-10"]
-losses    = [8.3, 3.2, 5.1, 2.8, 4.5]
-sy0 = B_TOP - 0.35
-sdy = 0.16
-for i, (s, l) in enumerate(zip(scenarios, losses)):
-    by = sy0 - i * sdy
-    bw = (l / 15.0) * bar_w
-    intensity = l / max(losses)
-    ax.barh(by, bw, height=bar_h, left=bar_left, color=BAR_STEEL,
-            alpha=0.3 + 0.5 * intensity, edgecolor="none", zorder=3)
-    ax.text(bar_left + 0.05, by, s, fontsize=5, ha="left", va="center",
-            color=DARK, fontweight="bold", zorder=4)
-    ax.text(bar_left + bw + 0.08, by, f"{l}% loss", fontsize=5, ha="left",
-            va="center", color=DARK)
-
-cvx = bar_left + (12.7 / 15.0) * bar_w
-ax.plot([cvx, cvx], [sy0 + 0.08, sy0 - 4*sdy - 0.08],
-        color=RED, lw=0.7, ls="--", zorder=4)
-ax.text(cvx + 0.08, sy0 - 4*sdy - 0.16, "Worst-case: 12.7%", fontsize=4.5,
-        ha="center", color=RED, fontweight="bold")
-ax.text(cvx + 0.08, sy0 - 4*sdy - 0.3, "(avg. of worst 5% simulations)", fontsize=4,
-        ha="center", color=LIGHT)
-
-# ── Recommendation Ticket ──
-C_TOP = B_BOT - gap
-C_BOT = 0.45
-
-ax.plot([rx, rx + rw], [C_TOP + 0.02, C_TOP + 0.02], color=RULE, lw=0.7)
-ax.text(rx, C_TOP - 0.12, "Recommendation Ticket", fontsize=8.5,
-        fontweight="bold", color=DARK)
-
-# Action
-r1 = C_TOP - 0.35
-ax.text(rx + 0.05, r1, "Action:", fontsize=6, color=LIGHT)
-ax.text(rx + 0.7, r1, "INVESTIGATE", fontsize=7.5,
-        fontweight="bold", color=RED, va="center")
-ax.text(rx + 2.4, r1, "Severity: Medium", fontsize=6, color=MID, va="center")
-ax.text(rx + 4.2, r1, "Score: 0.82", fontsize=6,
-        color=DARK, fontweight="bold", va="center")
-
-# Targets
-r2 = C_TOP - 0.6
-ax.text(rx + 0.05, r2, "Targets:", fontsize=6, color=LIGHT)
-for j, tname in enumerate(["MakerDAO", "Curve"]):
-    ttx = rx + 1.0 + j * 1.8
-    c = plt.Circle((ttx, r2), 0.09, fc=RED_NODE, ec=RED_EDGE, lw=1.0, zorder=4)
-    ax.add_patch(c)
-    ax.text(ttx + 0.18, r2, tname, fontsize=5.5, va="center",
-            color=RED_EDGE, fontweight="bold", zorder=4)
-
-# Evidence
-r3 = C_TOP - 0.82
-ax.text(rx + 0.05, r3, "Evidence:", fontsize=6, color=LIGHT)
-ax.text(rx + 1.0, r3, "Concentration alert (z=2.41) + Top-protocol loss (8.3%)",
-        fontsize=5.5, va="center", color=DARK, fontstyle="italic")
-
-# Rationale
-r4 = C_TOP - 1.03
-ax.text(rx + 0.05, r4, "Rationale:", fontsize=6, color=LIGHT)
-ax.text(rx + 1.0, r4, "Concentration rising; if top protocol fails, contagion could spread.",
-        fontsize=5.5, va="center", color=DARK)
-
-plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.pdf",
-            format="pdf")
-plt.savefig("/home/aijie/CodeProjects/graph-dexposure/DeXposure_Agent/figures/fig1_system_overview.png",
-            format="png", dpi=300)
-print("Fig 1 saved.")
+# ── Save ─────────────────────────────────────────────────────────
+import os, sys
+_here = os.path.dirname(os.path.abspath(__file__))
+_default = os.path.join(_here, "fig1_system_overview")
+OUT = os.environ.get("FIG_OUT", _default)
+plt.savefig(OUT + ".pdf", format="pdf", facecolor=PAPER)
+plt.savefig(OUT + ".png", format="png", dpi=300, facecolor=PAPER)
+print("Fig 1 (DeXposure-Framework architecture) saved.")
