@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 jobs:
-  ruff:
+  python-sanity:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -14,12 +14,24 @@ jobs:
         with:
           lfs: true
 
-      - name: Ruff (lint)
-        uses: astral-sh/ruff-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          args: "check dexposure_fm"
+          python-version: "3.12"
 
-      - name: Ruff (format)
-        uses: astral-sh/ruff-action@v3
+      - name: Compile importable Python packages
+        run: python -m compileall claw/src/dexposure_claw paper/dexposure_agent
+
+  claw-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          args: "format --check dexposure_fm"
+          node-version: "20"
+
+      - name: Check npm package contents
+        run: npm --prefix ./claw run pack:check

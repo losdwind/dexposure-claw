@@ -160,6 +160,9 @@ def build_rows() -> list[dict]:
         })
 
     for row in rows:
+        row["ticket_f1"] = _round_or_none(
+            _ticket_f1(row["ticket_precision"], row["audit_completeness"])
+        )
         row["cost_adjusted_score"] = _round_or_none(
             _cost_adjusted(row["ticket_precision"], row["false_intervention_rate"])
         )
@@ -170,7 +173,7 @@ def write_table_files(rows: list[dict]) -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     out_json = RESULTS / "paper_table3_latest.json"
     out_csv = RESULTS / "paper_table3_latest.csv"
-    out_tex = SECTIONS / "Table3_MethodComparison.tex"
+    out_tex = SECTIONS / "T2-MethodComparison.tex"
 
     out_json.write_text(json.dumps({"rows": rows}, indent=2))
 
@@ -179,6 +182,7 @@ def write_table_files(rows: list[dict]) -> None:
         "method_name",
         "ticket_precision",
         "audit_completeness",
+        "ticket_f1",
         "target_stability",
         "severity_correlation",
         "false_intervention_rate",
@@ -197,9 +201,9 @@ def write_table_files(rows: list[dict]) -> None:
         "\\begin{table*}[!htbp]",
         "\\centering",
         "\\small",
-        "\\begin{tabular}{lccccccccc}",
+        "\\begin{tabular}{lcccccccccc}",
         "\\toprule",
-        "Method & Prec & Recall & Stabil & SevRho & FIR & Ground & Consist & Explain & CostAdj \\\\",
+        "Method & Prec & Recall & F1 & Stabil & SevRho & FIR & Ground & Consist & Explain & CostAdj \\\\",
         "\\midrule",
     ]
     for r in rows:
@@ -213,6 +217,7 @@ def write_table_files(rows: list[dict]) -> None:
             f"\\texttt{{{method_id_tex}}} {r['method_name']} & "
             f"{fmt(r['ticket_precision'])} & "
             f"{fmt(r['audit_completeness'])} & "
+            f"{fmt(r['ticket_f1'], 4)} & "
             f"{fmt(r['target_stability'])} & "
             f"{fmt(r['severity_correlation'])} & "
             f"{fmt(r['false_intervention_rate'])} & "
@@ -224,9 +229,13 @@ def write_table_files(rows: list[dict]) -> None:
     lines += [
         "\\bottomrule",
         "\\end{tabular}",
-        "\\caption{Task II decision-quality comparison. Higher Prec, Recall, "
-        "Stabil, Ground, Consist, Explain, and CostAdj are better; lower FIR is "
-        "better.}",
+        "\\caption{Task II decision-quality comparison. F1 combines Prec and "
+        "Recall against the regulator-aligned absolute-loss ground truth; "
+        "absolute values are small because each week's stressed pool "
+        "$\\mathcal{S}_t^h$ contains $\\sim 283$ protocols while the agent "
+        "emits $0.7$--$2$ tickets per week, so recall is budget-bounded by "
+        "construction. Higher Prec, Recall, F1, Stabil, Ground, Consist, "
+        "Explain, and CostAdj are better; lower FIR is better.}",
         "\\label{tab:task2_table3}",
         "\\vspace{2pt}",
         "\\begin{minipage}{0.98\\textwidth}",
@@ -356,7 +365,7 @@ def main() -> None:
     print("Wrote:")
     print(f"- {RESULTS / 'paper_table3_latest.json'}")
     print(f"- {RESULTS / 'paper_table3_latest.csv'}")
-    print(f"- {SECTIONS / 'Table3_MethodComparison.tex'}")
+    print(f"- {SECTIONS / 'T2-MethodComparison.tex'}")
     print(f"- {FIGURES / 'fig4_method_comparison.png'}")
     print(f"- {FIGURES / 'fig4_method_comparison.pdf'}")
 

@@ -1,13 +1,26 @@
 # DeXposure Claw
 
-DeXposure Claw is a pluggable financial-risk agent extension for
-Claude Code, Hermes, OpenAI Codex, and other MCP-compatible runtimes.
+DeXposure Claw is a lightweight agent-runtime extension for the DeXposure-Claw
+DeFi risk-monitoring project. It provides a `dexposure-claw` CLI and a
+dependency-free stdio MCP server for Claude Code, OpenAI Codex, Hermes, and
+other MCP-compatible runtimes.
 
-It exposes DeXposure-Bench and paper-evaluation workflows as:
+Claw is a research and monitoring extension. It does not execute trades, sign
+transactions, custody assets, or provide investment advice.
 
-- MCP tools for benchmark execution, reporting, and audit metadata.
-- Runtime skills for repeatable financial-risk workflows.
-- Adapter builds for Claude Code plugins and other agent runtimes.
+## Current Capabilities
+
+The current package focuses on runtime setup and benchmark discovery:
+
+| Capability | Status |
+| --- | --- |
+| CLI health check | Available |
+| Claude Code adapter build | Available |
+| MCP stdio server | Available |
+| Install snippets for Hermes, Codex, and generic MCP clients | Available |
+| DeXposure-Bench catalog listing | Available |
+| Direct benchmark execution through MCP | Planned |
+| Direct report generation through MCP | Planned |
 
 ## Quick Start
 
@@ -54,6 +67,22 @@ python -m pip install -e ./claw
 dexposure-claw health
 ```
 
+## MCP Tools
+
+Start the MCP server with:
+
+```bash
+dexposure-claw mcp
+```
+
+The server currently exposes:
+
+| Tool | Purpose |
+| --- | --- |
+| `dexposure_health` | Check that the DeXposure Claw MCP server is reachable. |
+| `dexposure_install_snippet` | Return install config for Hermes, Codex, or generic MCP clients. |
+| `dexposure_list_benchmarks` | List the six DeXposure-Bench benchmark IDs and readable names. |
+
 ## Claude Code
 
 For local development:
@@ -61,14 +90,6 @@ For local development:
 ```bash
 dexposure-claw build claude-code
 claude --plugin-dir claw/dist/claude-code/dexposure-claw
-```
-
-## MCP
-
-Any MCP client can start the tool server with:
-
-```bash
-dexposure-claw mcp
 ```
 
 ## OpenAI Codex
@@ -84,4 +105,13 @@ With the npm package, clients can use:
 
 ```bash
 codex mcp add dexposure -- npx -y @dexposure/claw mcp
+```
+
+## Package Checks
+
+Before publishing or opening a package-related pull request, run:
+
+```bash
+python -m compileall claw/src/dexposure_claw
+npm --prefix ./claw run pack:check
 ```

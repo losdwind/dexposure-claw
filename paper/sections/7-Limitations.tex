@@ -1,0 +1,10 @@
+\section{Limitations}
+\label{sec:limitations}
+
+We disclose three limitations that bound the scope of our claims.
+
+\paragraph{Single dataset} All results are reported on the \textsc{DeXposure} weekly exposure-graph dataset. While it covers $4{,}300$ protocols, $24{,}300$ tokens, $43.7$M exposure entries, and $283$ weekly snapshots spanning the major DeFi crisis episodes of $2020$--$2025$, generalisation to other on-chain risk surfaces---NFT lending, perpetual derivatives, or cross-chain bridge networks---is untested and will require domain-specific re-calibration of the conformal split and the stressed-set percentile $\pi$.
+
+\paragraph{Weekly temporal resolution} The forecast and decision pipeline operates at weekly granularity. Many DeFi shocks unfold within hours---the Terra/Luna collapse erased $\$40$B in under $48$ hours---and a production deployment would require sub-hourly snapshots and re-evaluation of conformal calibration on the resulting denser time series. Our reported early-warning lead times of $4$--$5$ weeks should therefore be read as ``how early the weekly signal turns'', not as end-to-end alert latency.
+
+\paragraph{Offline decision evaluation} \texttt{b5\_decision} scores tickets against a regulator-aligned absolute-loss ground truth, and the explanation-quality metric is an LLM-as-judge proxy with Claude Opus~4.7 as judge. Neither captures the downstream effect of supervisory action---whether the recommended risk reduction would actually have averted contagion. A controlled live evaluation with a regulator in the loop, which the bench approximates but cannot replace, remains the primary direction we plan to extend the benchmark in.

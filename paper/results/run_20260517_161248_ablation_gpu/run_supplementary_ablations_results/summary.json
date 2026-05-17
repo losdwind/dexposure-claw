@@ -1,0 +1,122 @@
+{
+  "timestamp": "2026-05-17T15:28:50.293671",
+  "server": "175.155.64.231:19113",
+  "a1_degraded": [],
+  "a6_crisis": [
+    {
+      "crisis_period": "terra_luna",
+      "horizons": [
+        1,
+        4,
+        8,
+        12
+      ],
+      "n_weeks": 17,
+      "n_alerts_total": 80,
+      "n_alerts_per_horizon": {
+        "1": 20,
+        "4": 20,
+        "8": 20,
+        "12": 20
+      },
+      "ticket_precision": 0.5764705882352941,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.16319444444444442,
+      "audit_completeness": 0.0012274675340217314,
+      "n_tickets_total": 34
+    },
+    {
+      "crisis_period": "terra_luna",
+      "horizons": [
+        4
+      ],
+      "n_weeks": 17,
+      "n_alerts_total": 20,
+      "n_alerts_per_horizon": {
+        "4": 20
+      },
+      "ticket_precision": 0.5764705882352941,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.16319444444444442,
+      "audit_completeness": 0.0012274675340217314,
+      "n_tickets_total": 34
+    },
+    {
+      "crisis_period": "ftx",
+      "horizons": [
+        1,
+        4,
+        8,
+        12
+      ],
+      "n_weeks": 18,
+      "n_alerts_total": 98,
+      "n_alerts_per_horizon": {
+        "1": 25,
+        "4": 23,
+        "8": 25,
+        "12": 25
+      },
+      "ticket_precision": 0.5333333333333333,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.40896358543417355,
+      "audit_completeness": 0.0011161738834093492,
+      "n_tickets_total": 36
+    },
+    {
+      "crisis_period": "ftx",
+      "horizons": [
+        4
+      ],
+      "n_weeks": 18,
+      "n_alerts_total": 23,
+      "n_alerts_per_horizon": {
+        "4": 23
+      },
+      "ticket_precision": 0.5333333333333333,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.40896358543417355,
+      "audit_completeness": 0.0011161738834093492,
+      "n_tickets_total": 36
+    },
+    {
+      "crisis_period": "svb",
+      "horizons": [
+        1,
+        4,
+        8,
+        12
+      ],
+      "n_weeks": 17,
+      "n_alerts_total": 73,
+      "n_alerts_per_horizon": {
+        "1": 18,
+        "4": 19,
+        "8": 18,
+        "12": 18
+      },
+      "ticket_precision": 0.6235294117647059,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.34523809523809523,
+      "audit_completeness": 0.0010096036719887981,
+      "n_tickets_total": 34
+    },
+    {
+      "crisis_period": "svb",
+      "horizons": [
+        4
+      ],
+      "n_weeks": 17,
+      "n_alerts_total": 19,
+      "n_alerts_per_horizon": {
+        "4": 19
+      },
+      "ticket_precision": 0.6235294117647059,
+      "false_intervention_rate": 0.0,
+      "target_stability": 0.34523809523809523,
+      "audit_completeness": 0.0010096036719887981,
+      "n_tickets_total": 34
+    }
+  ],
+  "n_b6_regimes": 0
+}

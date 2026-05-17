@@ -15,19 +15,20 @@ clean 2025 test split; Panels~B--C aggregate the dedicated stress runs.}
 \toprule
 Panel & Ablation & Configuration & Ticket Prec. & FIR & Notes \\
 \midrule
-\multirow{4}{*}{A: clean test}
+\multirow{5}{*}{A: clean test}
  & ---  & full \texttt{m5\_fm\_rules}                                       & 0.600 & 0.000 & baseline \\
  & A1   & disable data-health gate ($\tau_{\mathrm{data}}{=}0$)             & 0.600 & 0.000 & no effect (clean data) \\
- & A2   & disable confidence gate ($\tau_{\mathrm{conf}}{=}0$)              & 0.600 & 0.400 & FIR shoots up \\
- & A3   & skip scenario engine                                              & 0.421 & 0.000 & precision drops $\sim30\%$ \\
+ & A2   & disable confidence gate ($\tau_{\mathrm{conf}}{=}0$)              & 0.600 & 0.429 & FIR shoots up \\
+ & A3   & skip scenario engine                                              & 0.000 & 0.000 & target extraction collapses \\
+ & A6   & single-horizon forecasting ($h{=}4$)                              & 0.600 & 0.000 & no effect (clean data) \\
 \midrule
 \multirow{2}{*}{B: degraded data}
- & A1 off & 80--95\% feature/edge mask, $\mathrm{DH}_t{\le}0.75$            & ---   & 0.41--0.48 & gate is critical \\
- & A1 on  & same degradation, gate active                                   & ---   & 0.000      & safe-mode suppression \\
+ & A1 off & 80--98\% feature/edge mask, $\tau_{\mathrm{conf}}{=}0$          & ---   & 0.27--0.60 & false interventions emerge \\
+ & A1 on  & same degradation, safe-mode triggered                           & ---   & 0.000      & intervention suppression \\
 \midrule
 \multirow{2}{*}{C: crisis period}
- & A6: single & horizons $=\{4\}$, Terra/Luna window                        & 0.700 & ---        & alerts: $1\times$ \\
- & A6: multi  & horizons $=\{1,4,8,12\}$, same window                       & 0.700 & ---        & alerts: $5\times$ \\
+ & A6: single & horizons $=\{4\}$, crisis windows                         & 0.533--0.624 & 0.000 & alerts: 19--23 \\
+ & A6: multi  & horizons $=\{1,4,8,12\}$, same windows                    & 0.533--0.624 & 0.000 & alerts: 73--98 ($\approx4\times$) \\
 \bottomrule
 \end{tabular}
 \end{table*}

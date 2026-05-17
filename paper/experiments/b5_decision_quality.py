@@ -186,6 +186,18 @@ def _jaccard(set_a: set[str], set_b: set[str]) -> float:
     return len(set_a & set_b) / len(union)
 
 
+def _build_scenario_summary(
+    pred_graph: GraphSnapshot,
+    mc_samples: list[GraphSnapshot],
+    config: AgentConfig,
+    horizon: int,
+) -> ScenarioSummary:
+    """Run or skip the scenario engine according to the agent config."""
+    if config.skip_scenario:
+        return ScenarioSummary(ranked_losses=[], worst_scenario="", worst_horizon=0)
+    return run_scenarios(pred_graph, mc_samples, config, horizon=horizon)
+
+
 # ---------------------------------------------------------------------------
 # Main benchmark
 # ---------------------------------------------------------------------------
@@ -290,8 +302,11 @@ def run_b5(
         alerts = detect_alerts(current_metrics, rolling_baseline, horizon=horizon, config=config)
 
         # --- Step c: Scenario engine ---
-        mc_samples = _generate_mc_samples(pred_graph, config.mc_samples, sigma=mc_sigma, rng=rng)
-        scenario_summary = run_scenarios(pred_graph, mc_samples, config, horizon=horizon)
+        if config.skip_scenario:
+            mc_samples = []
+        else:
+            mc_samples = _generate_mc_samples(pred_graph, config.mc_samples, sigma=mc_sigma, rng=rng)
+        scenario_summary = _build_scenario_summary(pred_graph, mc_samples, config, horizon=horizon)
 
         # --- Step d: Generate tickets ---
         decision = generate_tickets(alerts, scenario_summary, data_health, config)

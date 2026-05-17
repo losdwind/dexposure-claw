@@ -1,4 +1,4 @@
-\documentclass[10pt,journal,compsoc,onecolumn]{IEEEtran}
+\documentclass[10pt,journal,compsoc]{IEEEtran}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{mathtools}
 \usepackage{algorithm}
@@ -55,7 +55,7 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities across protocols, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk lack a dedicated forecasting backbone for graph-structured time series, which limits their data efficiency and uncertainty calibration. Building on DeXposure-FM, a graph time-series foundation model pre-trained on $43.7$ million exposure-graph entries, we present two contributions. First, \emph{DeXposure-Claw}: a four-layer query architecture---FM prediction, deterministic monitoring and scenario, LLM decision, and a data-health/confidence safety gate---that turns predicted exposure graphs into supervisory tickets. Second, \emph{DeXposure-Bench}: a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs, with a regulator-aligned ground truth defined by absolute exposure loss. The bench surfaces a non-trivial Pareto trade-off rather than uniform improvement: persistence remains strong on point-metric forecasting and ticket precision, while the FM turns forecasting into a deployable risk signal through trend consistency, calibrated uncertainty (PI coverage $0.912$ against a $0.90$ target), and robustness. In layer-wise decision ablations, the FM and LLM layers make additive contributions to ticket F1 ($+32\%$ from FM and $+27\%$ from LLM), while the safety gate improves explanation quality at a small F1 cost. We release the harness, dataset, and reference implementations to support extension.
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk lack a dedicated forecasting backbone for graph-structured time series, limiting their data efficiency, uncertainty calibration, and robustness. Building on DeXposure-FM, a graph time-series foundation model pre-trained on $43.7$ million exposure-graph entries, we present \emph{DeXposure-Claw}: a four-layer agentic architecture---FM prediction, deterministic monitor and scenario engines, LLM decision, and a data-health/confidence safety gate---that turns predicted exposure graphs into auditable supervisory tickets. We also introduce \emph{DeXposure-Bench}, a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs, with a regulator-aligned absolute-loss ground truth and eight reference method implementations. On the 2025 test split, the full FM\,+\,LLM\,+\,gate stack raises end-to-end ticket F1 from $0.0076$ (persistence\,+\,rules) to $0.0233$ (\textbf{$+208\%$}) and LLM-as-judge explanation quality from $2.03$ to $2.69/5$ (\textbf{$+33\%$}). It also delivers calibrated prediction intervals (coverage $0.913$ against a $0.90$ target, ECE $0.013$) and $4$--$5$~week early-warning lead times on Terra/Luna, FTX, and SVB-USDC. These gains are not uniform dominance: FM\,+\,LLM variants improve recall and explanations at a non-trivial false-intervention cost ($\mathrm{FIR}\approx 0.44$) compared with rule-based baselines ($\mathrm{FIR}=0$). We release the harness, dataset, reference implementations, and ticket-level audit logs to support extension.
 
 \end{abstract}
 
@@ -67,38 +67,47 @@ Agentic system, graph, time series, foundation model, decentralised finance, fin
 \IEEEdisplaynontitleabstractindextext
 \IEEEpeerreviewmaketitle
 
-\input{sections/Intro}
-\input{sections/RelatedWorks}
-\input{sections/Pre}
-\input{sections/Alg}
-\input{sections/Bench}
-\input{sections/Exp}
+\input{sections/1-Intro}
+\input{sections/2-RelatedWorks}
+\input{sections/3-Pre}
+\input{sections/4-Alg}
+\input{sections/5-Bench}
+\input{sections/6-Exp}
 
-\input{sections/Limitations}
+\input{sections/7-Limitations}
 
 \section{Conclusion}
 
-We presented \textsc{DeXposure-Claw}, a four-layer query architecture that turns predicted exposure graphs into supervisory tickets with explicit data-health and confidence gates, and \textsc{DeXposure-Bench}, a six-axis evaluation suite for FM\,+\,LLM decision pipelines on temporal exposure graphs.
+We presented \textsc{DeXposure-Claw}, \textsc{DeXposure-Bench}, and an empirical characterisation of FM\,+\,LLM risk-decision pipelines on temporal DeFi exposure graphs. \textsc{DeXposure-Claw} turns predicted exposure graphs into auditable supervisory tickets through four layers: FM prediction, deterministic monitor and scenario engines, LLM decision, and a data-health/confidence safety gate. \textsc{DeXposure-Bench}, released alongside, provides a six-axis evaluation suite with eight reference method implementations and a regulator-aligned absolute-loss ground truth on the $4{,}300$-protocol \textsc{DeXposure} corpus.
 
-The picture our benchmark surfaces is not one of uniform improvement. Persistence remains a strong baseline on point-metric forecasting and on raw ticket precision, but the FM contributes the pieces a monitoring agent needs for deployment: directional trend signal, calibrated prediction intervals, and lower degradation under data corruption. The LLM decision layer then raises recall and explanation quality at a non-trivial false-intervention cost, and the safety gate buys judge score at a small F1 cost. What the FM and LLM layers \emph{do} contribute is additive and decomposable: in the layer-wise ablation on \texttt{b5\_decision}, the FM signal lifts ticket F1 by $32\%$ and replacing the rule engine with the LLM lifts it by another $27\%$. We read this as evidence that the FM\,+\,LLM stack is the right configuration when recall, calibration, and explanation quality are the binding constraints; persistence\,+\,rules is the right configuration when minimising false interventions is paramount. The bench's value is in making this trade-off explicit rather than averaging it away.
+The core empirical finding is that the full agentic stack improves the recall--explanation operating point while making its cost explicit. \textsc{DeXposure-Claw} raises end-to-end ticket F1 from $0.0076$ (persistence\,+\,rules) to $0.0233$ ($+208\%$), and LLM-as-judge explanation quality from $2.03$ to $2.69/5$ ($+33\%$), while delivering calibrated prediction intervals (coverage $0.913$, ECE $0.013$) and $4$--$5$ week early-warning lead times on Terra/Luna, FTX, and SVB-USDC. The gain is a Pareto trade-off rather than uniform dominance: FM\,+\,LLM variants raise recall and explanation at a non-trivial false-intervention cost ($\mathrm{FIR}\approx 0.44$) compared with rule-based baselines ($\mathrm{FIR}=0$). Layer-wise attribution---$+32\%$ F1 from adding FM to a snapshot LLM, $+27\%$ from swapping rules for LLM under a fixed FM---shows that the predictor and decision layers are additive and non-substitutable; the safety gate then trades $3\%$ F1 for $+0.21$ judge score and $+10\%$ consistency, defining the auditability operating point.
 
-Beyond the limitations in \S\ref{sec:limitations}, two directions are most pressing. First, a controlled live evaluation with a regulator-in-the-loop, which the offline benchmark approximates but cannot replace. Second, extending the suite to sub-daily resolution, where shock dynamics are fastest and the gap between weekly and event-time evaluation is widest. We release the harness, dataset, and reference implementations to invite both.
+\paragraph{Deployability characterisation}
+Beyond aggregate metrics, \textsc{DeXposure-Bench} records the deployment properties that determine whether the system can be audited and operated. The FM\,+\,monitor\,+\,scenario pipeline (\texttt{m5\_fm\_rules}) processes one weekly snapshot in $67.6$~s on a single RTX~4090; the LLM decision layer adds an external API call whose latency is reported but not treated as a GPU benchmark. The clean-data ablations identify load-bearing components: removing the scenario engine collapses ticket precision to $0$, and disabling the confidence gate lifts FIR from $0$ to $0.429$. Under $80$--$98\%$ feature/edge masking, the data-health gate is the fail-safe: without it, FIR rises to $0.29$--$0.60$; with it active, safe-mode suppression drives FIR back to $0$. Multi-horizon monitoring acts as a crisis reserve, expanding alert coverage by roughly $4\times$ during Terra/Luna, FTX, and SVB-USDC windows without reducing precision. Every ticket carries the FM prediction, monitor scores, scenario projections, and, when applicable, LLM rationale that produced it; we release these audit logs alongside the harness.
+
+Beyond the limitations in \S\ref{sec:limitations}, two directions are most pressing. First, supervised use of the bench as a reward signal to fine-tune a regulator-specialised small model from the LLM rationales we release, closing the loop between offline evaluation and on-policy deployment. Second, extending the harness to additional on-chain risk surfaces---NFT lending, perpetual derivatives, cross-chain bridges---so the FM\,+\,LLM\,+\,gate template can be benchmarked beyond DeFi exposure, alongside a controlled regulator-in-the-loop study at sub-weekly resolution. We release the harness, dataset, eight reference implementations, and the ticket-level audit logs to invite the community to do both.
 
 %\section*{Acknowledgments}
 
+\appendices
 
+\section{Full all-horizon \texttt{b1\_forecast} results}
+\label{app:b1_full}
+Table~\ref{tab:b1_all_horizons} reports the complete \texttt{b1\_forecast}
+metrics across all four horizons $h\in\{1,4,8,12\}$ and all four
+prediction methods. The main text (\S\ref{sec:exp})
+summarises the cross-metric pattern; this appendix provides the full
+per-horizon audit for readers reproducing the leaderboard.
+\input{sections/A1-b1_forecast_AllHorizons.tex}
 
-%\appendix[Proof of the Zonklar Equations]
-
-
-
-
-%{\appendices
-%\section*{Proof of the First Zonklar Equation}
-%Appendix one text goes here.
-% You can choose not to have a title for an appendix if you want by leaving the argument blank
-%\section*{Proof of the Second Zonklar Equation}
-%Appendix two text goes here.}
+\section{Per-scenario \texttt{b4\_stress} results}
+\label{app:b4_detail}
+Table~\ref{tab:b4_detail} reports the per-scenario stress-test outputs
+across all five standardised scenarios $\mathcal{S}_0$ and all four
+methods. The main text aggregates these into a single qualitative
+finding (\S\ref{sec:exp}); this appendix retains the full
+audit artifact.
+\input{sections/A2-b4_stress_Detail.tex}
 
 
 
@@ -126,8 +135,5 @@ Beyond the limitations in \S\ref{sec:limitations}, two directions are most press
 
 
 \vfill
-
-\appendices
-
 
 \end{document}

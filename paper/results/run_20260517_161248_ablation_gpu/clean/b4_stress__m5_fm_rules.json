@@ -1,0 +1,59 @@
+{
+  "benchmark": "b4_stress",
+  "method": "m5_fm_rules",
+  "timestamp": "2026-05-17T09:13:43.812633",
+  "elapsed_seconds": 245.82,
+  "log_file": "results/run_20260517_161248_ablation_gpu/clean/b4_stress__m5_fm_rules__20260517_090937.log",
+  "results": [
+    {
+      "method": "m5_fm_rules",
+      "scenario": "S1",
+      "loss_mae": 0.06683841074767288,
+      "distressed_count_mae": 200.89655172413794,
+      "propagation_depth_mae": 0.896551724137931,
+      "target_overlap_at_k": 0.3143807783500321,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "m5_fm_rules",
+      "scenario": "S2",
+      "loss_mae": 0.015223945560047546,
+      "distressed_count_mae": 77.3103448275862,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 0.5250554043657492,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "m5_fm_rules",
+      "scenario": "S3",
+      "loss_mae": 0.007921409851568941,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 0.44451812555260833,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "m5_fm_rules",
+      "scenario": "S4",
+      "loss_mae": 0.00994137264976004,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.034482758620689655,
+      "target_overlap_at_k": 0.5358377254928979,
+      "top_k": 10,
+      "n_simulations": 29
+    },
+    {
+      "method": "m5_fm_rules",
+      "scenario": "S5",
+      "loss_mae": 0.009872517599542663,
+      "distressed_count_mae": 0.0,
+      "propagation_depth_mae": 0.0,
+      "target_overlap_at_k": 0.6015019463295326,
+      "top_k": 10,
+      "n_simulations": 29
+    }
+  ]
+}

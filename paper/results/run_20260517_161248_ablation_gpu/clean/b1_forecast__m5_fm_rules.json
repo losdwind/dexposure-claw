@@ -1,0 +1,20 @@
+{
+  "benchmark": "b1_forecast",
+  "method": "m5_fm_rules",
+  "timestamp": "2026-05-17T09:16:46.816345",
+  "elapsed_seconds": 180.39,
+  "log_file": "results/run_20260517_161248_ablation_gpu/clean/b1_forecast__m5_fm_rules__20260517_091346.log",
+  "results": [
+    {
+      "method": "m5_fm_rules",
+      "horizon": 4,
+      "pagerank_mae": 4.4827753496342546e-05,
+      "hhi_mae": 0.03211563660632128,
+      "density_mae": 8.731955088170892e-05,
+      "gini_mae": 0.002346111728448119,
+      "rank_correlation": 0.566532430121489,
+      "trend_consistency": 0.6206896551724138,
+      "n_test_snapshots": 29
+    }
+  ]
+}

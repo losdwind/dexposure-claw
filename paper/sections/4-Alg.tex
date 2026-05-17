@@ -46,7 +46,7 @@ When $DH_t$ falls below $\tau_{\mathrm{data}}$ (default $0.7$), the system enter
 \subsection{Task~I: Network Risk Monitoring}
 \label{subsec:task_monitoring}
 
-\paragraph{Monitoring metrics ($\Phi$).}
+\paragraph{Monitoring metrics ($\Phi$)}
 Risk in exposure networks manifests as concentration (a few protocols dominate), fragility (shocks propagate widely), and instability (structure shifts rapidly). To capture these dimensions, the monitoring agent evaluates five functionals on $\widehat{G}_{t+h}$:
 
 \begin{table*}[!t]
@@ -75,7 +75,7 @@ N5 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
 \widetilde{\mathbf{N}}^{(m)}_{t,h} := \Phi(\widetilde{G}^{(m)}_{t+h},X_t).
 \end{equation}
 
-\paragraph{Alert generation.}
+\paragraph{Alert generation}
 An alert fires when a predicted metric departs from its rolling historical baseline by more than $z$ standard deviations (default $z=2$, baseline window $L=26$ weeks):
 \begin{equation}
 \label{eq:alert_trigger}
@@ -84,10 +84,10 @@ An alert fires when a predicted metric departs from its rolling historical basel
 \end{equation}
 where $(\mu_t^{(j)},\sigma_t^{(j)})$ are the rolling mean and standard deviation of metric $j$ over the last $L$ observed snapshots, and $\epsilon=10^{-8}$ prevents division by zero.
 
-\paragraph{Evidence and attribution.}
+\paragraph{Evidence and attribution}
 Each alert $a\in\mathcal{A}_t$ carries an evidence bundle $\mathrm{Ev}_t(a) = ( N_{t,h}^{(j)},\, \mu_t^{(j)},\, \sigma_t^{(j)},\, \mathrm{Attr}_t(a),\, h )$, where $\mathrm{Attr}_t(a)$ is a ranked list of top-$K$ contributing nodes/edges obtained via marginal contribution approximation: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$ (default $K=10$).
 
-\paragraph{Uncertainty-aware confidence.}
+\paragraph{Uncertainty-aware confidence}
 Alert reliability depends on three factors: data quality, forecast dispersion, and horizon length. Using Monte Carlo samples, we compute the coefficient of variation $\mathrm{CV}_{t,h}^{(j)} := \sigma(\{\widetilde{N}^{(m,j)}_{t,h}\}_m) / |\bar{N}^{(j)}_{t,h}|$ (clamped to $[0,1]$) and define:
 \begin{equation}
 \label{eq:alert_confidence}
@@ -130,7 +130,7 @@ L_{t,h}(s)
 \end{align}
 where $\widehat{G}_{t+h}^s$ denotes the network after applying shock $s$. The scenario engine also tracks the number of \emph{distressed} nodes (those losing $>50\%$ of total edge weight) and a propagation depth estimate $\lfloor\log_2(\text{affected nodes}+1)\rfloor + 1$.
 
-\paragraph{CVaR aggregation.}
+\paragraph{CVaR aggregation}
 To capture tail risk, we compute an empirical CVaR from the MC sample losses. Let $\lambda\in[0,1]$ (default $0.5$) control the tail fraction. We sort the $M$ sample losses in descending order and average the worst $\lceil \lambda M \rceil$:
 \begin{equation}
 \label{eq:cvar}
@@ -141,7 +141,7 @@ where $\widetilde{L}^{(1)} \ge \widetilde{L}^{(2)} \ge \cdots$ are order statist
 \subsection{Task~II: Decision Agent}
 \label{subsec:decision_v1}
 
-\paragraph{Action space.}
+\paragraph{Action space}
 The decision module maps alerts and scenario results to recommendation tickets using a conservative playbook with four action types, ordered by escalation severity:
 
 \begin{table}[!t]
@@ -162,7 +162,7 @@ Action & Severity & Weight $w_u$ & Safe-mode OK? & Min.\ alerts \\
 \label{tab:playbook}
 \end{table}
 
-\paragraph{Feasibility constraints.}
+\paragraph{Feasibility constraints}
 An intervention-type action $u$ (those requiring safe-mode off) is feasible only when both the data-health gate and the confidence gate are satisfied:
 \begin{equation}
 \label{eq:decision_constraints}
@@ -173,7 +173,7 @@ u \in \mathcal{C}_t
 \end{equation}
 where $\bar{C}_t = \frac{1}{|\mathcal{A}_t|}\sum_{a\in\mathcal{A}_t} C_t(a)$ is the mean alert confidence and $\tau_{\mathrm{conf}}$ (default $0.6$) gates interventions. Non-interventional actions (\texttt{Monitor}, \texttt{Investigate}) are always feasible when at least one alert exists.
 
-\paragraph{Ticket scoring.}
+\paragraph{Ticket scoring}
 Each feasible recommendation is scored by a multiplicative heuristic combining playbook severity, alert confidence, and scenario impact:
 \begin{equation}
 \label{eq:ticket_score}
@@ -182,7 +182,7 @@ w_u \cdot \bar{C}_t \cdot \mathrm{Imp}_t,
 \end{equation}
 where $w_u$ is the severity weight (Table~\ref{tab:playbook}), $\bar{C}_t$ is the mean alert confidence, and $\mathrm{Imp}_t := \frac{1}{|\mathcal{S}_0|}\sum_{s\in\mathcal{S}_0} \mathrm{CVaR}_\lambda(s)$ aggregates scenario impact as the mean CVaR across all scenarios. When no scenarios are available, $\mathrm{Imp}_t$ defaults to $1.0$ (neutral multiplier), ensuring alert-only tickets receive non-zero scores. The agent returns the top-$N$ tickets (default $N=10$) ranked by $\mathrm{Score}_t(u)$.
 
-\paragraph{Target selection.}
+\paragraph{Target selection}
 For intervention tickets, targets are selected by collecting the top-$K$ attributed nodes from all triggering alerts and worst-case scenarios, ranked by frequency-weighted vote.
 
 \subsection{End-to-End Procedure}

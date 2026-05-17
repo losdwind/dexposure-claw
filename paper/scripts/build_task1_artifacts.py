@@ -96,7 +96,7 @@ def build_summary() -> dict:
 def write_table(summary: dict) -> None:
     out_json = RESULTS / "paper_task1_latest.json"
     out_csv = RESULTS / "paper_task1_latest.csv"
-    out_tex = SECTIONS / "Table_TaskI_Summary.tex"
+    out_tex = SECTIONS / "T1-TaskI_Summary.tex"
 
     out_json.write_text(json.dumps(summary, indent=2))
 
@@ -116,21 +116,21 @@ def write_table(summary: dict) -> None:
         "\\begin{table*}[!htbp]",
         "\\centering",
         "\\small",
-        "\\begin{tabular}{lcc}",
+        "\\begin{tabularx}{\\linewidth}{Xcc}",
         "\\toprule",
-        "Metric (Task I) & \\texttt{m5\\_fm\\_rules} (FM) & \\texttt{m1\\_persistence\\_rules} (Persistence) \\\\",
+        "Metric & FM (\\texttt{m5\\_fm\\_rules}) & Persist (\\texttt{m1\\_persistence\\_rules}) \\\\",
         "\\midrule",
-        f"\\texttt{{b1\\_forecast}} RankCorr@h4 & {_fmt(c0['b1_rank_corr_h4'])} & {_fmt(c2['b1_rank_corr_h4'])} \\\\",
-        f"\\texttt{{b1\\_forecast}} TrendCons@h4 & {_fmt(c0['b1_trend_consistency_h4'])} & {_fmt(c2['b1_trend_consistency_h4'])} \\\\",
-        f"\\texttt{{b1\\_forecast}} HHI-MAE@h4 (lower better) & {_fmt(c0['b1_hhi_mae_h4'])} & {_fmt(c2['b1_hhi_mae_h4'])} \\\\",
-        f"\\texttt{{b2\\_warning}} Precision (\\texttt{{h1\\_weighted\\_degree}} mean) & {_fmt(c0['b2_precision_mean'])} & N/A \\\\",
-        f"\\texttt{{b2\\_warning}} F1-warning (\\texttt{{h1\\_weighted\\_degree}} mean) & {_fmt(c0['b2_f1_mean'])} & N/A \\\\",
-        f"\\texttt{{b2\\_warning}} Lead time (\\texttt{{h1\\_weighted\\_degree}} weeks) & {_fmt(c0['b2_lead_time_mean'])} & N/A \\\\",
-        f"\\texttt{{b3\\_calibration}} ECE (\\texttt{{m5\\_fm\\_rules}} only) & {_fmt(c0['b3_ece'])} & N/A \\\\",
-        f"\\texttt{{b3\\_calibration}} PI coverage (\\texttt{{m5\\_fm\\_rules}} only) & {_fmt(c0['b3_pi_coverage'])} & N/A \\\\",
-        f"\\texttt{{b6\\_robustness}} Relative degradation (mean) & {_fmt(c0['b6_relative_degradation_mean'])} & {_fmt(c2['b6_relative_degradation_mean'])} \\\\",
+        f"RankCorr@h4 (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_rank_corr_h4'])} & {_fmt(c2['b1_rank_corr_h4'])} \\\\",
+        f"TrendCons@h4 (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_trend_consistency_h4'])} & {_fmt(c2['b1_trend_consistency_h4'])} \\\\",
+        f"HHI-MAE@h4, lower better (\\texttt{{b1\\_forecast}}) & {_fmt(c0['b1_hhi_mae_h4'])} & {_fmt(c2['b1_hhi_mae_h4'])} \\\\",
+        f"Precision, mean (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_precision_mean'])} & N/A \\\\",
+        f"F1-warning, mean (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_f1_mean'])} & N/A \\\\",
+        f"Lead time, weeks (\\texttt{{b2\\_warning}}, \\texttt{{h1\\_weighted\\_degree}}) & {_fmt(c0['b2_lead_time_mean'])} & N/A \\\\",
+        f"ECE, FM only (\\texttt{{b3\\_calibration}}) & {_fmt(c0['b3_ece'])} & N/A \\\\",
+        f"PI coverage, FM only (\\texttt{{b3\\_calibration}}) & {_fmt(c0['b3_pi_coverage'])} & N/A \\\\",
+        f"Relative degradation, mean (\\texttt{{b6\\_robustness}}) & {_fmt(c0['b6_relative_degradation_mean'])} & {_fmt(c2['b6_relative_degradation_mean'])} \\\\",
         "\\bottomrule",
-        "\\end{tabular}",
+        "\\end{tabularx}",
         "\\caption{Task I evidence for deployable risk monitoring on the 2025 test split. The table is a numeric audit ledger; Fig.~\\ref{fig:task1_deployable_signal} compresses the same evidence into the main claim.}",
         "\\label{tab:task1_summary}",
         "\\end{table*}",
@@ -237,7 +237,7 @@ def main() -> None:
     print("Wrote:")
     print(f"- {RESULTS / 'paper_task1_latest.json'}")
     print(f"- {RESULTS / 'paper_task1_latest.csv'}")
-    print(f"- {SECTIONS / 'Table_TaskI_Summary.tex'}")
+    print(f"- {SECTIONS / 'T1-TaskI_Summary.tex'}")
     print(f"- {FIGURES / 'fig5_task1_deployable_signal.png'}")
     print(f"- {FIGURES / 'fig5_task1_deployable_signal.pdf'}")
 

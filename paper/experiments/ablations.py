@@ -156,11 +156,7 @@ def run_ablation(
             **config_override,
         )
         if b4_results:
-            # Aggregate across scenarios
-            loss_maes = [r.loss_mae for r in b4_results if not _isnan(r.loss_mae)]
-            overlaps = [r.overlap_at_k for r in b4_results if not _isnan(r.overlap_at_k)]
-            result.b4_loss_mae = float(sum(loss_maes) / len(loss_maes)) if loss_maes else float("nan")
-            result.b4_overlap_at_10 = float(sum(overlaps) / len(overlaps)) if overlaps else float("nan")
+            result.b4_loss_mae, result.b4_overlap_at_10 = _aggregate_b4_results(b4_results)
 
     # Run b5_decision (all ablations)
     if "b5_decision" in benchmarks:
@@ -190,6 +186,23 @@ def run_ablation(
 def _isnan(v: float) -> bool:
     import math
     return math.isnan(v)
+
+
+def _aggregate_b4_results(b4_results: list[Any]) -> tuple[float, float]:
+    """Aggregate b4 stress metrics across scenarios.
+
+    b4_stress now exposes overlap as `target_overlap_at_k`; keep a fallback for
+    older result objects that used `overlap_at_k`.
+    """
+    loss_maes = [r.loss_mae for r in b4_results if not _isnan(r.loss_mae)]
+    overlaps = []
+    for r in b4_results:
+        overlap = getattr(r, "target_overlap_at_k", getattr(r, "overlap_at_k", float("nan")))
+        if not _isnan(overlap):
+            overlaps.append(overlap)
+    loss_mae = float(sum(loss_maes) / len(loss_maes)) if loss_maes else float("nan")
+    overlap_at_10 = float(sum(overlaps) / len(overlaps)) if overlaps else float("nan")
+    return loss_mae, overlap_at_10
 
 
 def _compute_relative_drop(
