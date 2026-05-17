@@ -9,7 +9,7 @@ import unittest
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-CLAW_ROOT = REPO_ROOT / "DeXposure_Agent" / "dexposure_claw"
+CLAW_ROOT = REPO_ROOT / "claw"
 SRC_ROOT = CLAW_ROOT / "src"
 
 

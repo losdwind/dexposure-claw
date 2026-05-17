@@ -1,6 +1,10 @@
-# DeXposure-Agent
+# DeXposure-Claw Paper Workspace
 
 ## Folder Structure
+
+The installable Claw agent extension lives at repository root under `claw/`.
+This `DeXposure_Agent/` directory contains the paper, deterministic pipeline,
+benchmarks, and experiment artifacts.
 
     DeXposure_Agent/
     |
@@ -9,7 +13,7 @@
     |   |-- serve.py              #   FastAPI server -- FM prediction HTTP API
     |   |-- fm_predictor.py       #   GraphPFN model loading + inference
     |   |-- agent_loop.py         #   Algorithm 1 deterministic pipeline
-    |   |-- monitor.py            #   Network metrics M1-M7 + z-score alerts
+    |   |-- monitor.py            #   Network metrics N1..N5 + z-score alerts
     |   |-- scenario.py           #   Stress scenarios S1-S5
     |   |-- decision.py           #   Rule-based decision engine (benchmark baseline)
     |   |-- data_health.py        #   Data quality gate
@@ -17,15 +21,6 @@
     |   |-- pred_graph.py         #   Predicted graph builder + MC sampling
     |   |-- config.py             #   Hyperparameter configuration
     |   +-- types.py              #   Pydantic data models
-    |
-    |-- dexposure_claw/           # DeXposure Claw portable agent extension
-    |   |                         # Python-first MCP/tools core + runtime adapters.
-    |   |-- src/dexposure_claw/   #   CLI, MCP entrypoint, tools, runtime helpers
-    |   |-- pack/                 #   Canonical commands, skills, agents, hooks, memory
-    |   |-- adapters/             #   Claude Code, Hermes, Codex config templates
-    |   |-- dist/claude-code/     #   Generated Claude Code plugin distribution
-    |   |-- package.json          #   Optional npx wrapper (@dexposure/claw)
-    |   +-- pyproject.toml        #   Python package metadata (dexposure-claw)
     |
     |-- experiments/              # b1_forecast-b6_robustness benchmark implementations
     |   |                         # b1_forecast-b6_robustness run on GPU server; llm_eval runs LOCALLY.
@@ -52,7 +47,7 @@
 
 Key principles:
 - dexposure_agent/ = GPU server only, no LLM SDK, pure FM + deterministic compute
-- plugin/ = Claude Code plugin, Claude Code itself is the LLM agent
+- ../claw/ = installable DeXposure Claw package, MCP server, skills, and runtime adapters
 - experiments/ b1_forecast-b6_robustness run on GPU server; llm_eval_b5.py runs LOCALLY
 - FM API (serve.py) is the bridge: GPU server hosts it, scripts call it via SSH tunnel
 

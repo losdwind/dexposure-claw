@@ -3,7 +3,7 @@
 DeXposure Claw is a pluggable financial-risk agent extension for
 Claude Code, Hermes, OpenAI Codex, and other MCP-compatible runtimes.
 
-It exposes DeXposure-Bench and DeXposure-Claw workflows as:
+It exposes DeXposure-Bench and paper-evaluation workflows as:
 
 - MCP tools for benchmark execution, reporting, and audit metadata.
 - Runtime skills for repeatable financial-risk workflows.
@@ -11,15 +11,18 @@ It exposes DeXposure-Bench and DeXposure-Claw workflows as:
 
 ## Quick Start
 
+From the repository root:
+
 ```bash
-pipx install dexposure-claw
+pipx install ./claw
 dexposure-claw install
 ```
 
-or, through the optional npm wrapper:
+For editable local development:
 
 ```bash
-npx @dexposure/claw install
+python -m pip install -e ./claw
+dexposure-claw health
 ```
 
 ## Claude Code
@@ -28,7 +31,7 @@ For local development:
 
 ```bash
 dexposure-claw build claude-code
-claude --plugin-dir DeXposure_Agent/dexposure_claw/dist/claude-code/dexposure-claw
+claude --plugin-dir claw/dist/claude-code/dexposure-claw
 ```
 
 ## MCP
@@ -48,7 +51,7 @@ codex mcp add dexposure -- dexposure-claw mcp
 codex mcp get dexposure
 ```
 
-For npm-based installs, use the wrapper command instead:
+After the npm wrapper is published, clients can use:
 
 ```bash
 codex mcp add dexposure -- npx -y @dexposure/claw mcp
