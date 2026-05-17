@@ -30,18 +30,18 @@ To set up a new autoresearch run, work with the user to:
 5. **Sync code to GPU server** (use the rsync commands from CLAUDE.md, plus):
    ```bash
    rsync -avz --delete -e "ssh -p 35417 -i ~/.ssh/github_ed25519" \
-     DeXposure_Agent/autoresearch/ root@ssh9.vast.ai:/root/graph-dexposure/DeXposure_Agent/autoresearch/
+     paper/autoresearch/ root@ssh9.vast.ai:/root/graph-dexposure/paper/autoresearch/
    ```
 6. **Verify the trial runner loads**:
    ```bash
-   ssh gpu-server "cd /root/graph-dexposure/DeXposure_Agent && \
+   ssh gpu-server "cd /root/graph-dexposure/paper && \
      DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
      python3 -c 'from autoresearch.run_trial import main; print(\"OK\")'"
    ```
 7. **Initialize results.tsv**: Create `autoresearch/results.tsv` with header row.
 8. **Run the baseline trial** (default config, no overrides):
    ```bash
-   ssh gpu-server "cd /root/graph-dexposure/DeXposure_Agent && \
+   ssh gpu-server "cd /root/graph-dexposure/paper && \
      DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
      python3 -u autoresearch/run_trial.py > /tmp/autoresearch_run.log 2>&1"
    ```
@@ -98,12 +98,12 @@ LOOP FOREVER:
 3. **Sync code** (only needed if you changed Python files, not for config-only changes):
    ```bash
    rsync -avz --delete -e "ssh -p 35417 -i ~/.ssh/github_ed25519" \
-     DeXposure_Agent/autoresearch/ root@ssh9.vast.ai:/root/graph-dexposure/DeXposure_Agent/autoresearch/
+     paper/autoresearch/ root@ssh9.vast.ai:/root/graph-dexposure/paper/autoresearch/
    ```
 
 4. **Run the trial on GPU**:
    ```bash
-   ssh gpu-server "cd /root/graph-dexposure/DeXposure_Agent && \
+   ssh gpu-server "cd /root/graph-dexposure/paper && \
      DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
      python3 -u autoresearch/run_trial.py \
        --config '{\"pi_min\": 0.3, \"z_threshold\": 1.5}' \

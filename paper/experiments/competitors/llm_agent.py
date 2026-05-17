@@ -11,7 +11,7 @@ Can also be called standalone for single-week analysis.
 Usage:
     # Requires SSH tunnel: ssh -f -N -L 8000:localhost:8000 gpu-server
     # Requires ANTHROPIC_API_KEY
-    python DeXposure_Agent/experiments/competitors/llm_agent.py --date 2025-03-03 --horizon 4
+    python paper/experiments/competitors/llm_agent.py --date 2025-03-03 --horizon 4
 """
 from __future__ import annotations
 

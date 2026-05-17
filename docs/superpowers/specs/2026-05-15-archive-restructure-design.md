@@ -14,9 +14,9 @@ The repo currently mixes three layers in one tree:
   `run_*.py` training entries (130 KB + 115 KB among them), `analysis/`,
   a root `autoresearch/`, FM-era docs (`EXPERIMENT_PLAN.md`,
   `ACTION_CONDITIONED_ROADMAP.txt`), and the FM PDF + review notes.
-- **Layer C — DeXposure-Agent (current paper)**: `DeXposure_Agent/`.
+- **Layer C — DeXposure-Agent (current paper)**: `paper/`.
 
-`DeXposure_Agent/` is already self-contained — no Python in it imports
+`paper/` is already self-contained — no Python in it imports
 `lib/`, `bin/`, `dexposure_fm/`, `analysis/`, or any root `run_*.py`. The
 FM dependency is already crystallized into `checkpoints/dexposure-fm-release/`.
 But the surrounding clutter is currently:
@@ -28,7 +28,7 @@ But the surrounding clutter is currently:
 
 ## Goal
 
-Reorganize so the live paper (`DeXposure_Agent/`) sits next to its shared
+Reorganize so the live paper (`paper/`) sits next to its shared
 resources (`data/`, `checkpoints/`) at the repo root, while Layer A + B
 move under a single `archive/` subtree that is read-only reference material.
 No git history is destroyed: every move uses `git mv`, and a tag
@@ -37,7 +37,7 @@ No git history is destroyed: every move uses `git mv`, and a tag
 ## Out of Scope
 
 - Migrating Layer A + B to a separate GitHub repo (rejected option).
-- Flattening `DeXposure_Agent/` to repo root (rejected option).
+- Flattening `paper/` to repo root (rejected option).
 - Reconciling `pyproject.toml` deps with the actual GPU-server environment
   (`torch 2.11.0+cu126` vs declared `torch==2.2.1+cu121`). That predates
   this work and stays a separate ticket.
@@ -47,7 +47,7 @@ No git history is destroyed: every move uses `git mv`, and a tag
 ```
 graph-dexposure/
 |
-+-- DeXposure_Agent/             current paper (unchanged in this refactor)
++-- paper/             current paper (unchanged in this refactor)
 |   +-- dexposure_agent/
 |   +-- experiments/
 |   +-- scripts/
@@ -90,7 +90,7 @@ graph-dexposure/
 |
 +-- pyproject.toml               renamed "GraphPFN" -> "dexposure-agent"
 +-- uv.lock
-+-- README.md                    rewritten: short pointer to DeXposure_Agent/ + archive/
++-- README.md                    rewritten: short pointer to paper/ + archive/
 +-- CLAUDE.md                    unchanged (6-line workstyle directives)
 +-- LICENSE, NOTICE, CODE_OF_CONDUCT.md, CONTRIBUTING.md
 +-- .gitignore                   updated (see below)
@@ -128,12 +128,12 @@ To `archive/.tools/`:
 
 - `icml2026/` (LaTeX build artifacts: `.aux/.bbl/.blg/.log/.fls/.fdb_latexmk/.out`)
 - `.run_full_experiment.lock`
-- `tests/` (top-level, only contains `__init__.py`; real tests live in `DeXposure_Agent/tests/`)
-- `results/` (top-level, empty; real results live in `DeXposure_Agent/results/`)
+- `tests/` (top-level, only contains `__init__.py`; real tests live in `paper/tests/`)
+- `results/` (top-level, empty; real results live in `paper/results/`)
 
 ### C. Unchanged (13 items)
 
-- `DeXposure_Agent/`, `data/`, `checkpoints/`
+- `paper/`, `data/`, `checkpoints/`
 - `README.md` (content changes, file stays), `CLAUDE.md`, `pyproject.toml` (content changes)
 - `uv.lock`, `LICENSE`, `NOTICE`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
 - `.gitignore` (content changes), `.gitattributes`
@@ -147,7 +147,7 @@ To `archive/.tools/`:
 |---|---|---|
 | `name` | `"GraphPFN"` | `"dexposure-agent"` |
 | `description` | `"Official implementation of GraphPFN"` | `"DeXposure-Agent: forecast-driven risk monitoring on DeFi exposure graphs"` |
-| `[tool.setuptools.packages.find].where` | `["."]` | `["DeXposure_Agent"]` |
+| `[tool.setuptools.packages.find].where` | `["."]` | `["paper"]` |
 | `[tool.setuptools.packages.find].include` | `["lib*", "dexposure_fm*"]` | `["dexposure_agent*", "experiments*"]` |
 | `[tool.ruff].extend-exclude` | `["lib/limix", "lib/tabpfn"]` | `["archive/**"]` |
 | `[tool.pyright].exclude` | `["cache", "data", "exp", "local"]` | `["cache", "data", "archive", "checkpoints", "local"]` |
@@ -184,8 +184,8 @@ on DeFi exposure graphs), built on top of the DeXposure-FM foundation model.
 
 ## Active work
 
-The current paper lives entirely under [`DeXposure_Agent/`](DeXposure_Agent/).
-See [`DeXposure_Agent/CLAUDE.md`](DeXposure_Agent/CLAUDE.md) for the experiment SOP.
+The current paper lives entirely under [`paper/`](paper/).
+See [`paper/CLAUDE.md`](paper/CLAUDE.md) for the experiment SOP.
 
 Shared resources at repo root:
 - `data/` -- weekly graph snapshots (Git LFS) + meta_df.csv
@@ -220,7 +220,7 @@ Short inventory (~30 lines):
 ### Root `Makefile`
 
 Delete from repo root. A copy stays at `archive/code/Makefile` for history.
-`DeXposure_Agent/` uses `scripts/` runners directly; no new root Makefile.
+`paper/` uses `scripts/` runners directly; no new root Makefile.
 
 ### Root `CLAUDE.md`
 
@@ -293,7 +293,7 @@ git commit -m "refactor: update root config and docs for archived layout"
 uv sync --dry-run
 
 # Current paper imports still work
-cd DeXposure_Agent
+cd paper
 python -c "
 import sys; sys.path.insert(0, '.')
 from dexposure_agent.fm_predictor import FMPredictor
@@ -308,10 +308,10 @@ ls ../checkpoints/dexposure-fm-release/*.pt
 ls ../data/historical-network_week_*.json ../data/meta_df.csv
 
 # run_all CLI parses
-cd .. && python DeXposure_Agent/experiments/run_all.py --help | head -10
+cd .. && python paper/experiments/run_all.py --help | head -10
 
 # Existing tests still green
-cd DeXposure_Agent && python -m pytest tests/ -x --tb=short
+cd paper && python -m pytest tests/ -x --tb=short
 ```
 
 Each check that fails rolls back its phase (Phase 3 or 4) and gets fixed in
@@ -330,8 +330,8 @@ git push origin pre-archive-refactor
 | Risk | Severity | Mitigation |
 |---|---|---|
 | `pyproject.toml [tool.setuptools.packages.find]` misconfigured -> `uv sync` package discovery breaks | Medium | Phase 5a `uv sync --dry-run` catches this before push; revert to current behavior if needed |
-| `fm_predictor.py` hardcoded `"checkpoints/dexposure-fm-release/"` fails because of cwd shift | Low | `checkpoints/` stays at repo root; DeXposure_Agent entries already assume cwd=repo root |
-| GPU server copy gets out of sync | Low | rsync flow only syncs `DeXposure_Agent/`, `data/`, `checkpoints/`; archive never goes to server |
+| `fm_predictor.py` hardcoded `"checkpoints/dexposure-fm-release/"` fails because of cwd shift | Low | `checkpoints/` stays at repo root; paper entries already assume cwd=repo root |
+| GPU server copy gets out of sync | Low | rsync flow only syncs `paper/`, `data/`, `checkpoints/`; archive never goes to server |
 | LFS pointer files accidentally inflate to real blobs during `git mv` | Low | `.gitattributes` is untouched; git preserves pointer encoding through renames |
 | GitHub Actions break | Low | Confirmed `.github/` references zero archive-bound paths |
 | Future need to retrain FM | Medium | `pre-archive-refactor` tag pinpoints the last working layout; `archive/code/` is complete and runnable in place |
@@ -339,7 +339,7 @@ git push origin pre-archive-refactor
 ## Execution Notes (added 2026-05-15)
 
 One blind spot was caught during Phase 5 verification: `lib/` is not
-dormant. `DeXposure_Agent/dexposure_agent/fm_predictor.py` does three
+dormant. `paper/dexposure_agent/fm_predictor.py` does three
 lazy imports inside functions:
 
 - `from lib.graphpfn.model import GraphPFN` (L117)
@@ -359,17 +359,17 @@ Correction applied during implementation:
 - The other directories listed in section A (Move Inventory) -- `bin/`,
   `exp/`, `dexposure_fm/`, `analysis/`, `autoresearch/`, four root
   `run_*.py`, `Makefile` -- were verified truly dormant (zero live imports
-  from `DeXposure_Agent/`) and remain archived.
+  from `paper/`) and remain archived.
 
 ## Verification Checklist
 
 After Phase 5 completes, all of the following must hold:
 
 - [ ] `uv sync --dry-run` reports no package-discovery errors
-- [ ] `python -c "from dexposure_agent.fm_predictor import FMPredictor; from experiments.run_all import build_arg_parser"` succeeds (run from `DeXposure_Agent/`)
+- [ ] `python -c "from dexposure_agent.fm_predictor import FMPredictor; from experiments.run_all import build_arg_parser"` succeeds (run from `paper/`)
 - [ ] `checkpoints/dexposure-fm-release/dexposure-fm-h{1,4,8-h12}.pt` all present
 - [ ] `data/historical-network_week_*.json` and `data/meta_df.csv` all present
-- [ ] `python DeXposure_Agent/experiments/run_all.py --help` returns usage
-- [ ] `python -m pytest DeXposure_Agent/tests/` exits 0
-- [ ] No `grep -r "from lib\|from dexposure_fm\|run_full_experiment\|import lib" DeXposure_Agent/` results
+- [ ] `python paper/experiments/run_all.py --help` returns usage
+- [ ] `python -m pytest paper/tests/` exits 0
+- [ ] No `grep -r "from lib\|from dexposure_fm\|run_full_experiment\|import lib" paper/` results
 - [ ] `pre-archive-refactor` tag points at the commit before Phase 1

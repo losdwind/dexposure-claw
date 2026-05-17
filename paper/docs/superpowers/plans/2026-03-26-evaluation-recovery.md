@@ -13,31 +13,31 @@
 ## File Map
 
 **Modify**
-- `DeXposure_Agent/experiments/b1_risk_forecasting.py`: add node-ranking and edge-level forecast metrics; add horizon/volatility slices.
-- `DeXposure_Agent/experiments/b2_early_warning.py`: make warning generation depend on predicted graphs and predicted future metric changes.
-- `DeXposure_Agent/experiments/b3_uncertainty_calibration.py`: replace pseudo-calibration with conformalized intervals or clearly scoped empirical uncertainty.
-- `DeXposure_Agent/experiments/b5_decision_quality.py`: replace broken audit metric with precision/recall-style target metrics and stricter stressed-protocol definition.
-- `DeXposure_Agent/experiments/b6_robustness.py`: remove or relabel fake low-data regimes; keep only inference-time corruption unless retraining is added.
-- `DeXposure_Agent/experiments/predict_helper.py`: route implemented baselines explicitly and fail closed for unimplemented methods.
-- `DeXposure_Agent/experiments/run_all.py`: expose the real applicability matrix and include new baseline/statistics runners.
-- `DeXposure_Agent/scripts/run_benchmarks_sequential.py`: run the repaired benchmark set, not just `m5_fm_rules` and `m1_persistence_rules`.
-- `DeXposure_Agent/sections/Exp.tex`: update evaluation protocol, benchmark definitions, and reproducibility claims.
-- `DeXposure_Agent/DeXposure-Agent.tex`: remove unsupported “significantly outperforming SOTA” language until results justify it.
-- `DeXposure_Agent/EXPERIMENT_PLAN.txt`: sync the paper-facing plan to the repaired benchmark definitions.
-- `DeXposure_Agent/CLAUDE.md`: sync operational notes and defaults (`pi_min`, `rolling_window`, `top_k`, active baselines).
+- `paper/experiments/b1_risk_forecasting.py`: add node-ranking and edge-level forecast metrics; add horizon/volatility slices.
+- `paper/experiments/b2_early_warning.py`: make warning generation depend on predicted graphs and predicted future metric changes.
+- `paper/experiments/b3_uncertainty_calibration.py`: replace pseudo-calibration with conformalized intervals or clearly scoped empirical uncertainty.
+- `paper/experiments/b5_decision_quality.py`: replace broken audit metric with precision/recall-style target metrics and stricter stressed-protocol definition.
+- `paper/experiments/b6_robustness.py`: remove or relabel fake low-data regimes; keep only inference-time corruption unless retraining is added.
+- `paper/experiments/predict_helper.py`: route implemented baselines explicitly and fail closed for unimplemented methods.
+- `paper/experiments/run_all.py`: expose the real applicability matrix and include new baseline/statistics runners.
+- `paper/scripts/run_benchmarks_sequential.py`: run the repaired benchmark set, not just `m5_fm_rules` and `m1_persistence_rules`.
+- `paper/sections/Exp.tex`: update evaluation protocol, benchmark definitions, and reproducibility claims.
+- `paper/DeXposure-Agent.tex`: remove unsupported “significantly outperforming SOTA” language until results justify it.
+- `paper/EXPERIMENT_PLAN.txt`: sync the paper-facing plan to the repaired benchmark definitions.
+- `paper/CLAUDE.md`: sync operational notes and defaults (`pi_min`, `rolling_window`, `top_k`, active baselines).
 
 **Create**
-- `DeXposure_Agent/experiments/metrics_ranking.py`: `ndcg_at_k`, `map_at_k`, `precision_at_k`, `recall_at_k`.
-- `DeXposure_Agent/experiments/metrics_edge.py`: edge-level AUROC/AUPRC helpers for graph prediction.
-- `DeXposure_Agent/experiments/stats.py`: paired bootstrap CI and Wilcoxon helpers.
-- `DeXposure_Agent/tests/test_b1_metrics.py`: ranking and edge-metric unit tests.
-- `DeXposure_Agent/tests/test_b2_early_warning.py`: tests that b2_warning changes when predicted graph changes.
-- `DeXposure_Agent/tests/test_b3_uncertainty.py`: tests for conformal or interval-calibration logic.
-- `DeXposure_Agent/tests/test_b5_decision_quality.py`: tests for revised completeness/precision-at-K logic.
-- `DeXposure_Agent/tests/test_b6_robustness.py`: tests that low-data regimes are either removed or explicitly marked as evaluation subsampling.
+- `paper/experiments/metrics_ranking.py`: `ndcg_at_k`, `map_at_k`, `precision_at_k`, `recall_at_k`.
+- `paper/experiments/metrics_edge.py`: edge-level AUROC/AUPRC helpers for graph prediction.
+- `paper/experiments/stats.py`: paired bootstrap CI and Wilcoxon helpers.
+- `paper/tests/test_b1_metrics.py`: ranking and edge-metric unit tests.
+- `paper/tests/test_b2_early_warning.py`: tests that b2_warning changes when predicted graph changes.
+- `paper/tests/test_b3_uncertainty.py`: tests for conformal or interval-calibration logic.
+- `paper/tests/test_b5_decision_quality.py`: tests for revised completeness/precision-at-K logic.
+- `paper/tests/test_b6_robustness.py`: tests that low-data regimes are either removed or explicitly marked as evaluation subsampling.
 
 **Optional Create If Needed**
-- `DeXposure_Agent/experiments/baseline_runner.py`: thin integration layer if C1/m4_fm_only/C5 wiring becomes too messy inside existing benchmark files.
+- `paper/experiments/baseline_runner.py`: thin integration layer if C1/m4_fm_only/C5 wiring becomes too messy inside existing benchmark files.
 
 ## Submission Strategy
 
@@ -59,13 +59,13 @@
 ### Task 1: Make b1_forecast expose FM signal instead of only aggregate graph summaries
 
 **Files:**
-- Create: `DeXposure_Agent/experiments/metrics_ranking.py`
-- Create: `DeXposure_Agent/experiments/metrics_edge.py`
-- Modify: `DeXposure_Agent/experiments/b1_risk_forecasting.py`
-- Test: `DeXposure_Agent/tests/test_b1_metrics.py`
+- Create: `paper/experiments/metrics_ranking.py`
+- Create: `paper/experiments/metrics_edge.py`
+- Modify: `paper/experiments/b1_risk_forecasting.py`
+- Test: `paper/tests/test_b1_metrics.py`
 
 - [ ] **Step 1: Write failing tests for ranking metrics**
-Run: `pytest DeXposure_Agent/tests/test_b1_metrics.py -q`
+Run: `pytest paper/tests/test_b1_metrics.py -q`
 Expected: FAIL because `metrics_ranking.py` and `metrics_edge.py` do not exist yet.
 
 - [ ] **Step 2: Add ranking helpers**
@@ -82,23 +82,23 @@ Add these fields to `B1Result` and serialized JSON:
 Define a per-snapshot “high-change week” from realized graph turnover or realized metric delta, then report b1_forecast metrics separately for high-change and stable weeks.
 
 - [ ] **Step 6: Verify horizon behavior**
-Run: `python DeXposure_Agent/experiments/b1_risk_forecasting.py --method m5_fm_rules --data-dir ...`
+Run: `python paper/experiments/b1_risk_forecasting.py --method m5_fm_rules --data-dir ...`
 Expected: JSON now contains node-ranking and edge-level metrics, and horizon-specific outputs can show whether FM gains increase with `h`.
 
 - [ ] **Step 7: Commit**
 ```bash
-git add DeXposure_Agent/experiments/metrics_ranking.py DeXposure_Agent/experiments/metrics_edge.py DeXposure_Agent/experiments/b1_risk_forecasting.py DeXposure_Agent/tests/test_b1_metrics.py
+git add paper/experiments/metrics_ranking.py paper/experiments/metrics_edge.py paper/experiments/b1_risk_forecasting.py paper/tests/test_b1_metrics.py
 git commit -m "feat: expose ranking and edge metrics in b1_forecast"
 ```
 
 ### Task 2: Add the baseline floor needed to support any “better than baseline” claim
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/predict_helper.py`
-- Modify: `DeXposure_Agent/experiments/run_all.py`
-- Modify: `DeXposure_Agent/scripts/run_benchmarks_sequential.py`
-- Modify: `DeXposure_Agent/experiments/competitors/baselines.py`
-- Modify: `DeXposure_Agent/experiments/competitors/roland_agent.py`
+- Modify: `paper/experiments/predict_helper.py`
+- Modify: `paper/experiments/run_all.py`
+- Modify: `paper/scripts/run_benchmarks_sequential.py`
+- Modify: `paper/experiments/competitors/baselines.py`
+- Modify: `paper/experiments/competitors/roland_agent.py`
 
 - [ ] **Step 1: Wire `m4_fm_only` immediately**
 Route `m4_fm_only` through the same FM predictor used by `m5_fm_rules`, but skip agent-only benchmarks in the runner.
@@ -117,7 +117,7 @@ Run at least `m5_fm_rules`, `m1_persistence_rules`, `m4_fm_only`, and `C5` for t
 
 - [ ] **Step 6: Commit**
 ```bash
-git add DeXposure_Agent/experiments/predict_helper.py DeXposure_Agent/experiments/run_all.py DeXposure_Agent/scripts/run_benchmarks_sequential.py DeXposure_Agent/experiments/competitors/baselines.py DeXposure_Agent/experiments/competitors/roland_agent.py
+git add paper/experiments/predict_helper.py paper/experiments/run_all.py paper/scripts/run_benchmarks_sequential.py paper/experiments/competitors/baselines.py paper/experiments/competitors/roland_agent.py
 git commit -m "feat: add minimum publishable baseline set"
 ```
 
@@ -126,8 +126,8 @@ git commit -m "feat: add minimum publishable baseline set"
 ### Task 3: Redesign b2_warning so early warning depends on the forecast, not the current graph
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/b2_early_warning.py`
-- Test: `DeXposure_Agent/tests/test_b2_early_warning.py`
+- Modify: `paper/experiments/b2_early_warning.py`
+- Test: `paper/tests/test_b2_early_warning.py`
 
 - [ ] **Step 1: Write a regression test**
 Construct two synthetic predictions with different future risk orderings and assert that b2_warning produces different alerts.
@@ -143,16 +143,16 @@ If no credible 2025 event exists in the dataset, state this limitation plainly i
 
 - [ ] **Step 5: Commit**
 ```bash
-git add DeXposure_Agent/experiments/b2_early_warning.py DeXposure_Agent/tests/test_b2_early_warning.py
+git add paper/experiments/b2_early_warning.py paper/tests/test_b2_early_warning.py
 git commit -m "fix: make b2_warning depend on predicted future risk"
 ```
 
 ### Task 4: Repair b5_decision so target coverage is meaningful
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/b5_decision_quality.py`
-- Modify: `DeXposure_Agent/dexposure_agent/config.py`
-- Test: `DeXposure_Agent/tests/test_b5_decision_quality.py`
+- Modify: `paper/experiments/b5_decision_quality.py`
+- Modify: `paper/dexposure_agent/config.py`
+- Test: `paper/tests/test_b5_decision_quality.py`
 
 - [ ] **Step 1: Tighten or redefine “truly stressed”**
 Raise the threshold substantially or define stressed sets using percentile-based future deterioration.
@@ -168,15 +168,15 @@ If no intervention simulator exists, rename the field to reflect what is actuall
 
 - [ ] **Step 5: Commit**
 ```bash
-git add DeXposure_Agent/experiments/b5_decision_quality.py DeXposure_Agent/dexposure_agent/config.py DeXposure_Agent/tests/test_b5_decision_quality.py
+git add paper/experiments/b5_decision_quality.py paper/dexposure_agent/config.py paper/tests/test_b5_decision_quality.py
 git commit -m "fix: replace degenerate b5_decision target coverage metrics"
 ```
 
 ### Task 5: Stop b6_robustness from making unsupported low-data claims
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/b6_robustness.py`
-- Test: `DeXposure_Agent/tests/test_b6_robustness.py`
+- Modify: `paper/experiments/b6_robustness.py`
+- Test: `paper/tests/test_b6_robustness.py`
 
 - [ ] **Step 1: Decide policy**
 Choose one:
@@ -192,15 +192,15 @@ Make sure no benchmark output or paper section still calls snapshot subsampling 
 
 - [ ] **Step 4: Commit**
 ```bash
-git add DeXposure_Agent/experiments/b6_robustness.py DeXposure_Agent/tests/test_b6_robustness.py
+git add paper/experiments/b6_robustness.py paper/tests/test_b6_robustness.py
 git commit -m "fix: remove unsupported low-data robustness claims"
 ```
 
 ### Task 6: Re-scope b4_stress so it is not just measuring shock-function determinism
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/b4_stress_test.py`
-- Modify: `DeXposure_Agent/sections/Exp.tex`
+- Modify: `paper/experiments/b4_stress_test.py`
+- Modify: `paper/sections/Exp.tex`
 
 - [ ] **Step 1: Downscope the claim immediately**
 Until historical contagion-event evaluation exists, describe b4_stress as “scenario consistency under predicted vs realized networks”, not as direct evidence of real-world contagion forecasting.
@@ -210,7 +210,7 @@ If b4_stress remains nearly identical for `m5_fm_rules` and `m1_persistence_rule
 
 - [ ] **Step 3: Commit**
 ```bash
-git add DeXposure_Agent/experiments/b4_stress_test.py DeXposure_Agent/sections/Exp.tex
+git add paper/experiments/b4_stress_test.py paper/sections/Exp.tex
 git commit -m "docs: correctly scope b4_stress scenario evaluation claims"
 ```
 
@@ -219,8 +219,8 @@ git commit -m "docs: correctly scope b4_stress scenario evaluation claims"
 ### Task 7: Replace b3_calibration with defensible uncertainty reporting
 
 **Files:**
-- Modify: `DeXposure_Agent/experiments/b3_uncertainty_calibration.py`
-- Create: `DeXposure_Agent/tests/test_b3_uncertainty.py`
+- Modify: `paper/experiments/b3_uncertainty_calibration.py`
+- Create: `paper/tests/test_b3_uncertainty.py`
 
 - [ ] **Step 1: Choose the minimal defensible method**
 Preferred: split-conformal prediction on validation residuals for each monitored metric.
@@ -237,16 +237,16 @@ Verify that the conformal routine returns monotone interval widths and exact tar
 
 - [ ] **Step 5: Commit**
 ```bash
-git add DeXposure_Agent/experiments/b3_uncertainty_calibration.py DeXposure_Agent/tests/test_b3_uncertainty.py
+git add paper/experiments/b3_uncertainty_calibration.py paper/tests/test_b3_uncertainty.py
 git commit -m "fix: replace pseudo-calibration with conformal intervals"
 ```
 
 ### Task 8: Add multi-run reporting and paired significance tests
 
 **Files:**
-- Create: `DeXposure_Agent/experiments/stats.py`
-- Modify: `DeXposure_Agent/scripts/run_benchmarks_sequential.py`
-- Modify: `DeXposure_Agent/sections/Exp.tex`
+- Create: `paper/experiments/stats.py`
+- Modify: `paper/scripts/run_benchmarks_sequential.py`
+- Modify: `paper/sections/Exp.tex`
 
 - [ ] **Step 1: Add a seed loop**
 Expose `--seeds 42,43,44` or equivalent in the runner and serialize per-seed outputs.
@@ -259,17 +259,17 @@ If statistics are not ready before submission, remove “significantly” from t
 
 - [ ] **Step 4: Commit**
 ```bash
-git add DeXposure_Agent/experiments/stats.py DeXposure_Agent/scripts/run_benchmarks_sequential.py DeXposure_Agent/sections/Exp.tex
+git add paper/experiments/stats.py paper/scripts/run_benchmarks_sequential.py paper/sections/Exp.tex
 git commit -m "feat: add multi-seed reporting and paired significance tests"
 ```
 
 ### Task 9: Sync the paper and ops docs to the repaired implementation
 
 **Files:**
-- Modify: `DeXposure_Agent/sections/Exp.tex`
-- Modify: `DeXposure_Agent/DeXposure-Agent.tex`
-- Modify: `DeXposure_Agent/EXPERIMENT_PLAN.txt`
-- Modify: `DeXposure_Agent/CLAUDE.md`
+- Modify: `paper/sections/Exp.tex`
+- Modify: `paper/DeXposure-Agent.tex`
+- Modify: `paper/EXPERIMENT_PLAN.txt`
+- Modify: `paper/CLAUDE.md`
 
 - [ ] **Step 1: Remove mismatched defaults**
 Make `pi_min`, `rolling_window`, `top_k`, and run-count claims match the code that is actually executed.
@@ -282,7 +282,7 @@ Document that b2_warning is retrospective event-window evaluation, b4_stress is 
 
 - [ ] **Step 4: Commit**
 ```bash
-git add DeXposure_Agent/sections/Exp.tex DeXposure_Agent/DeXposure-Agent.tex DeXposure_Agent/EXPERIMENT_PLAN.txt DeXposure_Agent/CLAUDE.md
+git add paper/sections/Exp.tex paper/DeXposure-Agent.tex paper/EXPERIMENT_PLAN.txt paper/CLAUDE.md
 git commit -m "docs: align paper claims with repaired evaluation pipeline"
 ```
 
@@ -311,4 +311,4 @@ Reason: high value, but more work. These should land before submission if time a
 - No paper sentence claims significance, SOTA superiority, calibrated uncertainty, or low-data robustness without direct supporting evidence.
 - All benchmark JSON outputs and paper tables use the same definitions and defaults.
 
-Plan complete and saved to `DeXposure_Agent/docs/superpowers/plans/2026-03-26-evaluation-recovery.md`. Ready to execute?
+Plan complete and saved to `paper/docs/superpowers/plans/2026-03-26-evaluation-recovery.md`. Ready to execute?

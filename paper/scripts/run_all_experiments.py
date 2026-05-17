@@ -12,7 +12,7 @@ Total estimated GPU time: ~2.5 hours
 
 Usage:
     ssh gpu-server
-    cd /root/graph-dexposure/DeXposure_Agent
+    cd /root/graph-dexposure/paper
     DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
       nohup python3 -u scripts/run_all_experiments.py \
       > results/all_experiments_stdout.log 2>&1 &

@@ -3,10 +3,10 @@
 ## Folder Structure
 
 The installable Claw agent extension lives at repository root under `claw/`.
-This `DeXposure_Agent/` directory contains the paper, deterministic pipeline,
+This `paper/` directory contains the paper, deterministic pipeline,
 benchmarks, and experiment artifacts.
 
-    DeXposure_Agent/
+    paper/
     |
     |-- dexposure_agent/          # Python library: FM inference + deterministic pipeline
     |   |                         # Runs on GPU server. No LLM logic here.
@@ -76,13 +76,13 @@ Runs LOCALLY (not on GPU server). Calls FM API via SSH tunnel + Claude API direc
     export ANTHROPIC_API_KEY=sk-ant-...
 
     # 3. Run (auto-sets up tunnel if needed)
-    bash DeXposure_Agent/scripts/run_llm_eval.sh
+    bash paper/scripts/run_llm_eval.sh
 
     # Options:
-    bash DeXposure_Agent/scripts/run_llm_eval.sh --method m6_fm_llm  # single method
-    bash DeXposure_Agent/scripts/run_llm_eval.sh --resume          # resume from checkpoint
-    bash DeXposure_Agent/scripts/run_llm_eval.sh --no-judge        # skip explanation quality
-    bash DeXposure_Agent/scripts/run_llm_eval.sh --model claude-haiku-4-5  # cheaper model
+    bash paper/scripts/run_llm_eval.sh --method m6_fm_llm  # single method
+    bash paper/scripts/run_llm_eval.sh --resume          # resume from checkpoint
+    bash paper/scripts/run_llm_eval.sh --no-judge        # skip explanation quality
+    bash paper/scripts/run_llm_eval.sh --model claude-haiku-4-5  # cheaper model
 
 ### Metrics
 
@@ -135,7 +135,7 @@ Server paths (fresh instance — nothing pulled yet):
     /workspace/                            # 16 GB persistent volume (recommended for code)
     └── graph-dexposure/                   # ← clone or rsync your repo here
         ├── data/                          # Weekly graph snapshots (1.2GB JSON + meta_df.csv)
-        ├── DeXposure_Agent/               # Agent code + experiments
+        ├── paper/               # Agent code + experiments
         │   ├── dexposure_agent/           # Core modules
         │   ├── experiments/               # b1_forecast..b6_robustness benchmark implementations
         │   ├── scripts/                   # Runners
@@ -164,11 +164,11 @@ Also create the workspace directory:
 
     # code (no need for --delete on data; keep --delete only on code)
     rsync -avz --delete -e ssh \
-      DeXposure_Agent/dexposure_agent/ gpu-server:/workspace/graph-dexposure/DeXposure_Agent/dexposure_agent/
+      paper/dexposure_agent/ gpu-server:/workspace/graph-dexposure/paper/dexposure_agent/
     rsync -avz --delete -e ssh \
-      DeXposure_Agent/experiments/ gpu-server:/workspace/graph-dexposure/DeXposure_Agent/experiments/
+      paper/experiments/ gpu-server:/workspace/graph-dexposure/paper/experiments/
     rsync -avz -e ssh \
-      DeXposure_Agent/scripts/ gpu-server:/workspace/graph-dexposure/DeXposure_Agent/scripts/
+      paper/scripts/ gpu-server:/workspace/graph-dexposure/paper/scripts/
 
     # data (large, ~1.2 GB; only resync when meta_df.csv or week JSONs change)
     rsync -avz -e ssh \
@@ -180,7 +180,7 @@ Also create the workspace directory:
 
 ### 2. Verify FM model loads
 
-    ssh gpu-server 'cd /workspace/graph-dexposure/DeXposure_Agent && \
+    ssh gpu-server 'cd /workspace/graph-dexposure/paper && \
       source /venv/main/bin/activate && \
       DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 python -c "
     import sys; sys.path.insert(0, \".\"); sys.path.insert(0, \"..\")
@@ -201,42 +201,42 @@ Need two JSON files (~1.1GB + 76MB) and meta_df.csv (128K).
 
 ### Full suite (m5_fm_rules + m1_persistence_rules, all benchmarks, ~40 min)
 
-    ssh -f gpu-server "cd /workspace/graph-dexposure/DeXposure_Agent && \
+    ssh -f gpu-server "cd /workspace/graph-dexposure/paper && \
       source /venv/main/bin/activate && \
       DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
       nohup python -u scripts/run_benchmarks_sequential.py > results/benchmark_stdout.log 2>&1 &"
 
 ### m5_fm_rules-only (skip m1_persistence_rules persistence, ~8 min)
 
-    ssh -f gpu-server "cd /workspace/graph-dexposure/DeXposure_Agent && \
+    ssh -f gpu-server "cd /workspace/graph-dexposure/paper && \
       source /venv/main/bin/activate && \
       DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
       nohup python -u scripts/run_fm_rules_only.py > results/fm_rules_only_stdout.log 2>&1 &"
 
 ### Monitor progress
 
-    ssh gpu-server "tail -f /workspace/graph-dexposure/DeXposure_Agent/results/benchmark_stdout.log"
+    ssh gpu-server "tail -f /workspace/graph-dexposure/paper/results/benchmark_stdout.log"
     # or for m5_fm_rules-only:
-    ssh gpu-server "tail -f /workspace/graph-dexposure/DeXposure_Agent/results/fm_rules_only_stdout.log"
+    ssh gpu-server "tail -f /workspace/graph-dexposure/paper/results/fm_rules_only_stdout.log"
 
 Progress shows: tqdm bars with ETA, [OVERALL x/11] tracking, per-benchmark timing.
 
 ### Check completion
 
-    ssh gpu-server "grep 'ALL DONE' /workspace/graph-dexposure/DeXposure_Agent/results/benchmark_stdout.log"
+    ssh gpu-server "grep 'ALL DONE' /workspace/graph-dexposure/paper/results/benchmark_stdout.log"
 
 ## Pulling Results
 
 Results go into timestamped directories (e.g. results/run_20260325_181310/).
 
     # Find latest run directory
-    ssh gpu-server "ls -td /workspace/graph-dexposure/DeXposure_Agent/results/run_*/ | head -1"
+    ssh gpu-server "ls -td /workspace/graph-dexposure/paper/results/run_*/ | head -1"
 
     # Pull JSON results only (skip logs)
-    mkdir -p DeXposure_Agent/results/run_LABEL
+    mkdir -p paper/results/run_LABEL
     rsync -avz --include="*.json" --exclude="*.log" -e ssh \
-      gpu-server:/workspace/graph-dexposure/DeXposure_Agent/results/run_YYYYMMDD_*/ \
-      DeXposure_Agent/results/run_LABEL/
+      gpu-server:/workspace/graph-dexposure/paper/results/run_YYYYMMDD_*/ \
+      paper/results/run_LABEL/
 
 ## Benchmarks
 

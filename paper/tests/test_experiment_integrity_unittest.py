@@ -18,7 +18,7 @@ from unittest import mock
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-AGENT_ROOT = REPO_ROOT / "DeXposure_Agent"
+AGENT_ROOT = REPO_ROOT / "paper"
 
 
 def read(relative_path: str) -> str:
@@ -227,7 +227,7 @@ class ExperimentIntegrityTests(unittest.TestCase):
         )
 
     def test_main_text_matches_experiment_chord_narrative(self):
-        main_source = (REPO_ROOT / "DeXposure_Agent" / "DeXposure-Agent.tex").read_text()
+        main_source = (REPO_ROOT / "paper" / "DeXposure-Agent.tex").read_text()
         intro_source = read("sections/Intro.tex")
         exp_source = read("sections/Exp.tex")
         task1_table = read("sections/Table_TaskI_Summary.tex")

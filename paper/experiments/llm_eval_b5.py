@@ -32,9 +32,9 @@ Prerequisites:
   3. ANTHROPIC_API_KEY set locally
 
 Usage:
-    python DeXposure_Agent/experiments/llm_eval_b5.py
-    python DeXposure_Agent/experiments/llm_eval_b5.py --method m6_fm_llm --method m2_snapshot_llm
-    python DeXposure_Agent/experiments/llm_eval_b5.py --resume   # skip completed weeks
+    python paper/experiments/llm_eval_b5.py
+    python paper/experiments/llm_eval_b5.py --method m6_fm_llm --method m2_snapshot_llm
+    python paper/experiments/llm_eval_b5.py --resume   # skip completed weeks
 """
 from __future__ import annotations
 

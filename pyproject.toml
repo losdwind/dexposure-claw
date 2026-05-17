@@ -110,7 +110,7 @@ extend-select = ["RUF", "UP", "E501", "E731"]
 quote-style = "double"
 
 [tool.setuptools.packages.find]
-where = ["DeXposure_Agent"]
+where = ["paper"]
 include = ["dexposure_agent*", "experiments*"]
 namespaces = true
 

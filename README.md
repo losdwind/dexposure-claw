@@ -9,7 +9,7 @@ foundation model.
 
 ## Repository layout
 
-- [`DeXposure_Agent/`](DeXposure_Agent/) -- paper source, experiment code,
+- [`paper/`](paper/) -- paper source, experiment code,
   benchmark scripts, tables, and generated figures.
 - [`claw/`](claw/) -- installable DeXposure Claw agent extension for Claude
   Code, Hermes, OpenAI Codex, and MCP-compatible runtimes.
@@ -18,7 +18,7 @@ foundation model.
   trained FM weights for h1, h4, and h8-h12 forecasts.
 - [`lib/`](lib/) -- GraphPFN + LiMiX source used by the active FM predictor.
 
-See [`DeXposure_Agent/CLAUDE.md`](DeXposure_Agent/CLAUDE.md) for the experiment
+See [`paper/CLAUDE.md`](paper/CLAUDE.md) for the experiment
 SOP, including GPU server access, sync flow, benchmark runners, and LLM eval.
 
 ## Try the Claw software
@@ -53,10 +53,10 @@ while runtime commands, skills, and adapter templates live under
 ## Reproducing the paper
 
 1. Activate the project environment with `uv sync` from the repo root.
-2. Follow [`DeXposure_Agent/CLAUDE.md`](DeXposure_Agent/CLAUDE.md) for the
+2. Follow [`paper/CLAUDE.md`](paper/CLAUDE.md) for the
    end-to-end experiment SOP. GPU work runs on a separate vast.ai instance.
 3. The benchmark runner is
-   [`DeXposure_Agent/experiments/run_all.py`](DeXposure_Agent/experiments/run_all.py).
+   [`paper/experiments/run_all.py`](paper/experiments/run_all.py).
 
 The shared `data/`, `checkpoints/`, and `lib/` directories are referenced via
 relative paths from the repo root, so commands should run with the repo root as

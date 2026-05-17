@@ -10,7 +10,7 @@ Endpoints:
     POST /batch-forecast   - Forecast across multiple horizons
 
 Run on GPU server:
-    cd /root/graph-dexposure/DeXposure_Agent
+    cd /root/graph-dexposure/paper
     DGLBACKEND=pytorch DGL_DISABLE_GRAPHBOLT=1 \
         uvicorn dexposure_agent.serve:app --host 0.0.0.0 --port 8000
 """

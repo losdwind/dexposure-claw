@@ -12,10 +12,10 @@
 #   - FM API running on GPU server (port 8000)
 #
 # Usage:
-#   bash DeXposure_Agent/scripts/run_llm_eval.sh
-#   bash DeXposure_Agent/scripts/run_llm_eval.sh --method m6_fm_llm
-#   bash DeXposure_Agent/scripts/run_llm_eval.sh --resume
-#   bash DeXposure_Agent/scripts/run_llm_eval.sh --model claude-haiku-4-5 --no-judge
+#   bash paper/scripts/run_llm_eval.sh
+#   bash paper/scripts/run_llm_eval.sh --method m6_fm_llm
+#   bash paper/scripts/run_llm_eval.sh --resume
+#   bash paper/scripts/run_llm_eval.sh --model claude-haiku-4-5 --no-judge
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

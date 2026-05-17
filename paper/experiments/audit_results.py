@@ -170,7 +170,7 @@ def audit_results(results_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit DeXposure-Agent result artifacts")
-    parser.add_argument("--results-dir", default="DeXposure_Agent/results")
+    parser.add_argument("--results-dir", default="paper/results")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument(
         "--allow-issues",
