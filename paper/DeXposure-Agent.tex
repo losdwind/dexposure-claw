@@ -92,7 +92,7 @@ Beyond the limitations in \S\ref{sec:limitations}, two directions are most press
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
 
-\clearpage
+\onecolumn
 \appendices
 
 \section{Full all-horizon \texttt{b1\_forecast} results}
@@ -103,6 +103,7 @@ prediction methods. The main text (\S\ref{sec:exp})
 summarises the cross-metric pattern; this appendix provides the full
 per-horizon audit for readers reproducing the leaderboard.
 \input{sections/A1-b1_forecast_AllHorizons.tex}
+\clearpage
 
 \section{Per-scenario \texttt{b4\_stress} results}
 \label{app:b4_detail}
@@ -112,6 +113,7 @@ methods. The main text aggregates these into a single qualitative
 finding (\S\ref{sec:exp}); this appendix retains the full
 audit artifact.
 \input{sections/A2-b4_stress_Detail.tex}
+\clearpage
 
 \section{Per-regime \texttt{b6\_robustness} results}
 \label{app:b6_detail}
@@ -126,6 +128,7 @@ see which regimes drive that gap (\texttt{low\_data\_10pct} and
 (\texttt{noisy\_features\_01}, \texttt{missing\_features\_20}, where
 persistence is structurally invariant).
 \input{sections/A3-b6_robustness_Detail.tex}
+\clearpage
 
 \section{Per-budget \texttt{b2\_warning} results}
 \label{app:b2_budget}
@@ -138,6 +141,7 @@ precision/recall trade-off that the budget parameter actually controls
 and is provided for readers who wish to reproduce or recalibrate the
 \texttt{b2\_warning} leaderboard against alternative monitors.
 \input{sections/A4-b2_warning_Budget.tex}
+\clearpage
 
 \section{Per-regime A1 (data-health gate) isolation}
 \label{app:a1_isolated}
@@ -155,6 +159,7 @@ fraction to $100\%$ in every regime and collapses FIR to $0$ by
 suppressing intervention tickets, while \emph{off} produces FIR up to
 $0.541$.
 \input{sections/A5-A1_isolated_Detail.tex}
+\clearpage
 
 %\newpage
 
