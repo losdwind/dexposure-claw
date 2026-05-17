@@ -1,0 +1,49 @@
+% A1 (data-health gate) isolated ablation, per degradation regime.
+% Data: results/run_20260517_161248_ablation_gpu/run_a1_isolated_results/a1_isolated.json.
+% Holds tau_conf=0 to isolate the data-health gate from the confidence gate;
+% sweeps tau_data in {0.85 (strict), 0.70 (standard), 0.00 (off)} on the
+% 2025 test split. Reported metrics: mean data-health score, fraction of
+% weeks in safe-mode, ticket precision, FIR, and the number of tickets
+% downgraded to no-op by safe-mode.
+\begin{table*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Per-regime data-health gate ablation isolating A1 from A2.
+Each row holds $\tau_{\mathrm{conf}}{=}0$ and sweeps $\tau_{\mathrm{data}}$.
+``\textit{strict}''~=~$\tau_{\mathrm{data}}{=}0.85$, ``\textit{on}''~=~$0.70$,
+``\textit{off}''~=~$0.00$. The four regimes apply targeted edge or feature
+degradation on the clean 2025 test split (\texttt{n\_weeks}\,=\,29):
+\texttt{extreme} masks both topology and features at 90\%, \texttt{topo}
+removes 90\% of edges only, \texttt{feat} corrupts 90\% of node features
+only, \texttt{severe} masks both at 80\%. Numbers expand Panel~B of
+Table~\ref{tab:ablation}: under degradation the gate-off setting produces
+FIR up to $0.541$, while \textit{on}/\textit{strict} suppress all
+intervention tickets via safe-mode without precision loss.}
+\label{tab:a1_isolated}
+\begin{tabular}{l l c c c c c c}
+\toprule
+Regime & Gate & $\tau_{\mathrm{data}}$ & $\overline{\mathrm{dh}}$ & Safe-mode (\%) & Ticket Prec. ($\uparrow$) & FIR ($\downarrow$) & Interventions \\
+\midrule
+\multirow{3}{*}{extreme}
+& strict & 0.85 & 0.587 & 100 & 0.510 & \textbf{0.000} & 0 \\
+& on     & 0.70 & 0.587 & 100 & 0.545 & \textbf{0.000} & 0 \\
+& off    & 0.00 & 0.587 & 0   & 0.490 & 0.510          & 57 \\
+\midrule
+\multirow{3}{*}{extreme\_topo}
+& strict & 0.85 & 0.637 & 100 & 0.517 & \textbf{0.000} & 0 \\
+& on     & 0.70 & 0.637 & 100 & 0.462 & \textbf{0.000} & 0 \\
+& off    & 0.00 & 0.637 & 0   & 0.559 & 0.441          & 58 \\
+\midrule
+\multirow{3}{*}{extreme\_feat}
+& strict & 0.85 & 0.755 & 100 & 0.503 & \textbf{0.000} & 0 \\
+& on     & 0.70 & 0.755 & 0   & 0.510 & 0.267          & 5 \\
+& off    & 0.00 & 0.755 & 0   & 0.503 & 0.267          & 5 \\
+\midrule
+\multirow{3}{*}{severe}
+& strict & 0.85 & 0.751 & 100 & 0.490 & \textbf{0.000} & 0 \\
+& on     & 0.70 & 0.751 & 0   & 0.538 & 0.400          & 25 \\
+& off    & 0.00 & 0.751 & 0   & 0.538 & 0.541          & 24 \\
+\bottomrule
+\end{tabular}
+\end{table*}

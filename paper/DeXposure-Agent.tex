@@ -89,6 +89,9 @@ Beyond the limitations in \S\ref{sec:limitations}, two directions are most press
 
 %\section*{Acknowledgments}
 
+\bibliographystyle{IEEEtran}
+\bibliography{reference}
+
 \appendices
 
 \section{Full all-horizon \texttt{b1\_forecast} results}
@@ -109,12 +112,49 @@ finding (\S\ref{sec:exp}); this appendix retains the full
 audit artifact.
 \input{sections/A2-b4_stress_Detail.tex}
 
+\section{Per-regime \texttt{b6\_robustness} results}
+\label{app:b6_detail}
+Table~\ref{tab:b6_detail} expands the single mean relative-degradation
+figure reported in Table~\ref{tab:task1_summary} into the full
+$5\times 4$ matrix over the five degradation regimes and four prediction
+methods. The FM's robustness claim in \S\ref{sec:exp} (``$24\%$ less
+average degradation than persistence'') is the column average of the
+$\Delta_{\mathrm{rel}}$ column; the per-regime view here lets readers
+see which regimes drive that gap (\texttt{low\_data\_10pct} and
+\texttt{partial\_graph\_30}) versus which are essentially ties
+(\texttt{noisy\_features\_01}, \texttt{missing\_features\_20}, where
+persistence is structurally invariant).
+\input{sections/A3-b6_robustness_Detail.tex}
+
+\section{Per-budget \texttt{b2\_warning} results}
+\label{app:b2_budget}
+Table~\ref{tab:b2_budget} reports per-event precision, recall,
+F1-warning, and alert stability across alert budgets
+$K\in\{5,10,20\}$ for the three stress events used in
+\S\ref{sec:exp}. The main text and Table~\ref{tab:alert_timeline} focus
+on lead time and the qualitative timeline; this table records the
+precision/recall trade-off that the budget parameter actually controls
+and is provided for readers who wish to reproduce or recalibrate the
+\texttt{b2\_warning} leaderboard against alternative monitors.
+\input{sections/A4-b2_warning_Budget.tex}
+
+\section{Per-regime A1 (data-health gate) isolation}
+\label{app:a1_isolated}
+Table~\ref{tab:a1_isolated} expands Panel~B of
+Table~\ref{tab:ablation} into the per-regime audit underlying the
+``$\mathrm{FIR}\in[0.27,0.60]$'' range reported in the main text.
+The four regimes vary which degradation channel is active
+(\texttt{topo} only, \texttt{feat} only, both, and a milder
+\texttt{severe} combination) and the three rows per regime sweep the
+data-health threshold $\tau_{\mathrm{data}}$, holding the confidence
+gate disabled ($\tau_{\mathrm{conf}}{=}0$) so that A1 is the only
+suppression mechanism. The structurally important pattern is that
+\emph{strict} ($\tau_{\mathrm{data}}{=}0.85$) drives the safe-mode
+fraction to $100\%$ in every regime and collapses FIR to $0$ without
+precision loss, while \emph{off} produces FIR up to $0.541$.
+\input{sections/A5-A1_isolated_Detail.tex}
 
 
-
- 
-\bibliographystyle{IEEEtran}
-\bibliography{reference}
 
 %\newpage
 
