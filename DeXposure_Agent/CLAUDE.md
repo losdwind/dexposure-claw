@@ -18,21 +18,14 @@
     |   |-- config.py             #   Hyperparameter configuration
     |   +-- types.py              #   Pydantic data models
     |
-    |-- plugin/                   # Claude Code plugin (LLM agent distribution package)
-    |   |                         # Users install this to get AI-powered risk analysis.
-    |   |                         # Claude Code = the LLM agent; scripts call FM API for data.
-    |   |-- .claude-plugin/
-    |   |   +-- plugin.json       #   Plugin metadata (name: dexposure-agent)
-    |   |-- commands/
-    |   |   +-- dexposure.md      #   /dexposure-agent:dexposure slash command
-    |   |-- agents/
-    |   |   |-- risk-analyst.md   #   Full risk analysis subagent
-    |   |   +-- stress-tester.md  #   Stress testing subagent
-    |   |-- skills/               #   8 domain skills (forecast, monitor, scenario, decision, etc.)
-    |   |-- hooks/
-    |   |   +-- hooks.json        #   SessionStart hook: check FM server health
-    |   +-- scripts/
-    |       +-- call-api.py       #   Single API client (health/dates/predict/metrics/stress/batch)
+    |-- dexposure_claw/           # DeXposure Claw portable agent extension
+    |   |                         # Python-first MCP/tools core + runtime adapters.
+    |   |-- src/dexposure_claw/   #   CLI, MCP entrypoint, tools, runtime helpers
+    |   |-- pack/                 #   Canonical commands, skills, agents, hooks, memory
+    |   |-- adapters/             #   Claude Code, Hermes, Codex config templates
+    |   |-- dist/claude-code/     #   Generated Claude Code plugin distribution
+    |   |-- package.json          #   Optional npx wrapper (@dexposure/claw)
+    |   +-- pyproject.toml        #   Python package metadata (dexposure-claw)
     |
     |-- experiments/              # b1_forecast-b6_robustness benchmark implementations
     |   |                         # b1_forecast-b6_robustness run on GPU server; llm_eval runs LOCALLY.

@@ -1,0 +1,22 @@
+{
+  "name": "@dexposure/claw",
+  "version": "0.1.0",
+  "description": "Pluggable financial-risk agent extension for Claude Code, Hermes, Codex, and MCP-compatible runtimes.",
+  "bin": {
+    "dexposure-claw": "bin/dexposure-claw.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "src/",
+    "pack/",
+    "adapters/",
+    "pyproject.toml",
+    "README.md",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0"
+}

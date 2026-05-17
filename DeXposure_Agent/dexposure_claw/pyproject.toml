@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dexposure-claw"
+version = "0.1.0"
+description = "Pluggable financial-risk agent extension for DeXposure-Bench"
+requires-python = ">=3.10"
+dependencies = []
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "DeXposure Team" }]
+
+[project.scripts]
+dexposure-claw = "dexposure_claw.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dexposure_claw = ["py.typed"]
