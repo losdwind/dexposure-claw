@@ -55,7 +55,7 @@ CRISIS_SPLITS = {
 
 METHODS = ["m5_fm_rules", "m1_persistence_rules"]
 HORIZONS = [1, 4, 8, 12]
-METRIC_IDS = ["M1", "M3", "M4", "M6", "M7"]
+METRIC_IDS = ["N1", "N2", "N3", "N4", "N5"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -137,10 +137,10 @@ def run_b1_crisis() -> list[B1CrisisResult]:
                     pred_m = compute_metrics(pred)
                     gt_m = compute_metrics(gt)
 
-                    pr_errors.append(abs(pred_m["M1"] - gt_m["M1"]))
-                    hhi_errors.append(abs(pred_m["M3"] - gt_m["M3"]))
-                    density_errors.append(abs(pred_m["M4"] - gt_m["M4"]))
-                    gini_errors.append(abs(pred_m["M7"] - gt_m["M7"]))
+                    pr_errors.append(abs(pred_m["N1"] - gt_m["N1"]))
+                    hhi_errors.append(abs(pred_m["N2"] - gt_m["N2"]))
+                    density_errors.append(abs(pred_m["N3"] - gt_m["N3"]))
+                    gini_errors.append(abs(pred_m["N5"] - gt_m["N5"]))
 
                     # Edge-level accuracy
                     edge_maes.append(_compute_edge_weight_mae(pred, gt))

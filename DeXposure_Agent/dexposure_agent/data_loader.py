@@ -355,7 +355,7 @@ class SnapshotLoader:
         """Build a baseline metric history for rolling-window z-score comparison.
 
         Loads `window` snapshots ending just before `before` date, computes
-        Phi metrics (M1, M3, M4, M6, M7) on each, returns list of metric dicts.
+        Phi metrics (N1..N5) on each, returns list of metric dicts.
 
         Args:
             before: Date string 'YYYY-MM-DD' or 'YYYY-MM'. Snapshots strictly

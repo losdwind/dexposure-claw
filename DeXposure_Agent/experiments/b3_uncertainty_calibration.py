@@ -32,7 +32,7 @@ from dexposure_agent.types import Edge, GraphSnapshot
 
 TARGET_COVERAGE = 0.90  # nominal coverage of prediction intervals
 
-METRIC_IDS = list(METRIC_NAMES.keys())  # M1, M3, M4, M6, M7
+METRIC_IDS = list(METRIC_NAMES.keys())  # N1..N5
 
 MC_NOISE_SIGMA_DEFAULT = 0.1  # fallback if calibration fails
 CONFORMAL_VAL_SPLIT = "2024-07~2024-12"  # validation period for conformal calibration

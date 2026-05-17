@@ -329,15 +329,15 @@ def run_b1(
             pr_mae_val = _pagerank_mae(pr_pred, pr_actual)
             pr_mae_list.append(pr_mae_val)
 
-            # -- HHI MAE (M3) --
-            hhi_mae_val = abs(metrics_pred.get("M3", 0.0) - metrics_actual.get("M3", 0.0))
+            # -- HHI MAE (N2) --
+            hhi_mae_val = abs(metrics_pred.get("N2", 0.0) - metrics_actual.get("N2", 0.0))
             hhi_mae_list.append(hhi_mae_val)
 
-            # -- Density MAE (M4) --
-            density_mae_list.append(abs(metrics_pred.get("M4", 0.0) - metrics_actual.get("M4", 0.0)))
+            # -- Density MAE (N3) --
+            density_mae_list.append(abs(metrics_pred.get("N3", 0.0) - metrics_actual.get("N3", 0.0)))
 
-            # -- Gini MAE (M7: Gini of weighted degree) --
-            gini_mae_list.append(abs(metrics_pred.get("M7", 0.0) - metrics_actual.get("M7", 0.0)))
+            # -- Gini MAE (N5: Gini of weighted degree) --
+            gini_mae_list.append(abs(metrics_pred.get("N5", 0.0) - metrics_actual.get("N5", 0.0)))
 
             # -- Spearman rank correlation --
             rank_corr_list.append(_rank_correlation(pr_pred, pr_actual))

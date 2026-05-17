@@ -18,11 +18,11 @@ from dexposure_agent.types import Alert, GraphSnapshot, MonitorResult
 # ---------------------------------------------------------------------------
 
 METRIC_NAMES: dict[str, str] = {
-    "M1": "SIS Weighted Degree",
-    "M3": "HHI Concentration",
-    "M4": "Graph Density",
-    "M6": "PageRank Concentration (Gini)",
-    "M7": "Gini Weighted Degree",
+    "N1": "SIS Weighted Degree",
+    "N2": "HHI Concentration",
+    "N3": "Graph Density",
+    "N4": "PageRank Concentration (Gini)",
+    "N5": "Gini Weighted Degree",
 }
 
 
@@ -90,7 +90,7 @@ def _pagerank(
 def compute_metrics(graph: GraphSnapshot) -> dict[str, float]:
     """Compute network-level Phi functionals from a GraphSnapshot.
 
-    Returns a dict mapping metric IDs (M1, M3, M4, M6, M7) to float values.
+    Returns a dict mapping metric IDs (N1..N5) to float values.
     For empty graphs, all metrics are 0.0.
     """
     nodes = list(graph.nodes.keys())
@@ -116,37 +116,37 @@ def compute_metrics(graph: GraphSnapshot) -> dict[str, float]:
     degree_values = list(weighted_degree.values())
     total_weighted_degree = sum(degree_values)
 
-    # M1: SIS — max PageRank (systemic importance of the most important node)
+    # N1: SIS — max PageRank (systemic importance of the most important node)
     pr = _pagerank(nodes, adjacency)
     pr_values = list(pr.values())
-    m1 = max(pr_values) if pr_values else 0.0
-    m1 = max(0.0, min(1.0, m1))
+    n1 = max(pr_values) if pr_values else 0.0
+    n1 = max(0.0, min(1.0, n1))
 
-    # M3: HHI on weighted degrees
+    # N2: HHI on weighted degrees
     if total_weighted_degree > 0:
-        m3 = sum((d / total_weighted_degree) ** 2 for d in degree_values)
+        n2 = sum((d / total_weighted_degree) ** 2 for d in degree_values)
     else:
-        m3 = 0.0
+        n2 = 0.0
 
-    # M4: Directed graph density = E / (N * (N-1))
+    # N3: Directed graph density = E / (N * (N-1))
     max_possible_edges = n * (n - 1)
-    m4 = num_edges / max_possible_edges if max_possible_edges > 0 else 0.0
-    m4 = max(0.0, min(1.0, m4))
+    n3 = num_edges / max_possible_edges if max_possible_edges > 0 else 0.0
+    n3 = max(0.0, min(1.0, n3))
 
-    # M6: PageRank Concentration — Gini of PageRank distribution (pr already computed above)
-    m6 = _gini(pr_values)
-    m6 = max(0.0, min(1.0, m6))
+    # N4: PageRank Concentration — Gini of PageRank distribution (pr already computed above)
+    n4 = _gini(pr_values)
+    n4 = max(0.0, min(1.0, n4))
 
-    # M7: Gini of weighted degrees
-    m7 = _gini(degree_values)
-    m7 = max(0.0, min(1.0, m7))
+    # N5: Gini of weighted degrees
+    n5 = _gini(degree_values)
+    n5 = max(0.0, min(1.0, n5))
 
     return {
-        "M1": m1,
-        "M3": m3,
-        "M4": m4,
-        "M6": m6,
-        "M7": m7,
+        "N1": n1,
+        "N2": n2,
+        "N3": n3,
+        "N4": n4,
+        "N5": n5,
     }
 
 

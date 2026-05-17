@@ -205,11 +205,11 @@ def compute_metrics(data: dict) -> dict:
     return {
         "n_nodes": n,
         "n_edges": len(edges),
-        "M1_max_pagerank": round(max(pr_vals), 6),
-        "M3_hhi": round(sum((d / total_wd) ** 2 for d in deg_vals) if total_wd > 0 else 0, 6),
-        "M4_density": round(len(edges) / (n * (n - 1)) if n > 1 else 0, 6),
-        "M6_pagerank_gini": round(_gini(pr_vals), 6),
-        "M7_degree_gini": round(_gini(deg_vals), 6),
+        "N1_max_pagerank": round(max(pr_vals), 6),
+        "N2_hhi": round(sum((d / total_wd) ** 2 for d in deg_vals) if total_wd > 0 else 0, 6),
+        "N3_density": round(len(edges) / (n * (n - 1)) if n > 1 else 0, 6),
+        "N4_pagerank_gini": round(_gini(pr_vals), 6),
+        "N5_degree_gini": round(_gini(deg_vals), 6),
     }
 
 
@@ -615,7 +615,7 @@ def compute_grounding_score(llm_output: dict, input_data: str) -> float:
     for match in re.findall(r'[\d]+\.[\d]+|[\d]+', input_data):
         input_numbers.add(match)
 
-    metric_keywords = {"M1", "M3", "M4", "M6", "M7", "loss", "weight",
+    metric_keywords = {"N1", "N2", "N3", "N4", "N5", "loss", "weight",
                        "pagerank", "gini", "hhi", "density", "%", "distressed",
                        "affected", "exposure"}
 

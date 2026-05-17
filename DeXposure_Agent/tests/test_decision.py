@@ -7,7 +7,7 @@ from dexposure_agent.config import AgentConfig
 def test_safe_mode_suppresses_interventions():
     """In safe mode, only Monitor/Investigate actions should be generated."""
     dh = DataHealthResult(score=0.3, safe_mode=True, checks={})
-    alerts = [Alert(horizon=4, metric_id="M1", metric_name="SIS", value=0.9,
+    alerts = [Alert(horizon=4, metric_id="N1", metric_name="SIS", value=0.9,
                     baseline_mean=0.3, baseline_std=0.1, z_score=6.0, confidence=0.9)]
     scenario = ScenarioSummary(ranked_losses=[], worst_scenario="S1", worst_horizon=4)
     cfg = AgentConfig()
@@ -20,11 +20,11 @@ def test_safe_mode_suppresses_interventions():
 def test_high_confidence_enables_intervention():
     dh = DataHealthResult(score=0.9, safe_mode=False, checks={})
     alerts = [
-        Alert(horizon=4, metric_id="M1", metric_name="SIS", value=0.9,
+        Alert(horizon=4, metric_id="N1", metric_name="SIS", value=0.9,
               baseline_mean=0.3, baseline_std=0.1, z_score=6.0, confidence=0.9),
-        Alert(horizon=4, metric_id="M3", metric_name="HHI", value=0.8,
+        Alert(horizon=4, metric_id="N2", metric_name="HHI", value=0.8,
               baseline_mean=0.4, baseline_std=0.1, z_score=4.0, confidence=0.8),
-        Alert(horizon=4, metric_id="M4", metric_name="Density", value=0.1,
+        Alert(horizon=4, metric_id="N3", metric_name="Density", value=0.1,
               baseline_mean=0.5, baseline_std=0.1, z_score=4.0, confidence=0.7),
     ]
     scenario = ScenarioSummary(
@@ -41,7 +41,7 @@ def test_high_confidence_enables_intervention():
 
 def test_low_confidence_blocks_intervention():
     dh = DataHealthResult(score=0.9, safe_mode=False, checks={})
-    alerts = [Alert(horizon=4, metric_id="M1", metric_name="SIS", value=0.9,
+    alerts = [Alert(horizon=4, metric_id="N1", metric_name="SIS", value=0.9,
                     baseline_mean=0.3, baseline_std=0.1, z_score=6.0, confidence=0.2)]
     scenario = ScenarioSummary(ranked_losses=[], worst_scenario="S1", worst_horizon=4)
     cfg = AgentConfig()
@@ -61,9 +61,9 @@ def test_no_alerts_no_tickets():
 def test_tickets_sorted_by_score():
     dh = DataHealthResult(score=0.9, safe_mode=False, checks={})
     alerts = [
-        Alert(horizon=4, metric_id="M1", metric_name="SIS", value=0.9,
+        Alert(horizon=4, metric_id="N1", metric_name="SIS", value=0.9,
               baseline_mean=0.3, baseline_std=0.1, z_score=6.0, confidence=0.9),
-        Alert(horizon=4, metric_id="M3", metric_name="HHI", value=0.6,
+        Alert(horizon=4, metric_id="N2", metric_name="HHI", value=0.6,
               baseline_mean=0.4, baseline_std=0.1, z_score=2.0, confidence=0.7),
     ]
     scenario = ScenarioSummary(

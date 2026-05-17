@@ -123,7 +123,7 @@ def _summarize_snapshot(snapshot: dict) -> dict[str, Any]:
         "total_weight": sum(e["weight"] for e in edges),
         "top_protocols": "\n".join(top_lines),
         "category_summary": "\n".join(cat_lines),
-        "metrics": f"  M3_hhi: {hhi:.6f}\n  M4_density: {density:.6f}\n  M7_degree_gini: {_gini(deg_vals):.6f}",
+        "metrics": f"  N2_hhi: {hhi:.6f}\n  N3_density: {density:.6f}\n  N5_degree_gini: {_gini(deg_vals):.6f}",
     }
 
 

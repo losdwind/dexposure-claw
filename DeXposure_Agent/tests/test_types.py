@@ -16,7 +16,7 @@ def test_graph_snapshot_construction(sample_graph):
 
 def test_alert_construction():
     alert = Alert(
-        horizon=4, metric_id="M1", metric_name="Systemic Importance Score",
+        horizon=4, metric_id="N1", metric_name="Systemic Importance Score",
         value=0.85, baseline_mean=0.5, baseline_std=0.1,
         z_score=3.5, confidence=0.8,
         attribution={"aave-v3": 0.35, "lido": 0.25},
@@ -29,7 +29,7 @@ def test_ticket_construction():
     ticket = Ticket(
         action="Recommend-Reduce", severity="High",
         score=0.75, targets=["aave-v3"],
-        triggering_alerts=["M1_h4", "M2_h4"],
+        triggering_alerts=["N1_h4", "N2_h4"],
         scenario_impact={"S1": 0.45},
         rationale="SIS spike on aave-v3 at h=4",
     )

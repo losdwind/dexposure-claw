@@ -202,9 +202,9 @@ class TestSnapshotLoader:
         baseline = loader.build_baseline(before="2025-02", window=3)
         assert len(baseline) == 3
         assert all(isinstance(m, dict) for m in baseline)
-        # Each dict should have M1, M3, M4, M6, M7
+        # Each dict should have N1..N5
         for m in baseline:
-            assert set(m.keys()) == {"M1", "M3", "M4", "M6", "M7"}
+            assert set(m.keys()) == {"N1", "N2", "N3", "N4", "N5"}
 
     def test_build_baseline_empty(self, loader: SnapshotLoader):
         baseline = loader.build_baseline(before="2020-01", window=26)
@@ -259,5 +259,5 @@ class TestRealData:
         baseline = real_loader.build_baseline(before="2025-07", window=4)
         assert len(baseline) > 0
         for m in baseline:
-            assert 0 <= m["M4"] <= 1  # Density in [0, 1]
-            assert 0 <= m["M6"] <= 1  # Gini in [0, 1]
+            assert 0 <= m["N3"] <= 1  # Density in [0, 1]
+            assert 0 <= m["N4"] <= 1  # Gini in [0, 1]

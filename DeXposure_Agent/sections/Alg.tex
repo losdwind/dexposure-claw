@@ -57,11 +57,11 @@ Risk in exposure networks manifests as concentration (a few protocols dominate),
 \toprule
 ID & Metric & Definition \\
 \midrule
-M1 & Systemic Importance & $\max_{p\in V} \mathrm{PageRank}(\widehat{G}_{t+h})_p$ \\
-M3 & HHI Concentration & $\sum_p \bigl(d_p / \textstyle\sum_q d_q\bigr)^2$, \ $d_p = \text{weighted out-degree}$ \\
-M4 & Network Density & $|E_{t+h}| \;/\; |V|(|V|-1)$ \\
-M6 & PageRank Gini & $\mathrm{Gini}\!\bigl(\{\mathrm{PR}_p\}_{p\in V}\bigr)$ \\
-M7 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
+N1 & Systemic Importance & $\max_{p\in V} \mathrm{PageRank}(\widehat{G}_{t+h})_p$ \\
+N2 & HHI Concentration & $\sum_p \bigl(d_p / \textstyle\sum_q d_q\bigr)^2$, \ $d_p = \text{weighted out-degree}$ \\
+N3 & Network Density & $|E_{t+h}| \;/\; |V|(|V|-1)$ \\
+N4 & PageRank Gini & $\mathrm{Gini}\!\bigl(\{\mathrm{PR}_p\}_{p\in V}\bigr)$ \\
+N5 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
 \bottomrule
 \end{tabularx}
 \caption{Monitoring functionals $\Phi$. PageRank uses power iteration with damping $0.85$ and $10$ iterations. Gini coefficient: $1 - 2\sum_{i=1}^{n}\sum_{k=1}^{i}x_{(k)} \;/\; (n \cdot \sum_k x_{(k)})$, where $x_{(k)}$ are sorted values.}
@@ -71,8 +71,8 @@ M7 & Degree Gini & $\mathrm{Gini}\!\bigl(\{d_p\}_{p\in V}\bigr)$ \\
 \noindent Formally, at each horizon $h$ we compute:
 \begin{equation}
 \label{eq:monitor_metrics}
-\mathbf{M}_{t,h} := \Phi(\widehat{G}_{t+h},X_t)\in\mathbb{R}^5,\qquad
-\widetilde{\mathbf{M}}^{(m)}_{t,h} := \Phi(\widetilde{G}^{(m)}_{t+h},X_t).
+\mathbf{N}_{t,h} := \Phi(\widehat{G}_{t+h},X_t)\in\mathbb{R}^5,\qquad
+\widetilde{\mathbf{N}}^{(m)}_{t,h} := \Phi(\widetilde{G}^{(m)}_{t+h},X_t).
 \end{equation}
 
 \paragraph{Alert generation.}
@@ -80,15 +80,15 @@ An alert fires when a predicted metric departs from its rolling historical basel
 \begin{equation}
 \label{eq:alert_trigger}
 \mathcal{A}_t :=
-\Bigl\{\, a=(h,j)\;:\; \frac{|M_{t,h}^{(j)} - \mu_t^{(j)}|}{\max(\sigma_t^{(j)},\,\epsilon)} > z \Bigr\},
+\Bigl\{\, a=(h,j)\;:\; \frac{|N_{t,h}^{(j)} - \mu_t^{(j)}|}{\max(\sigma_t^{(j)},\,\epsilon)} > z \Bigr\},
 \end{equation}
 where $(\mu_t^{(j)},\sigma_t^{(j)})$ are the rolling mean and standard deviation of metric $j$ over the last $L$ observed snapshots, and $\epsilon=10^{-8}$ prevents division by zero.
 
 \paragraph{Evidence and attribution.}
-Each alert $a\in\mathcal{A}_t$ carries an evidence bundle $\mathrm{Ev}_t(a) = ( M_{t,h}^{(j)},\, \mu_t^{(j)},\, \sigma_t^{(j)},\, \mathrm{Attr}_t(a),\, h )$, where $\mathrm{Attr}_t(a)$ is a ranked list of top-$K$ contributing nodes/edges obtained via marginal contribution approximation: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$ (default $K=10$).
+Each alert $a\in\mathcal{A}_t$ carries an evidence bundle $\mathrm{Ev}_t(a) = ( N_{t,h}^{(j)},\, \mu_t^{(j)},\, \sigma_t^{(j)},\, \mathrm{Attr}_t(a),\, h )$, where $\mathrm{Attr}_t(a)$ is a ranked list of top-$K$ contributing nodes/edges obtained via marginal contribution approximation: $\mathrm{Contrib}(e) := \Phi^{(j)}(\widehat{G}_{t+h}) - \Phi^{(j)}(\widehat{G}_{t+h}\setminus e)$ (default $K=10$).
 
 \paragraph{Uncertainty-aware confidence.}
-Alert reliability depends on three factors: data quality, forecast dispersion, and horizon length. Using Monte Carlo samples, we compute the coefficient of variation $\mathrm{CV}_{t,h}^{(j)} := \sigma(\{\widetilde{M}^{(m,j)}_{t,h}\}_m) / |\bar{M}^{(j)}_{t,h}|$ (clamped to $[0,1]$) and define:
+Alert reliability depends on three factors: data quality, forecast dispersion, and horizon length. Using Monte Carlo samples, we compute the coefficient of variation $\mathrm{CV}_{t,h}^{(j)} := \sigma(\{\widetilde{N}^{(m,j)}_{t,h}\}_m) / |\bar{N}^{(j)}_{t,h}|$ (clamped to $[0,1]$) and define:
 \begin{equation}
 \label{eq:alert_confidence}
 C_t(a)\;:=\; DH_t \cdot \frac{1}{1+\mathrm{CV}_{t,h}^{(j)}} \cdot \frac{1}{1+\ln(1+h)}\;\in[0,1].
@@ -199,7 +199,7 @@ Algorithm~\ref{alg:agent_loop} summarises the full agent loop.
     \State $\mathcal{P}_{t,h} \gets \textsc{DeXposure-FM}.\mathrm{Forecast}(G_t,X_t,h)$
     \State $\widehat{G}_{t+h} \gets \mathrm{BuildPredGraph}(\mathcal{P}_{t,h};\,\pi_{\min})$ \Comment{Eq.~\eqref{eq:expected_graph}}
     \State $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M \gets \mathrm{MCSample}(\mathcal{P}_{t,h})$ \Comment{Bernoulli edges + Gaussian weights}
-    \State $\mathbf{M}_{t,h} \gets \Phi(\widehat{G}_{t+h},X_t)$ \Comment{Table~\ref{tab:metrics}: M1,M3,M4,M6,M7}
+    \State $\mathbf{N}_{t,h} \gets \Phi(\widehat{G}_{t+h},X_t)$ \Comment{Table~\ref{tab:metrics}: N1..N5}
     \State $\mathcal{A}_{t,h} \gets \{(h,j): |M^{(j)}_{t,h}-\mu^{(j)}_t|/\sigma^{(j)}_t > z\}$
     \State Attach $\mathrm{Ev}_t(a)$ and $C_t(a)$ for all $a\in\mathcal{A}_{t,h}$ \Comment{Eq.~\eqref{eq:alert_confidence}}
     \ForAll{$s\in\mathcal{S}_0$}

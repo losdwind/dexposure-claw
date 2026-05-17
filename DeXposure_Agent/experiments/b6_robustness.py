@@ -54,7 +54,7 @@ REGIME_CONFIGS = {
 FIXED_HORIZON = 4  # weeks; same as b1_forecast but single horizon for tractability
 
 # Metric IDs used for b1_forecast-style evaluation
-METRIC_IDS = ["M1", "M3", "M4", "M6", "M7"]
+METRIC_IDS = ["N1", "N2", "N3", "N4", "N5"]
 
 
 @dataclass
@@ -223,10 +223,10 @@ def _compute_b1_metrics(
         gt_metrics = compute_metrics(gt_snapshots[i])
 
         # MAE per metric
-        pr_errors.append(abs(pred_metrics["M1"] - gt_metrics["M1"]))
-        hhi_errors.append(abs(pred_metrics["M3"] - gt_metrics["M3"]))
-        density_errors.append(abs(pred_metrics["M4"] - gt_metrics["M4"]))
-        gini_errors.append(abs(pred_metrics["M7"] - gt_metrics["M7"]))
+        pr_errors.append(abs(pred_metrics["N1"] - gt_metrics["N1"]))
+        hhi_errors.append(abs(pred_metrics["N2"] - gt_metrics["N2"]))
+        density_errors.append(abs(pred_metrics["N3"] - gt_metrics["N3"]))
+        gini_errors.append(abs(pred_metrics["N5"] - gt_metrics["N5"]))
 
         # Collect node-level PageRank for rank correlation
         pred_nodes = list(pred_snapshots[i].nodes.keys())
