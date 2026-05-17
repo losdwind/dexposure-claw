@@ -23,7 +23,25 @@ SOP, including GPU server access, sync flow, benchmark runners, and LLM eval.
 
 ## Try the Claw software
 
+For Node.js and agent-runtime users, use the npm entrypoint. The package wraps
+the same Claw runtime and launches the MCP server through the `dexposure-claw`
+binary. It requires Node.js 18+ and Python 3.10+ on your PATH.
+
 From a checkout of this repository:
+
+```bash
+npm exec --package ./claw -- dexposure-claw health
+npm exec --package ./claw -- dexposure-claw mcp
+```
+
+After the package is published to npm:
+
+```bash
+npx -y @dexposure/claw health
+npx -y @dexposure/claw mcp
+```
+
+Python users can install the same package with:
 
 ```bash
 pipx install ./claw

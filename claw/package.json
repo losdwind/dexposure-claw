@@ -2,21 +2,40 @@
   "name": "@dexposure/claw",
   "version": "0.1.0",
   "description": "Pluggable financial-risk agent extension for Claude Code, Hermes, Codex, and MCP-compatible runtimes.",
+  "type": "commonjs",
   "bin": {
     "dexposure-claw": "bin/dexposure-claw.js"
+  },
+  "scripts": {
+    "health": "node bin/dexposure-claw.js health",
+    "mcp": "node bin/dexposure-claw.js mcp",
+    "pack:check": "npm pack --dry-run"
   },
   "files": [
     "bin/",
     "dist/",
-    "src/",
+    "src/dexposure_claw/**/*.py",
+    "src/dexposure_claw/py.typed",
     "pack/",
     "adapters/",
     "pyproject.toml",
     "README.md",
-    "package.json"
+    "package.json",
+    "!**/__pycache__/",
+    "!**/*.pyc"
   ],
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "agent",
+    "mcp",
+    "defi",
+    "risk",
+    "dexposure"
+  ],
   "license": "Apache-2.0"
 }

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -22,6 +23,7 @@ class DeXposureClawTests(unittest.TestCase):
         required = [
             "pyproject.toml",
             "package.json",
+            "bin/dexposure-claw.js",
             "pack/skills/run-full-suite/SKILL.md",
             "pack/commands/dexposure-benchmark.md",
             "adapters/claude-code/plugin.json.j2",
@@ -76,6 +78,24 @@ class DeXposureClawTests(unittest.TestCase):
         self.assertIn("dexposure-claw", codex)
         self.assertIn('"mcpServers"', mcp_only)
         self.assertIn('"dexposure"', mcp_only)
+
+    def test_node_wrapper_launches_claw_cli(self):
+        package = json.loads((CLAW_ROOT / "package.json").read_text())
+
+        self.assertEqual(package["name"], "@dexposure/claw")
+        self.assertEqual(package["bin"]["dexposure-claw"], "bin/dexposure-claw.js")
+        self.assertEqual(package["type"], "commonjs")
+        self.assertEqual(package["publishConfig"]["access"], "public")
+
+        result = subprocess.run(
+            ["node", str(CLAW_ROOT / "bin" / "dexposure-claw.js"), "health"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["package"], "dexposure-claw")
 
 
 if __name__ == "__main__":
