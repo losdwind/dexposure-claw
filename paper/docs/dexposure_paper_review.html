@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DeXposure Paper Review Map</title>
+<style>
+  :root {
+    --page: #f7f8fb;
+    --surface: #ffffff;
+    --surface-2: #eef3f8;
+    --ink: #162033;
+    --muted: #5f6b7a;
+    --faint: #8a96a8;
+    --line: #d8dee8;
+    --teal: #0f8b8d;
+    --red: #c0362c;
+    --blue: #2d6cdf;
+    --violet: #7253b5;
+    --green: #2f8f54;
+    --amber: #b47418;
+    --pink: #ba3e73;
+    --shadow: 0 18px 45px rgba(22, 32, 51, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      linear-gradient(180deg, rgba(15, 139, 141, 0.08), rgba(247, 248, 251, 0) 360px),
+      var(--page);
+    color: var(--ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    line-height: 1.55;
+    letter-spacing: 0;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button, input { font: inherit; letter-spacing: 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.92em;
+    background: rgba(22, 32, 51, 0.07);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+
+  .shell { width: min(1240px, calc(100vw - 36px)); margin: 0 auto; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(16px);
+    background: rgba(247, 248, 251, 0.86);
+    border-bottom: 1px solid rgba(216, 222, 232, 0.9);
+  }
+
+  .nav {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .mark {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--surface);
+    box-shadow: 0 6px 18px rgba(22, 32, 51, 0.07);
+    color: var(--teal);
+  }
+
+  .brand strong {
+    display: block;
+    font-size: 14px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .brand span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .navlinks {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navlinks::-webkit-scrollbar { display: none; }
+
+  .navlinks a {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    white-space: nowrap;
+  }
+
+  .navlinks a:hover { background: var(--surface-2); color: var(--ink); }
+
+  .hero {
+    padding: 42px 0 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.24fr) minmax(320px, 0.76fr);
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  .hero-main {
+    min-height: 330px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .kicker {
+    color: var(--teal);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(34px, 5vw, 64px);
+    line-height: 1.02;
+    max-width: 900px;
+    letter-spacing: 0;
+  }
+
+  .lead {
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 780px;
+  }
+
+  .thesis-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .metric {
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .metric b { display: block; font-size: 22px; line-height: 1.05; }
+  .metric span { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; }
+  .metric:nth-child(1) b { color: var(--red); }
+  .metric:nth-child(2) b { color: var(--violet); }
+  .metric:nth-child(3) b { color: var(--green); }
+
+  .quick-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .quick-panel h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .spine {
+    display: grid;
+    gap: 10px;
+  }
+
+  .spine-step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .spine-step .dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+  }
+
+  .spine-step:nth-child(1) .dot { background: var(--amber); }
+  .spine-step:nth-child(2) .dot { background: var(--teal); }
+  .spine-step:nth-child(3) .dot { background: var(--blue); }
+  .spine-step:nth-child(4) .dot { background: var(--violet); }
+
+  .spine-step strong { display: block; font-size: 14px; }
+  .spine-step p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+  section {
+    padding: 30px 0;
+  }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 18px;
+    margin-bottom: 16px;
+  }
+
+  .section-head h2 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  .section-head p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    max-width: 760px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 10px 26px rgba(22, 32, 51, 0.05);
+  }
+
+  .contribution {
+    position: relative;
+    min-height: 276px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+
+  .contribution::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--accent);
+  }
+
+  .contribution .idx {
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .contribution h3 { margin: 8px 0 8px 0; font-size: 19px; }
+  .contribution p { margin: 0; color: var(--muted); }
+  .contribution ul { margin: 12px 0 0; padding-left: 18px; color: var(--ink); }
+  .contribution li { margin: 6px 0; }
+
+  .flow-band {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 22px 0;
+  }
+
+  .framework-flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .flow-node {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: var(--page);
+    min-height: 160px;
+  }
+
+  .flow-node::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    border-top: 2px solid var(--line);
+    border-right: 2px solid var(--line);
+  }
+
+  .flow-node:last-child::after { display: none; }
+  .flow-node .layer { color: var(--accent); font-size: 12px; font-weight: 800; }
+  .flow-node h3 { margin: 6px 0; font-size: 16px; }
+  .flow-node p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .compare-block {
+    border-left: 5px solid var(--accent);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: 0 10px 26px rgba(22, 32, 51, 0.05);
+  }
+
+  .compare-block h3 { margin: 0 0 8px; font-size: 21px; }
+  .compare-block p { color: var(--muted); margin: 0 0 12px; }
+  .compare-block ul { margin: 0; padding-left: 18px; }
+  .compare-block li { margin: 7px 0; }
+
+  .section-map {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .paper-section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 13px;
+    min-height: 148px;
+  }
+
+  .paper-section .sno {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 12px;
+  }
+
+  .paper-section h3 { margin: 5px 0; font-size: 15px; }
+  .paper-section p { margin: 0; color: var(--muted); font-size: 12px; }
+
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .search {
+    position: relative;
+  }
+
+  .search svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--faint);
+  }
+
+  .search input {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 11px 12px 11px 40px;
+    color: var(--ink);
+    outline: none;
+  }
+
+  .search input:focus {
+    border-color: rgba(15, 139, 141, 0.7);
+    box-shadow: 0 0 0 3px rgba(15, 139, 141, 0.12);
+  }
+
+  .segmented {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    align-items: center;
+  }
+
+  .segmented button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .segmented button.active {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 6px 16px rgba(22, 32, 51, 0.08);
+  }
+
+  .artifact-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .artifact {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 14px;
+    min-height: 262px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .artifact .meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 12px;
+  }
+
+  .pill {
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .artifact h3 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  .artifact p { margin: 0; color: var(--muted); font-size: 13px; }
+  .artifact strong { color: var(--ink); }
+
+  .thumb {
+    height: 96px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .mini-flow, .mini-bench, .mini-exposure, .mini-table {
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+  }
+
+  .mini-flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    align-items: center;
+  }
+
+  .mini-flow span {
+    height: 46px;
+    border: 1px solid rgba(22, 32, 51, 0.18);
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    border-radius: 6px;
+  }
+
+  .mini-bench {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .mini-bench span {
+    border-radius: 6px;
+    background: var(--surface);
+    border-top: 5px solid var(--accent);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mini-table {
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 5px;
+  }
+
+  .mini-table span {
+    border-radius: 5px;
+    background: linear-gradient(90deg, rgba(15,139,141,0.18), rgba(45,108,223,0.12));
+  }
+
+  .mini-exposure {
+    position: relative;
+  }
+
+  .node {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: var(--surface);
+  }
+
+  .node.n1 { left: 18%; top: 18%; }
+  .node.n2 { left: 45%; top: 38%; border-color: var(--blue); }
+  .node.n3 { right: 18%; bottom: 18%; border-color: var(--red); }
+  .edge {
+    position: absolute;
+    height: 2px;
+    background: var(--line);
+    transform-origin: left center;
+  }
+  .edge.e1 { width: 34%; left: 27%; top: 33%; transform: rotate(20deg); }
+  .edge.e2 { width: 34%; left: 50%; top: 55%; transform: rotate(25deg); }
+
+  .bench-axis-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+  }
+
+  .axis-card {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 13px;
+    min-height: 178px;
+    border-top: 4px solid var(--accent);
+  }
+
+  .axis-card .id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .axis-card h3 { margin: 5px 0; font-size: 15px; }
+  .axis-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+  .flashcards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .flashcard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    min-height: 210px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .flashcard h3 { margin: 0; font-size: 16px; }
+  .answer {
+    color: var(--muted);
+    display: none;
+    font-size: 13px;
+  }
+
+  .flashcard.revealed .answer { display: block; }
+
+  .icon-button {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    border-radius: 7px;
+    padding: 8px 10px;
+    cursor: pointer;
+    align-self: flex-start;
+  }
+
+  .note-strip {
+    border-left: 5px solid var(--amber);
+    background: rgba(180, 116, 24, 0.08);
+    border-radius: 8px;
+    padding: 14px;
+    color: var(--ink);
+  }
+
+  .note-strip p { margin: 0; color: var(--muted); }
+
+  footer {
+    padding: 24px 0 44px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 1100px) {
+    .hero { grid-template-columns: 1fr; }
+    .grid-3, .artifact-list { grid-template-columns: repeat(2, 1fr); }
+    .framework-flow { grid-template-columns: 1fr; }
+    .flow-node::after { display: none; }
+    .section-map { grid-template-columns: repeat(2, 1fr); }
+    .bench-axis-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 760px) {
+    .shell { width: min(100vw - 24px, 1240px); }
+    .nav { height: auto; padding: 10px 0; align-items: flex-start; flex-direction: column; }
+    .navlinks { width: 100%; }
+    .hero { padding-top: 28px; }
+    .thesis-row, .grid-2, .grid-3, .compare, .artifact-list, .flashcards {
+      grid-template-columns: 1fr;
+    }
+    .section-head { display: block; }
+    .filters { grid-template-columns: 1fr; }
+    .segmented { overflow-x: auto; }
+    .section-map, .bench-axis-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="shell nav">
+    <a href="#top" class="brand" aria-label="DeXposure review map home">
+      <span class="mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M6 18V7.5L12 4l6 3.5V18l-6 3-6-3Z" stroke="currentColor" stroke-width="1.8" />
+          <path d="M6.5 8 12 11l5.5-3M12 11v9" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      </span>
+      <span>
+        <strong>DeXposure 论文复习图谱</strong>
+        <span>framework · benchmark · figures · tables</span>
+      </span>
+    </a>
+    <nav class="navlinks" aria-label="page navigation">
+      <a href="#structure">结构</a>
+      <a href="#contrib">贡献</a>
+      <a href="#framework">Framework</a>
+      <a href="#benchmark">Benchmark</a>
+      <a href="#artifacts">图表</a>
+      <a href="#cards">复习卡</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="shell hero">
+    <div class="hero-main">
+      <div>
+        <div class="kicker">DeXposure-Claw paper review</div>
+        <h1>一张图复习整篇 paper 的论证骨架</h1>
+        <p class="lead">
+          这篇文章的核心不是“FM 全面打败所有 baseline”，而是把 DeFi exposure graph 的预测、
+          监测、压力测试、决策和安全门控串成可审计系统，再用 DeXposure-Bench 把收益和代价一起量出来。
+        </p>
+      </div>
+      <div class="thesis-row" aria-label="headline results">
+        <div class="metric"><b>+208%</b><span>ticket F1: 0.0076 -> 0.0233</span></div>
+        <div class="metric"><b>+33%</b><span>explanation quality: 2.03 -> 2.69/5</span></div>
+        <div class="metric"><b>0.913</b><span>PI coverage vs 0.90 target, ECE 0.013</span></div>
+      </div>
+    </div>
+
+    <aside class="quick-panel" aria-label="argument spine">
+      <h2>论证主线</h2>
+      <div class="spine">
+        <div class="spine-step">
+          <span class="dot">1</span>
+          <div><strong>问题</strong><p>DeFi 风险通过 tokenized liabilities 和跨协议 exposure 传播，静态规则和通用 LLM 缺少图时间序列预测骨架。</p></div>
+        </div>
+        <div class="spine-step">
+          <span class="dot">2</span>
+          <div><strong>方法</strong><p>framework = forecast -> measure -> decide -> gate，用 FM 预测未来图，用确定性监测和情景引擎生成证据。</p></div>
+        </div>
+        <div class="spine-step">
+          <span class="dot">3</span>
+          <div><strong>评测</strong><p>benchmark = DeXposure-Bench，六轴评估 full pipeline，而不只评估预测或 LLM 单点能力。</p></div>
+        </div>
+        <div class="spine-step">
+          <span class="dot">4</span>
+          <div><strong>结论</strong><p>Claw 是 recall 和 explanation 的 Pareto option，同时 false intervention cost 必须被 gate 和 benchmark 显式管理。</p></div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section id="structure" class="shell">
+    <div class="section-head">
+      <div>
+        <h2>Paper 结构地图</h2>
+        <p>按照“动机 -> 定义 -> 系统 -> 评测 -> 实验 -> 部署边界”的顺序读，复习时先抓每节在论证链上的功能。</p>
+      </div>
+    </div>
+    <div class="section-map">
+      <article class="paper-section" style="--accent: var(--amber)">
+        <div class="sno">Section 1</div>
+        <h3>Introduction</h3>
+        <p>用 Terra/Luna、FTX 等危机引入 exposure propagation，提出三项贡献：framework、benchmark、Claw empirical characterization。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--teal)">
+        <div class="sno">Section 2</div>
+        <h3>Related Works</h3>
+        <p>把本文放在金融网络风险、temporal graph learning、foundation models、LLM agents、benchmarks 的交叉缺口里。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--blue)">
+        <div class="sno">Section 3</div>
+        <h3>Preliminaries</h3>
+        <p>定义 credit exposure、token-to-protocol mapping、graph/value flow construction，为后续算法提供对象。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--violet)">
+        <div class="sno">Section 4</div>
+        <h3>Algorithm</h3>
+        <p>定义 DeXposure-Claw 四层 pipeline：FM prediction、monitor/scenario、decision、safety gate。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--green)">
+        <div class="sno">Section 5</div>
+        <h3>DeXposure-Bench</h3>
+        <p>给出六个 benchmark 轴、数据切分、absolute-loss ground truth、reference methods、leaderboard protocol。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--pink)">
+        <div class="sno">Section 6</div>
+        <h3>Experiments</h3>
+        <p>Task I 检查 forecasting/monitoring，Task II 检查 decision/stress，ablation 检查哪些组件是负载件或安全储备。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--red)">
+        <div class="sno">Section 7</div>
+        <h3>Limitations</h3>
+        <p>说明单数据集、offline decision evaluation、LLM-as-judge 等外推边界，避免把结果读成 live-market guarantee。</p>
+      </article>
+      <article class="paper-section" style="--accent: var(--ink)">
+        <div class="sno">Appendix</div>
+        <h3>Full audit tables</h3>
+        <p>补全 b1 all horizons、b4 scenarios、b6 regimes、b2 budgets、A1 gate isolation，支撑可复现审计。</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="contrib" class="shell">
+    <div class="section-head">
+      <div>
+        <h2>三项贡献</h2>
+        <p>记忆口诀：一个 framework 负责怎么做，一个 benchmark 负责怎么评，一个 Claw 证明怎么部署和取舍。</p>
+      </div>
+    </div>
+    <div class="grid-3">
+      <article class="card contribution" style="--accent: var(--teal)">
+        <div>
+          <div class="idx">Contribution I</div>
+          <h3>Forecast-grounded regulatory decision framework</h3>
+          <p>把 DeFi 风险监督定义为四层 forecast -> measure -> decide -> gate pipeline。</p>
+          <ul>
+            <li>预测层：DeXposure-FM 预测未来 exposure graph。</li>
+            <li>监测层：五个网络风险指标、rolling z-score、alert attribution。</li>
+            <li>情景层：五个 stress scenarios，CVaR 聚合 tail risk。</li>
+            <li>决策层：playbook tickets，data-health/confidence gate 管住 intervention。</li>
+          </ul>
+        </div>
+      </article>
+      <article class="card contribution" style="--accent: var(--blue)">
+        <div>
+          <div class="idx">Contribution II</div>
+          <h3>DeXposure-Bench</h3>
+          <p>标准化评测 forecast-grounded risk-decision pipelines，而不是只测预测或只测 LLM。</p>
+          <ul>
+            <li>六轴：b1 forecast、b2 warning、b3 calibration、b4 stress、b5 decision、b6 robustness。</li>
+            <li>数据：2020-03 到 2025-08 weekly exposure graphs，严格 temporal split。</li>
+            <li>ground truth：按 absolute exposure loss 选 top 5% stressed protocols。</li>
+            <li>八个 reference methods 支撑 layer-wise ablation。</li>
+          </ul>
+        </div>
+      </article>
+      <article class="card contribution" style="--accent: var(--red)">
+        <div>
+          <div class="idx">Contribution III</div>
+          <h3>DeXposure-Claw</h3>
+          <p>把 framework 打包成可运行、可审计的 agentic system，并在 benchmark 上量化 operating point。</p>
+          <ul>
+            <li>输出 ticket-level evidence bundles 和 audit logs。</li>
+            <li>FM+LLM+gate 把 ticket F1 从 0.0076 提到 0.0233。</li>
+            <li>解释质量从 2.03 提到 2.69/5。</li>
+            <li>同时暴露 FIR 约 0.44 的代价，因此不是“全面替代规则”。</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div id="framework" class="flow-band">
+    <section class="shell">
+      <div class="section-head">
+        <div>
+          <h2>Framework 是什么，作用是什么</h2>
+          <p>framework 是 paper 的“系统定义”：规定一个监管 agent 从当前图到最终 ticket 应该经历哪些层，每层产出什么证据。</p>
+        </div>
+      </div>
+      <div class="framework-flow">
+        <article class="flow-node" style="--accent: var(--amber)">
+          <div class="layer">Input</div>
+          <h3>当前 exposure graph</h3>
+          <p>观测每周 snapshot <code>G_t</code> 和 node covariates <code>X_t</code>。这一步把 DeFi 状态转换成可计算图对象。</p>
+        </article>
+        <article class="flow-node" style="--accent: var(--teal)">
+          <div class="layer">Layer 1</div>
+          <h3>FM Prediction</h3>
+          <p>DeXposure-FM 生成 <code>G_{t+h}</code> 的 predictive distribution，并构造 expected graph 与 MC samples。</p>
+        </article>
+        <article class="flow-node" style="--accent: var(--blue)">
+          <div class="layer">Layer 2</div>
+          <h3>Monitor & Scenario</h3>
+          <p>用 N1-N5 监测系统性风险，用 S1-S5 压力情景计算 loss、distressed nodes、CVaR。</p>
+        </article>
+        <article class="flow-node" style="--accent: var(--violet)">
+          <div class="layer">Layer 3</div>
+          <h3>Decision Policy</h3>
+          <p>规则或 LLM 把 alerts、attribution、scenario evidence 转成 supervisory tickets 和 rationale。</p>
+        </article>
+        <article class="flow-node" style="--accent: var(--red)">
+          <div class="layer">Layer 4</div>
+          <h3>Safety Gate</h3>
+          <p>用 data health 与 alert confidence 决定是否允许 intervention action，否则只输出 monitor/investigate 或 safe-mode notice。</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <section id="benchmark" class="shell">
+    <div class="section-head">
+      <div>
+        <h2>Benchmark 是什么，作用是什么</h2>
+        <p>benchmark 是 paper 的“证据机器”：它不只问模型准不准，还问预测信号能否变成更好的监督决策，以及代价在哪里。</p>
+      </div>
+    </div>
+    <div class="compare">
+      <article class="compare-block" style="--accent: var(--teal)">
+        <h3>Framework</h3>
+        <p>回答“系统应该怎么工作”。</p>
+        <ul>
+          <li>输入当前图，输出 ticket 或 safe-mode。</li>
+          <li>定义 forecast、monitor、scenario、decision、gate 的接口。</li>
+          <li>主要作用：把风险预测转成可审计决策，而不是黑盒 LLM 直接判断。</li>
+        </ul>
+      </article>
+      <article class="compare-block" style="--accent: var(--blue)">
+        <h3>Benchmark</h3>
+        <p>回答“这样的系统有没有用，哪里有代价”。</p>
+        <ul>
+          <li>用六轴分别压测不同 framework layer。</li>
+          <li>用 absolute-loss ground truth 贴近监管关注的经济规模。</li>
+          <li>主要作用：显示 FM 帮在哪里、persistence 强在哪里、LLM 和 gate 的 trade-off 在哪里。</li>
+        </ul>
+      </article>
+    </div>
+
+    <div style="height: 18px"></div>
+    <div class="bench-axis-grid" id="axisGrid"></div>
+    <div style="height: 14px"></div>
+    <div class="note-strip">
+      <p><strong>复习提醒：</strong>DeXposure-Bench 的 ground truth 是 <code>top_pi=0.05</code> 的 absolute exposure loss stressed set，平均每周约 283 个 protocols。因此 b5 的 recall 和 F1 数值很小，不是系统完全没用，而是 ticket budget 每周只有约 0.7 到 2 个，recall 被预算天然压住。</p>
+    </div>
+  </section>
+
+  <section id="artifacts" class="shell">
+    <div class="section-head">
+      <div>
+        <h2>每个 Figure / Table 在讲什么</h2>
+        <p>这里把所有图表按论文编号整理成复习卡。搜索关键词如 <code>b5</code>、<code>gate</code>、<code>calibration</code>、<code>Figure 5</code> 都可以。</p>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m21 21-4.2-4.2M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <input id="artifactSearch" type="search" placeholder="搜索 figure/table/benchmark/method/gate..." />
+      </label>
+      <div class="segmented" role="tablist" aria-label="artifact filters">
+        <button class="active" data-filter="all" type="button">全部</button>
+        <button data-filter="figure" type="button">Figures</button>
+        <button data-filter="table" type="button">Tables</button>
+        <button data-filter="appendix" type="button">Appendix</button>
+        <button data-filter="algorithm" type="button">Algorithm</button>
+      </div>
+    </div>
+    <div id="artifactList" class="artifact-list" aria-live="polite"></div>
+  </section>
+
+  <section id="cards" class="shell">
+    <div class="section-head">
+      <div>
+        <h2>快速复习卡</h2>
+        <p>先自己答，再展开答案。重点是把 “paper claim” 和 “evidence source” 连起来。</p>
+      </div>
+    </div>
+    <div class="flashcards" id="flashcards"></div>
+  </section>
+</main>
+
+<footer class="shell">
+  Built from <code>paper/DeXposure-Agent.tex</code>, <code>paper/sections/*.tex</code>, and generated figure/table artifacts in this repository.
+</footer>
+
+<script>
+const axes = [
+  ["b1_forecast", "Temporal graph prediction", "测 PageRank/HHI/Gini MAE、rank correlation、trend consistency。", "var(--amber)"],
+  ["b2_warning", "Streaming anomaly detection", "测 precision、recall、F1、lead time、alert stability。", "var(--pink)"],
+  ["b3_calibration", "Predictive uncertainty", "测 90% PI coverage、width、ECE、CRPS。", "var(--blue)"],
+  ["b4_stress", "What-if scenario fidelity", "测 loss MAE、distressed-count MAE、depth、overlap@k。", "var(--red)"],
+  ["b5_decision", "Supervisory ticket quality", "测 precision、recall@k、F1、stability、judge、FIR。", "var(--green)"],
+  ["b6_robustness", "Data-quality sensitivity", "测五种 degradation regimes 下的相对退化。", "var(--violet)"]
+];
+
+const artifacts = [
+  {
+    type: "figure", no: "Figure 1", section: "Section 3", accent: "var(--amber)",
+    title: "Multi-layer credit exposure in DeFi",
+    says: "用 Lido -> wstETH Wrapper -> Pendle 的资产负债关系展示 exposure 如何层层堆叠。",
+    purpose: "给读者一个直观例子：DeFi 的 credit exposure 不是简单交易边，而是 token liability 链条，所以需要 graph representation。",
+    thumb: "exposure"
+  },
+  {
+    type: "figure", no: "Figure 2", section: "Section 4", accent: "var(--teal)",
+    title: "DeXposure-Claw four-layer query architecture",
+    says: "当前 weekly exposure graph 进入 FM prediction，再进入 monitor/scenario，接 LLM decision，最后由 safety gate 输出 ticket 或 safe-mode。",
+    purpose: "这是 framework 的总览图，告诉读者 DeXposure-Claw 怎么把预测、证据、决策和门控串起来。",
+    thumb: "flow"
+  },
+  {
+    type: "figure", no: "Figure 3", section: "Section 6", accent: "var(--blue)",
+    title: "DeXposure-Bench six-axis evaluation suite",
+    says: "b1-b6 被映射到 framework 的不同层，底部用 regulator-aligned ground truth 统一 decision metrics。",
+    purpose: "证明 benchmark 不是随机任务集合，而是围绕 framework layer 设计的评测体系。",
+    thumb: "bench"
+  },
+  {
+    type: "figure", no: "Figure 4", section: "Section 6 Task I", accent: "var(--green)",
+    title: "Task I signal audit",
+    says: "Persistence 在静态点预测指标上更强，FM 的价值集中在 trend signal、calibration 和 robustness。",
+    purpose: "防止过度声明 FM 全赢，精确界定 FM 对 deployable monitoring 的贡献。",
+    img: "../figures/fig5_task1_deployable_signal.png"
+  },
+  {
+    type: "figure", no: "Figure 5", section: "Section 6 Task II", accent: "var(--red)",
+    title: "Task II layer-wise contribution and cost",
+    says: "FM signal、LLM decision layer、safety gate 分别对 ticket F1、explanation quality、FIR 产生不同影响。",
+    purpose: "这是核心实验图：展示 DeXposure-Claw 是 recall/explanation Pareto option，同时有 false-intervention cost。",
+    img: "../figures/fig4_method_comparison.png"
+  },
+  {
+    type: "table", no: "Table 1", section: "Section 4", accent: "var(--teal)",
+    title: "Monitoring functionals Phi",
+    says: "定义 N1-N5：systemic importance、HHI concentration、network density、PageRank Gini、degree Gini。",
+    purpose: "把“风险监测”从自然语言变成可计算指标，是 monitor layer 的基础。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 2", section: "Section 4", accent: "var(--red)",
+    title: "Standardised stress-scenario library",
+    says: "列出 S1-S5：single protocol failure、bridge cluster failure、stablecoin de-peg、sector lending shock、correlated stress。",
+    purpose: "固定 what-if query 空间，让 scenario engine 和 b4_stress 可以复现比较。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 3", section: "Section 4", accent: "var(--violet)",
+    title: "Playbook action space",
+    says: "定义 Monitor、Investigate、Recommend-Reduce、Contingency 的 severity、weight、safe-mode feasibility 和 minimum alerts。",
+    purpose: "让 decision policy 变成保守可审计 playbook，明确 intervention 何时被 gate 禁止。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 4", section: "Section 5", accent: "var(--blue)",
+    title: "DeXposure-Bench schema",
+    says: "逐行定义 b1-b6 的 capability、primary metrics、applicable methods。",
+    purpose: "这是 benchmark 的目录表，说明每个评测轴独立衡量什么。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 5", section: "Section 5", accent: "var(--amber)",
+    title: "Canonical temporal split",
+    says: "Train: 2020-03--2024-06，Validation: 2024-07--2024-12，Test: 2025-01--2025-08。",
+    purpose: "保证 no-leakage temporal evaluation，所有 headline results 都来自 frozen test split。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 6", section: "Section 5", accent: "var(--green)",
+    title: "Reference methods bundled with DeXposure-Bench",
+    says: "列出 h1、m1-m7，包括 persistence+rules、snapshot LLM、EvolveGCN、FM-only、FM+rules、FM+LLM、FM+LLM+gate。",
+    purpose: "支撑 layer-wise ablation：加 predictor、换 decision layer、加 safety gate、去掉 FM。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 7", section: "Section 5", accent: "var(--pink)",
+    title: "Benchmark positioning",
+    says: "对比 OGB、TGB、HELM、SWE-bench、AgentBench 和 DeXposure-Bench 覆盖的 prediction/anomaly/calibration/scenario/decision 轴。",
+    purpose: "证明 DeXposure-Bench 的 novelty：同时覆盖 forecasting backbone 与 domain-grounded decision metric。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 8", section: "Section 6 Task I", accent: "var(--green)",
+    title: "Task I evidence ledger",
+    says: "汇总 PR-MAE、rank correlation、trend consistency、b2 lead time、ECE、PI coverage、relative degradation 等 headline evidence。",
+    purpose: "用一张表明确 Task I 的结论：persistence 强在静态点指标，FM 强在趋势、校准、鲁棒。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 9", section: "Section 6 Task II", accent: "var(--red)",
+    title: "Task II decision-quality comparison",
+    says: "比较 Persist+Rules、FM+Rules、Pure LLM、FM+LLM、FM+LLM+RulesGate 的 precision、recall、F1、FIR、grounding、consistency、explain、cost-adjusted score。",
+    purpose: "核心结果表。它说明 LLM/FM 提升 recall 和 explanation，但 FIR trade-off 真实存在。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 10", section: "Section 6 Task II", accent: "var(--pink)",
+    title: "b2_warning historical alert timeline",
+    says: "围绕 Terra/Luna、FTX、SVB-USDC 三个事件，在 K=5/10/20 下报告 lead time、precision、recall、F1、stability。",
+    purpose: "证明 monitor 有 pre-event lead time，但这是 historical monitor evidence，不是 2025 predictor-specific leaderboard。",
+    thumb: "table"
+  },
+  {
+    type: "table", no: "Table 11", section: "Section 6 Ablation", accent: "var(--violet)",
+    title: "Component-level ablation",
+    says: "Panel A 看 clean 2025 ablation，Panel B/C 看 degraded data 和 crisis period。A2/A3 是 clean load-bearing，A1/A6 是 reserve mechanisms。",
+    purpose: "回答 framework 组件是不是装饰品：confidence gate 和 scenario engine 扛主线，data-health gate 和 multi-horizon 在压力条件下发挥作用。",
+    thumb: "table"
+  },
+  {
+    type: "table appendix", no: "Table 12", section: "Appendix A1", accent: "var(--amber)",
+    title: "b1_forecast all-horizon results",
+    says: "展示 h=1,4,8,12 上 persistence、EvolveGCN、FM-only、FM+rules 的 PR/HHI/Gini MAE、rank correlation、trend consistency。",
+    purpose: "给 Table 8 的 forecasting 结论提供完整 audit trail。",
+    thumb: "table"
+  },
+  {
+    type: "table appendix", no: "Table 13", section: "Appendix A2", accent: "var(--red)",
+    title: "b4_stress per-scenario detail",
+    says: "按 S1-S5 报告 loss MAE、distress count MAE、propagation depth MAE、overlap@10。",
+    purpose: "证明 scenario engine 在 what-if fidelity 上 roughly matches persistence，同时 EvolveGCN 较弱。",
+    thumb: "table"
+  },
+  {
+    type: "table appendix", no: "Table 14", section: "Appendix A3", accent: "var(--violet)",
+    title: "b6_robustness per-regime detail",
+    says: "在 low_data、partial_graph、noisy_features、missing_features 等五种 degradation regimes 下比较各方法。",
+    purpose: "支撑 FM mean relative degradation 低于 persistence 的鲁棒性 claim。",
+    thumb: "table"
+  },
+  {
+    type: "table appendix", no: "Table 15", section: "Appendix A4", accent: "var(--pink)",
+    title: "b2_warning per-budget detail",
+    says: "把 Table 10 展开为每个事件和 alert budget 的 precision、recall x 10^3、F1w x 10^3、stability、alert count。",
+    purpose: "帮助复现和重新校准 alert budget 的 precision/recall trade-off。",
+    thumb: "table"
+  },
+  {
+    type: "table appendix", no: "Table 16", section: "Appendix A5", accent: "var(--blue)",
+    title: "A1 data-health gate isolated ablation",
+    says: "固定 tau_conf=0，扫 tau_data strict/on/off，在 extreme/topology/feature/severe degradation 下看 safe-mode、precision、FIR、interventions。",
+    purpose: "单独证明 data-health gate 在 degraded data 下能把 false interventions 压回 0。",
+    thumb: "table"
+  },
+  {
+    type: "algorithm", no: "Algorithm 1", section: "Section 4", accent: "var(--teal)",
+    title: "DeXposure-Claw: one epoch",
+    says: "从 DataHealth、multi-horizon FM forecast、predicted graph/MC sample、N1-N5 alerts、S1-S5 CVaR，到 PlaybookDecision 输出 tickets。",
+    purpose: "把 framework 从框图落实为可实现流程，也是代码实现和实验 harness 的共同接口。",
+    thumb: "flow"
+  }
+];
+
+const flashcards = [
+  {
+    q: "这篇 paper 的一句话 thesis 是什么？",
+    a: "用 DeXposure-FM 预测未来 exposure graph，再通过确定性监测、压力测试、LLM/规则决策和安全门控，把 DeFi 风险转成可审计 supervisory tickets，并用 DeXposure-Bench 衡量收益和代价。"
+  },
+  {
+    q: "Framework 和 Benchmark 的区别？",
+    a: "Framework 是系统如何工作：forecast -> measure -> decide -> gate。Benchmark 是如何评估这类系统：b1-b6 六轴，absolute-loss ground truth，reference methods，暴露 F1、explanation、FIR 等 trade-offs。"
+  },
+  {
+    q: "为什么不能说 FM 全面打败 persistence？",
+    a: "Table 8/12 和 Figure 4 显示 persistence 在 PageRank MAE、Gini MAE、rank correlation 等静态点指标上很强；FM 的贡献主要是 trend consistency、calibration 和 robustness。"
+  },
+  {
+    q: "Task II 的核心 trade-off 是什么？",
+    a: "Table 9/Figure 5 显示 FM+LLM 提高 recall-oriented F1 和解释质量，但 precision 下降且 FIR 大约 0.44。gate 可以部分缓解并提高 explanation quality，但不是免费午餐。"
+  },
+  {
+    q: "DeXposure-Bench ground truth 为什么用 absolute loss？",
+    a: "fractional change 会偏向小协议，和监管关注的经济规模不一致。absolute exposure loss 选 top 5% stressed protocols，更贴近 systemic supervision。"
+  },
+  {
+    q: "Ablation 要证明什么？",
+    a: "Table 11/16 说明 A2 confidence gate 和 A3 scenario engine 在 clean setting 负载主线；A1 data-health gate 和 A6 multi-horizon monitoring 在 degraded data/crisis windows 中是安全储备。"
+  }
+];
+
+function thumbHTML(item) {
+  const color = `style="--accent:${item.accent}"`;
+  if (item.img) return `<div class="thumb"><img src="${item.img}" alt="${item.no} preview"></div>`;
+  if (item.thumb === "flow") {
+    return `<div class="thumb"><div class="mini-flow" ${color}><span></span><span></span><span></span><span></span><span></span></div></div>`;
+  }
+  if (item.thumb === "bench") {
+    return `<div class="thumb"><div class="mini-bench" ${color}><span></span><span></span><span></span><span></span><span></span><span></span></div></div>`;
+  }
+  if (item.thumb === "exposure") {
+    return `<div class="thumb"><div class="mini-exposure" ${color}><i class="edge e1"></i><i class="edge e2"></i><i class="node n1"></i><i class="node n2"></i><i class="node n3"></i></div></div>`;
+  }
+  return `<div class="thumb"><div class="mini-table" ${color}><span></span><span></span><span></span><span></span></div></div>`;
+}
+
+function renderAxes() {
+  const target = document.getElementById("axisGrid");
+  target.innerHTML = axes.map(([id, name, desc, accent]) => `
+    <article class="axis-card" style="--accent:${accent}">
+      <div class="id">${id}</div>
+      <h3>${name}</h3>
+      <p>${desc}</p>
+    </article>
+  `).join("");
+}
+
+function renderArtifacts() {
+  const list = document.getElementById("artifactList");
+  const query = document.getElementById("artifactSearch").value.trim().toLowerCase();
+  const active = document.querySelector(".segmented button.active").dataset.filter;
+  const filtered = artifacts.filter(item => {
+    const hay = `${item.type} ${item.no} ${item.section} ${item.title} ${item.says} ${item.purpose}`.toLowerCase();
+    const typeOk = active === "all" || item.type.includes(active);
+    const queryOk = !query || hay.includes(query);
+    return typeOk && queryOk;
+  });
+
+  list.innerHTML = filtered.map(item => `
+    <article class="artifact" style="--accent:${item.accent}">
+      <div class="meta">
+        <span class="tag">${item.no}</span>
+        <span class="pill">${item.section}</span>
+      </div>
+      ${thumbHTML(item)}
+      <h3>${item.title}</h3>
+      <p><strong>讲了什么：</strong>${item.says}</p>
+      <p><strong>目的：</strong>${item.purpose}</p>
+    </article>
+  `).join("");
+
+  if (!filtered.length) {
+    list.innerHTML = `<article class="artifact" style="--accent:var(--faint)"><h3>没有匹配项</h3><p>换一个关键词试试，比如 b5、FIR、ground truth、scenario、Table 9。</p></article>`;
+  }
+}
+
+function renderFlashcards() {
+  const target = document.getElementById("flashcards");
+  target.innerHTML = flashcards.map((card, i) => `
+    <article class="flashcard">
+      <h3>${i + 1}. ${card.q}</h3>
+      <p class="answer">${card.a}</p>
+      <button class="icon-button" type="button" aria-expanded="false">显示答案</button>
+    </article>
+  `).join("");
+  target.querySelectorAll("button").forEach(button => {
+    button.addEventListener("click", () => {
+      const card = button.closest(".flashcard");
+      const shown = card.classList.toggle("revealed");
+      button.textContent = shown ? "收起答案" : "显示答案";
+      button.setAttribute("aria-expanded", shown ? "true" : "false");
+    });
+  });
+}
+
+document.querySelectorAll(".segmented button").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".segmented button").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+    renderArtifacts();
+  });
+});
+document.getElementById("artifactSearch").addEventListener("input", renderArtifacts);
+
+renderAxes();
+renderArtifacts();
+renderFlashcards();
+</script>
+</body>
+</html>
