@@ -1,0 +1,44 @@
+% =====================================================================
+% Section 4: Benchmark  (~half page)
+% Source to compress: paper/sections/5-Bench.tex
+% Full schema table + ground-truth equation + method table -> Appendices C, D.
+% =====================================================================
+
+\section{Evaluation Harness}
+\label{sec:bench}
+
+% TODO: 1 paragraph — evaluation gap.
+%   HELM / AgentBench / SWE-bench measure open-ended LLM reasoning.
+%   TGB / OGB measure structural prediction quality.
+%   Neither measures whether an LLM agent that consumes structured
+%   time-series evidence emits supervisory decisions a regulator
+%   would accept. \benchname{} closes that gap.
+
+% TODO: 1 compressed schema table — 3 columns only
+%   (ID, what it tests, primary metric). Defer full schema to Appendix C.
+%
+% Six axes:
+%   b1_forecast    — temporal graph prediction quality
+%   b2_warning     — streaming anomaly detection
+%   b3_calibration — predictive uncertainty quality
+%   b4_stress      — what-if scenario fidelity
+%   b5_decision    — supervisory ticket quality   <-- headline for this paper
+%   b6_robustness  — data quality sensitivity
+
+% TODO: 1 paragraph — regulator-aligned absolute-loss ground truth.
+%   Prior systemic-risk evals rank by fractional weight change, which
+%   produces a ground-truth pool dominated by small protocols.
+%   We rank by absolute loss; ~283 protocols per week in the pool;
+%   fix \pi = 0.05 and lookahead W = 4 weeks throughout.
+%   Full equation goes to Appendix C.
+
+% TODO: 1 paragraph — 8 reference methods.
+%   Two baselines (persistence+rules, snapshot LLM), one learned GNN
+%   (EvolveGCN), and five FM variants spanning FM-only, FM+rules,
+%   FM+LLM, FM+LLM+gate. Full table in Appendix D.
+%   Adding a 9th method = one-file change.
+
+% TODO: 1 sentence — reporting + reproducibility.
+%   Frozen 2025 test split; harness fixes seeds, snapshots library
+%   versions, emits SHA-256 hashes; full leaderboard runs in
+%   ~4 GPU-hours + ~\$10 LLM API spend on a single RTX 4090.

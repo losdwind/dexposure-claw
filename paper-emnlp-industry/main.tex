@@ -1,0 +1,117 @@
+% =====================================================================
+%  EMNLP 2026 Industry Track submission
+%  Skeleton — content TODOs in each section file.
+%  Folder: paper-emnlp-industry/  (parallel to paper/, does not modify it)
+%
+%  Compile:
+%    1) Download acl_latex.sty from https://github.com/acl-org/acl-style-files
+%       and drop it into this folder (also: acl_natbib.bst).
+%    2) latexmk -pdf main.tex
+%
+%  Submission policy notes:
+%    - 6 pages MAX of content (refs / Limitations / Ethics / Appendix
+%      do NOT count toward the page budget).
+%    - Double-blind: keep \aclfinalcopy commented out for submission.
+%    - Must include a "Limitations" section (desk-reject otherwise).
+%    - System trade names that reveal identity must be replaced with
+%      neutral placeholders for the submission version.
+% =====================================================================
+
+\documentclass[11pt]{article}
+
+% --- ACL 2026 style (download separately, see header) ---
+\usepackage[review]{acl}   % "review" = anonymous; remove for camera-ready
+
+% --- Standard packages we already used in TKDE version ---
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{enumitem}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+% --- Anonymised system / artifact names for submission ---
+% Restore real names in camera-ready by flipping the booleans below.
+\newcommand{\sysname}{Claw-System}        % was: DeXposure-Claw
+\newcommand{\fmname}{Forecast-FM}         % was: DeXposure-FM
+\newcommand{\benchname}{Decision-Bench}   % was: DeXposure-Bench
+\newcommand{\corpusname}{Exposure-Corpus} % was: DeXposure dataset
+
+% =====================================================================
+\title{Forecast-Grounded LLM Agents for Financial-Network Supervision:\\
+A Deployed Pipeline, Benchmark, and Operating-Point Audit}
+
+% Anonymous author block for submission.
+\author{Anonymous Submission \\
+        EMNLP 2026 Industry Track}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\begin{abstract}
+General-purpose LLM agents asked to recommend financial-risk
+interventions from raw on-chain data tend to hallucinate severity and
+over-trigger high-stakes actions. We describe a deployed LLM-agent
+pipeline for decentralised-finance supervision in which the LLM
+reasons not over raw transactions but over \emph{structured forecasted
+evidence}: a graph time-series forecaster produces predicted exposure
+networks, deterministic monitors and stress scenarios convert them
+into a typed evidence bundle, and the LLM emits supervisory tickets
+with rationales. Two safety gates---a data-health gate and a
+confidence gate---determine when intervention-level tickets are
+allowed; every emitted ticket carries the evidence bundle and
+rationale that produced it.
+We release an evaluation harness that scores such pipelines on six
+axes, including ticket F1 against a regulator-aligned absolute-loss
+ground truth, LLM-as-judge explanation quality, and a
+false-intervention rate. With eight reference implementations on five
+years of weekly DeFi exposure graphs, the full LLM-agent stack raises
+ticket F1 from $0.0076$ to $0.0233$ (\textbf{$+208\%$}) and judge
+score from $2.03$ to $2.69/5$ (\textbf{$+33\%$}), while making the
+resulting false-intervention cost (FIR$\approx 0.44$ vs $0$ for rules)
+visible. We characterise the system as a recall--explanation Pareto
+option for supervisory deployment, not a uniform replacement for
+conservative rules, and release ticket-level audit logs.
+\end{abstract}
+
+% =====================================================================
+\input{sections/1-intro}
+\input{sections/2-related}
+\input{sections/3-pipeline}
+\input{sections/4-bench}
+\input{sections/5-results}
+\input{sections/6-lessons}
+\input{sections/7-conclusion}
+
+% --- Required by EMNLP / ARR; does NOT count toward 6-page budget ---
+\input{sections/8-limitations}
+\input{sections/9-ethics}
+
+% =====================================================================
+\bibliographystyle{acl_natbib}
+\bibliography{references}
+
+% =====================================================================
+\appendix
+\input{sections/A-fm-notation}
+\input{sections/B-pipeline-math}
+\input{sections/C-bench-details}
+\input{sections/D-reference-methods}
+\input{sections/E-full-tables}
+
+\end{document}

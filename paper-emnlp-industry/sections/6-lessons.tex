@@ -1,0 +1,35 @@
+% =====================================================================
+% Section 6: Deployment Lessons  (~half page)
+% NEW SECTION — does not exist in the TKDE version. This is the
+% section that Industry Track reviewers want most.
+% =====================================================================
+
+\section{Deployment Lessons}
+\label{sec:lessons}
+
+% TODO: 4 short, named lessons. Each is a single paragraph led by a
+% bold tag. Keep each paragraph ≤ 4 sentences.
+%
+%   \textbf{L1. Grounding $\ne$ correctness.} Grounding score 1.000
+%   means the LLM cites real evidence fields, not that its severity
+%   recommendation is right. Our LLM variants over-reach on severity
+%   even when their citations are perfect; the FIR=0.448 cost is paid
+%   here, not at the citation level.
+%
+%   \textbf{L2. Audit logs are a design artefact, not an output.}
+%   Every emitted ticket carries the prediction, monitor scores,
+%   scenario evidence, and rationale that produced it. We release
+%   ticket-level audit logs so downstream operators can recompute
+%   their own operating point without re-running the pipeline.
+%
+%   \textbf{L3. Safety gates are reserves, not always-on filters.}
+%   On clean 2025 data the data-health gate is dormant; under
+%   degraded data it suppresses up to 60% of interventions that
+%   would otherwise produce false alarms. This is what makes the
+%   system safe to leave running unattended between supervisor
+%   reviews.
+%
+%   \textbf{L4. Academic-budget cadence.} A full weekly run of the
+%   pipeline fits a single RTX~4090 plus ~\$10 of LLM API spend.
+%   This is what makes the system actually deployable in an
+%   academic-supervisory setting, not just in an industrial bank.

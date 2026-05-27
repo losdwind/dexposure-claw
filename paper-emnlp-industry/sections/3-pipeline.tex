@@ -1,0 +1,49 @@
+% =====================================================================
+% Section 3: Deployed Pipeline  (full page including Figure 1)
+% Sources to compress: paper/sections/3-Pre.tex + paper/sections/4-Alg.tex
+% Equations and full Algorithm 1 go to Appendix A + B.
+% =====================================================================
+
+\section{Deployed Pipeline}
+\label{sec:pipeline}
+
+% TODO: 1-sentence framing ("\sysname{} is a four-layer pipeline...")
+% then Figure 1 (reuse paper/figures/fig1_system_overview.tex,
+% rebuild with anonymised system name).
+
+% \begin{figure*}[t]
+%   \centering
+%   \resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview}}
+%   \caption{The four-layer pipeline. ...}
+%   \label{fig:system}
+% \end{figure*}
+
+\subsection{Interface to the Forecaster}
+\label{ssec:fm-interface}
+% TODO: 1 paragraph. Treat the FM as a black-box primitive
+%   \mathcal{P}_{t,h} = \fmname.Forecast(G_t, X_t, h).
+% Defer the predicted-graph construction maths to Appendix A.
+
+\subsection{Structured Evidence: Monitor + Scenario}
+\label{ssec:evidence}
+% TODO: 1 paragraph summarising the 5 monitoring functionals (N1..N5)
+%   + the 5 stress scenarios (S1..S5) as one typed evidence bundle.
+% Full definitions and the CVaR aggregation go to Appendix B.
+
+\subsection{LLM Decision Layer}
+\label{ssec:llm-decision}
+% TODO: 2 short paragraphs (this is the NLP-relevant section):
+%   (a) Input contract: typed evidence-bundle JSON (alerts with
+%       attribution top-K, scenario CVaR summary, data-health score).
+%   (b) Output contract: ticket = {severity action, target set,
+%       rationale, citation back to evidence fields}.
+%       Self-consistency probe across 3 deterministic calls.
+
+\subsection{Safety Gates}
+\label{ssec:gates}
+% TODO: 1 paragraph + bullet list of the 4 playbook actions
+%   (Monitor / Investigate / Recommend-Reduce / Contingency).
+% Emphasise: intervention-level actions are only allowed when the
+% data-health gate AND the confidence gate both pass. Otherwise the
+% system enters "safe mode" and emits monitoring-only tickets.
+% Every emitted ticket carries the evidence bundle that produced it.

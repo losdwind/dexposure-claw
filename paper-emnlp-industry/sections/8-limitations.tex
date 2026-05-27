@@ -1,0 +1,37 @@
+% =====================================================================
+% Section 8: Limitations  (REQUIRED by EMNLP/ARR; outside page budget)
+% Source: paper/sections/7-Limitations.tex (light adaptation)
+% =====================================================================
+
+\section*{Limitations}
+\label{sec:limitations}
+
+% TODO: Keep the three limitations from the TKDE version but reframe
+% phrasing for an NLP-industry reader. Each is one paragraph.
+%
+%   \paragraph{Single domain.} All results are on weekly DeFi
+%   exposure graphs (4{,}300 protocols, 24{,}300 tokens, 43.7M
+%   exposure entries, 283 weekly snapshots, 2020--2025). Whether the
+%   same FM+LLM+gate template transfers to NFT lending, perpetual
+%   derivatives, or cross-chain bridge networks is untested and will
+%   require domain-specific re-calibration of the conformal split and
+%   the stressed-set percentile $\pi$.
+%
+%   \paragraph{Weekly cadence.} The pipeline runs at weekly
+%   granularity. Real DeFi shocks unfold within hours; a production
+%   deployment would need sub-hourly snapshots and re-evaluation of
+%   conformal calibration on the resulting denser time series. The
+%   historical 4--5 week lead times reported here should be read as
+%   "how early the weekly monitor turns", not as end-to-end alert
+%   latency.
+%
+%   \paragraph{Offline LLM-judge evaluation.} The explanation-quality
+%   axis uses Claude Opus 4.7 as a single judge; we have not yet run
+%   the multi-judge / human-judge calibration that AgentBench-style
+%   evaluations recommend. The ticket-precision axis scores against
+%   an absolute-loss ground truth, which captures supervisory
+%   relevance but not the downstream effect of supervisory action
+%   (whether the recommended risk reduction would actually have
+%   averted contagion). A controlled live evaluation with a
+%   regulator in the loop remains the primary direction the bench
+%   approximates but cannot replace.

@@ -1,0 +1,52 @@
+% =====================================================================
+% Section 5: Empirical Results  (~1.5 pages)
+% Source to compress: paper/sections/6-Exp.tex
+% Keep: 1 headline result table, 1 layer-wise figure, 1 ablation Panel A table.
+% Move to Appendix E: per-horizon b1, per-scenario b4, per-regime b6,
+%                     per-budget b2, A1 isolation, Panels B + C of ablation.
+% =====================================================================
+
+\section{Empirical Results}
+\label{sec:results}
+
+% TODO: 1 short framing paragraph.
+%   "We use \benchname{} to evaluate whether routing an LLM agent
+%   through structured forecasted evidence produces deployable
+%   supervisory tickets. Three questions: (i) is the FM signal useful
+%   beyond persistence? (ii) does the LLM decision layer improve
+%   tickets once precision, recall, explanations, and false
+%   interventions are measured together? (iii) what do the safety
+%   gates buy?"
+
+% --- Headline table: consolidated decision-quality results ---------
+% Replace TKDE's separate T1 + T2 with a single table where each row
+% is a method and columns are {F1, judge, grounding, FIR, safe-mode
+% rate, cost-adjusted score}. Reuse numbers from
+% paper/sections/T1-TaskI_Summary.tex + T2-MethodComparison.tex.
+%
+% \input{tables/headline-results.tex}
+
+\subsection{Layer-Wise Contribution}
+\label{ssec:layerwise}
+% TODO: Figure 2 (reuse paper/figures/fig4_method_comparison) +
+%   3 short paragraphs:
+%
+%   - "Persistence+rules is the precision baseline (P=0.720, FIR=0)."
+%   - "FM+LLM triples recall to 0.012 at FIR=0.448; the failure mode
+%      is over-reaching to high-severity actions when monitor
+%      evidence is weak, NOT hallucination (grounding score = 1.000)."
+%   - "FM and LLM are additive, non-substitutable on F1
+%      (+32% from FM, +27% from LLM swap). Safety gate trades 3% F1
+%      for +0.21 judge score."
+
+\subsection{Ablation}
+\label{ssec:ablation}
+% TODO: 1 compressed ablation table — Panel A only (clean conditions).
+%   2 short paragraphs:
+%
+%   - "Confidence gate (A2) is load-bearing: removing it raises FIR
+%      from 0.000 to 0.429. Scenario engine (A3) is load-bearing for
+%      target extraction: skipping it collapses precision to 0.000."
+%   - "Data-health gate (A1) and multi-horizon diversity (A6) are
+%      dormant on clean data but activate as reserves under degraded
+%      data / crisis windows; per-regime audits in Appendix E."
