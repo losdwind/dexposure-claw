@@ -1,16 +1,29 @@
 # DeXposure-Claw
 
-DeXposure-Claw is an open-source DeFi risk-monitoring agent project. It combines
-the DeXposure-FM graph time-series foundation model, paper reproduction code,
-and a small MCP-compatible agent extension named Claw.
+| [**Researcher README**](#researcher-path) | [**Agent User README**](#agent-user-path) |
+| --- | --- |
+| Reproduce the paper, inspect DeXposure-Bench, and rerun tables and figures. | Configure Claude Code, Hermes, Codex, or another MCP-compatible client. |
 
-The project is useful if you want to:
+DeXposure-Claw is an open-source DeFi risk-monitoring agent project. It is the
+deployable agent instantiation of a forecast-grounded regulatory decision
+framework for DeFi exposure graphs.
 
-- inspect forecast-driven DeFi exposure risk workflows;
-- reproduce DeXposure-Bench paper experiments;
-- connect a DeFi risk benchmark catalog to agent runtimes such as Claude Code,
-  OpenAI Codex, Hermes, or another MCP client;
-- study how graph forecasts can be turned into supervisory-style risk tickets.
+## What This Repository Contains
+
+This repository contains three connected artifacts:
+
+- **Framework:** a forecast--measure--decide--gate decision architecture that
+  turns graph forecasts into auditable supervisory risk tickets.
+- **Benchmark:** **DeXposure-Bench**, a six-axis evaluation suite for temporal
+  forecasting, early warning, calibration, stress testing, decision quality, and
+  robustness.
+- **Agent:** **DeXposure-Claw**, a conservative MCP-compatible package that
+  exposes health checks, install snippets, and the benchmark catalog to agent
+  runtimes.
+
+The Claw package is intentionally conservative today. The MCP server currently
+lists benchmark metadata and runtime setup information; it does not yet run the
+full benchmark suite directly through MCP.
 
 ## Financial Safety
 
@@ -29,20 +42,84 @@ Known limitations:
 - Benchmark performance does not guarantee live-market performance.
 - Regulatory, accounting, and compliance obligations are outside the model scope.
 
-## Project Status
+## Researcher Path
 
-This repository currently has two layers:
+Use this path if you are reviewing the paper, reproducing tables and figures, or
+auditing the DeXposure-Bench evaluation harness.
 
-- **Research layer:** paper source, benchmark code, data snapshots, checkpoints,
-  and experiment runners.
-- **Agent layer:** the `dexposure-claw` package, which exposes installation
-  helpers, health checks, and the DeXposure-Bench catalog through MCP.
+Useful entry points:
 
-The Claw package is intentionally conservative today. The MCP server currently
-lists benchmark metadata and runtime setup information; it does not yet run the
-full benchmark suite directly through MCP.
+- Paper source: [`paper/DeXposure-Agent.tex`](paper/DeXposure-Agent.tex)
+- Compiled paper: [`paper/DeXposure-Agent.pdf`](paper/DeXposure-Agent.pdf)
+- Experiment SOP: [`paper/CLAUDE.md`](paper/CLAUDE.md)
+- Benchmark runners: [`paper/experiments/`](paper/experiments/)
 
-## Quick Start
+### Key Paper Results
+
+The main claim is not that the foundation model wins every point-forecasting
+metric. The paper evaluates whether forecast-grounded decision-making improves a
+deployable supervisory agent under a benchmark that exposes costs as well as
+benefits.
+
+- End-to-end decision quality: DeXposure-Claw improves ticket F1 from `0.0076`
+  to `0.0233` against the persistence+rules baseline (`+208%`).
+- Explanation quality: LLM-as-judge score improves from `2.03/5` for pure LLM
+  to `2.69/5` for gated FM+LLM (`+33%`).
+- Calibration: prediction-interval coverage is `0.913` against a `0.90` target,
+  with ECE `0.013`.
+- Deployment caveat: FM+LLM variants improve recall and explanations, but expose
+  a false-intervention-rate trade-off that is measured explicitly by the
+  benchmark and ablations.
+
+### Reproducing The Paper
+
+The paper workflow is more demanding than the Claw health check.
+
+Prerequisites:
+
+- Python 3.12.9 for the root project environment
+- `uv` for dependency management
+- Git LFS data and checkpoints
+- CUDA-capable GPU for full benchmark reproduction
+
+Basic flow:
+
+```bash
+git lfs pull
+uv sync
+uv run pytest paper/tests
+uv run python paper/experiments/run_all.py
+```
+
+The shared `data/`, `checkpoints/`, and `lib/` directories are referenced via
+relative paths from the repository root, so run commands from the repository
+root. See [`paper/CLAUDE.md`](paper/CLAUDE.md) for GPU server access, sync flow,
+benchmark runners, logging, checkpoints, and LLM evaluation notes.
+
+### DeXposure-Bench Tasks
+
+The benchmark catalog uses readable labels with explicit IDs:
+
+| ID | Label |
+| --- | --- |
+| `b1_forecast` | B1 Forecast / Temporal risk forecasting |
+| `b2_warning` | B2 Warning / Streaming early warning |
+| `b3_calibration` | B3 Calibration / Predictive uncertainty |
+| `b4_stress` | B4 Stress / What-if scenario fidelity |
+| `b5_decision` | B5 Decision / Supervisory ticket quality |
+| `b6_robustness` | B6 Robustness / Data-quality sensitivity |
+
+### Data And Weights
+
+The repository includes metadata, sample graph snapshots, and released model
+checkpoint files. Some large files are managed with Git LFS.
+
+The released DeXposure-FM checkpoint README is
+[`checkpoints/dexposure-fm-release/README.md`](checkpoints/dexposure-fm-release/README.md).
+It documents model horizons, input features, training periods, and reported
+forecast metrics.
+
+## Agent User Path
 
 Use this path if you only want to verify that the agent extension starts.
 
@@ -100,19 +177,6 @@ The current MCP tools are:
 | `dexposure_install_snippet` | Print install snippets for supported runtimes. |
 | `dexposure_list_benchmarks` | List DeXposure-Bench IDs and readable names. |
 
-## DeXposure-Bench Tasks
-
-The benchmark catalog uses readable labels with explicit IDs:
-
-| ID | Label |
-| --- | --- |
-| `b1_forecast` | B1 Forecast / Temporal risk forecasting |
-| `b2_warning` | B2 Warning / Streaming early warning |
-| `b3_calibration` | B3 Calibration / Predictive uncertainty |
-| `b4_stress` | B4 Stress / What-if scenario fidelity |
-| `b5_decision` | B5 Decision / Supervisory ticket quality |
-| `b6_robustness` | B6 Robustness / Data-quality sensitivity |
-
 ## Repository Layout
 
 - [`paper/`](paper/) -- paper source, experiment code, benchmark scripts, tables,
@@ -124,40 +188,6 @@ The benchmark catalog uses readable labels with explicit IDs:
   trained FM weights for h1, h4, and h8-h12 forecasts.
 - [`lib/`](lib/) -- GraphPFN and LiMiX source used by the active FM predictor.
 - [`docs/`](docs/) -- additional project notes and risk-monitoring references.
-
-## Reproducing The Paper
-
-The paper workflow is more demanding than the Claw health check.
-
-Prerequisites:
-
-- Python 3.12.9 for the root project environment
-- `uv` for dependency management
-- Git LFS data and checkpoints
-- CUDA-capable GPU for full benchmark reproduction
-
-Basic flow:
-
-```bash
-uv sync
-python -m pytest paper/tests
-python paper/experiments/run_all.py
-```
-
-See [`paper/CLAUDE.md`](paper/CLAUDE.md) for the experiment SOP, including GPU
-server access, sync flow, benchmark runners, logging, checkpoints, and LLM eval.
-The shared `data/`, `checkpoints/`, and `lib/` directories are referenced via
-relative paths from the repo root, so run commands from the repository root.
-
-## Data And Weights
-
-The repository includes metadata, sample graph snapshots, and released model
-checkpoint files. Some large files are managed with Git LFS.
-
-The released DeXposure-FM checkpoint README is
-[`checkpoints/dexposure-fm-release/README.md`](checkpoints/dexposure-fm-release/README.md).
-It documents model horizons, input features, training periods, and reported
-forecast metrics.
 
 ## Development
 
@@ -173,7 +203,7 @@ For root paper development:
 
 ```bash
 uv sync
-python -m pytest paper/tests
+uv run pytest paper/tests
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution expectations.
