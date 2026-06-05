@@ -1,16 +1,64 @@
-% =====================================================================
-% Appendix C: Benchmark details
-% Source: paper/sections/5-Bench.tex
-% =====================================================================
-
 \section{Benchmark Details}
 \label{app:bench-details}
 
-% TODO: Move from paper/sections/5-Bench.tex:
-%   - Full schema table (tab:bench-schema) with all 4 columns
-%   - Full dataset + split table (tab:bench-split)
-%   - Ground-truth equation (Eq. \ref{eq:stressed}) with discussion
-%     of why absolute loss vs fractional change
-%   - Reporting protocol paragraph
-%   - Positioning table vs OGB / TGB / HELM / SWE-bench / AgentBench
-%   - Reproducibility / extensibility paragraph
+\subsection{Six-axis schema}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+ID                       & Capability tested                & Primary metrics \\
+\midrule
+\texttt{b1\_forecast}    & Temporal graph prediction        & PageRank/HHI/Gini MAE, trend consistency, Spearman; per $h\!\in\!\{1,4,8,12\}$ \\
+\texttt{b2\_warning}     & Streaming anomaly detection      & Precision, recall, F1, lead time, alert stability; per event $\times$ budget \\
+\texttt{b3\_calibration} & Predictive uncertainty           & PI coverage at $0.90$ target, PI width, ECE, CRPS \\
+\texttt{b4\_stress}      & What-if scenario fidelity        & Loss MAE, distressed-count MAE, propagation depth MAE, target overlap@$k$ \\
+\texttt{b5\_decision}    & Supervisory ticket quality       & Precision, recall@$k$, F1, target stability, judge score, FIR \\
+\texttt{b6\_robustness}  & Data quality sensitivity         & Per-benchmark metrics under 5 degradation regimes; relative degradation \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+The six axes are chosen to be (i)~\emph{non-overlapping}---a system
+can excel at \texttt{b1} while failing \texttt{b5};
+(ii)~\emph{decomposable along the four-layer framework}, so that
+ablations on the predictor layer (\texttt{b1}, \texttt{b3},
+\texttt{b6}), monitor layer (\texttt{b2}), scenario layer
+(\texttt{b4}), and decision layer (\texttt{b5}) can be reported
+independently; and (iii)~\emph{individually publishable}, so that
+downstream work may extend a single axis without re-running the
+whole suite.
+
+\subsection{Dataset split}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}llrX@{}}
+\toprule
+Split      & Period             & Weeks       & Usage \\
+\midrule
+Train      & 2020-03--2024-06   & $\sim$222   & Forecaster training \\
+Validation & 2024-07--2024-12   & $\sim$26    & Conformal calibration, threshold tuning \\
+Test       & 2025-01--2025-08   & $\sim$33    & Frozen leaderboard \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Ground-truth equation}
+With $w_t(v)\!=\!\sum_{e\ni v}w_t(e)$ the total weight incident on
+$v$, the regulator-aligned stressed set at horizon $h$ is
+\begin{equation}
+\Delta_t^h(v)\!=\!w_t(v)\!-\!w_{t+h}(v),\quad
+\mathcal{S}_t^h \!=\! \mathrm{top}_{\pi}\bigl\{ v : w_t(v)\!>\!0,\;
+                                              \Delta_t^h(v)\!>\!0 \bigr\},
+\label{eq:stressed-app}
+\end{equation}
+with $\pi\!=\!0.05$ and lookahead window $W\!=\!4$~weeks. This is the
+single ground-truth definition used by \texttt{b2}, \texttt{b5}, and
+the LLM-decision evaluation pipeline.
+
+\subsection{Reporting protocol}
+A submission produces one JSON file per
+\{benchmark,~method\} pair following the harness schema, plus a
+single \texttt{results.json} aggregating the suite. The full
+leaderboard requires \texttt{b1}, \texttt{b3}, \texttt{b5},
+\texttt{b6}; \texttt{b2} and \texttt{b4} are required only for
+systems that implement a monitor or scenario layer respectively. The
+harness fixes random seeds, snapshots library versions, and emits
+SHA-256 hashes of all checkpoint files.

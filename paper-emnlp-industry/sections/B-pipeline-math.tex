@@ -1,24 +1,108 @@
-% =====================================================================
-% Appendix B: Pipeline mathematics  (full equations + Algorithm 1)
-% Source: paper/sections/4-Alg.tex
-% =====================================================================
-
 \section{Pipeline Mathematics}
 \label{app:pipeline-math}
 
-% TODO: Move from paper/sections/4-Alg.tex:
-%   - Equation 1 (forecast primitive)
-%   - Equation 2-3 (predicted graph construction with \pi_min)
-%   - Equation 4 (data-health score DH_t + safe-mode indicator)
-%   - Monitoring metric definitions table (N1..N5)
-%   - Equation 5 (alert trigger with rolling z-score)
-%   - Equation 6 (uncertainty-aware alert confidence)
-%   - Scenario table (S1..S5)
-%   - Equation 7 (per-scenario loss)
-%   - Equation 8 (CVaR aggregation)
-%   - Equation 9 (feasibility constraint)
-%   - Equation 10 (ticket score)
-%   - Algorithm 1 (full DeXposure-Claw epoch pseudocode)
-%
-% Goal: an independent reader can re-implement the full pipeline from
-% this appendix alone.
+\subsection{Data-health gate}
+The data-health score combines four deterministic checks of the
+incoming snapshot:
+\begin{equation}
+DH_t = \mathrm{mean}\bigl(\mathrm{fresh}_t,\;\mathrm{miss}_t,\;
+                          \mathrm{topo}_t,\;\mathrm{disc}_t\bigr)\in[0,1].
+\label{eq:dh}
+\end{equation}
+Safe mode is triggered when $DH_t\!<\!\tau_{\mathrm{data}}\!=\!0.7$:
+monitor alerts are still emitted but intervention-type tickets are
+suppressed.
+
+\subsection{Monitor metrics}
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+ID & Metric                & Definition \\
+\midrule
+N1 & Systemic Importance  & $\max_{p\in V} \mathrm{PageRank}(\widehat{G}_{t+h})_p$ \\
+N2 & HHI Concentration    & $\sum_p (d_p / \sum_q d_q)^2$, $d_p$ weighted out-degree \\
+N3 & Network Density      & $|E_{t+h}| / |V|(|V|-1)$ \\
+N4 & PageRank Gini        & $\mathrm{Gini}(\{\mathrm{PR}_p\}_{p\in V})$ \\
+N5 & Degree Gini          & $\mathrm{Gini}(\{d_p\}_{p\in V})$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+PageRank uses power iteration with damping $0.85$ and $10$
+iterations. An alert fires when
+$|N^{(j)}_{t,h}\!-\!\mu^{(j)}_t|/\max(\sigma^{(j)}_t,\epsilon)\!>\!z$
+with $z\!=\!2$, $L\!=\!26$ week rolling baseline,
+$\epsilon\!=\!10^{-8}$.
+
+\subsection{Uncertainty-aware alert confidence}
+With $\mathrm{CV}_{t,h}^{(j)}$ the coefficient of variation of metric
+$j$ across the $M$ MC samples (clamped to $[0,1]$),
+\begin{equation}
+C_t(a) := DH_t \cdot \frac{1}{1+\mathrm{CV}_{t,h}^{(j)}} \cdot
+                     \frac{1}{1+\ln(1+h)} \in [0,1].
+\label{eq:alert-conf}
+\end{equation}
+$C_t(a)$ decreases monotonically with lower data health, wider
+predictive spread, and longer horizons.
+
+\subsection{Scenario engine}
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+ID & Scenario               & Target                 & Shock \\
+\midrule
+S1 & Single protocol fail   & Highest-weight node    & 100\% \\
+S2 & Bridge cluster fail    & All bridge nodes       & 100\% \\
+S3 & Stablecoin de-peg      & All stablecoin nodes   & 50\%  \\
+S4 & Sector lending shock   & All lending nodes      & 30\%  \\
+S5 & Correlated stress      & Top-10 by weight       & 20\%  \\
+\bottomrule
+\end{tabular}
+\end{center}
+Per-scenario loss
+$L_{t,h}(s)=(\sum_e w_e(\widehat{G}_{t+h})-\sum_e w_e(\widehat{G}_{t+h}^s))/
+\sum_e w_e(\widehat{G}_{t+h})$; CVaR aggregation averages the worst
+$\lceil \lambda M\rceil$ MC-sample losses with $\lambda\!=\!0.5$.
+
+\subsection{Decision feasibility and ticket scoring}
+An intervention-level action $u$ is feasible iff
+\begin{equation}
+\bigl(\mathrm{SAFE\_MODE}_t\!=\!0\bigr)\;\wedge\;
+\bigl(\bar{C}_t\!\geq\!\tau_{\mathrm{conf}}\!=\!0.6\bigr),
+\end{equation}
+with $\bar{C}_t$ the mean alert confidence. Feasible tickets are
+scored as
+$\mathrm{Score}_t(u)\!=\!w_u\!\cdot\!\bar{C}_t\!\cdot\!\mathrm{Imp}_t$,
+where $w_u\!\in\!\{0.25,0.50,0.75,1.00\}$ is the playbook severity
+weight and $\mathrm{Imp}_t$ is the mean CVaR across scenarios
+(default 1.0 when no scenarios are available).
+
+\subsection{End-to-end procedure}
+\begin{algorithm}[h]
+\caption{\sysname{}: one decision epoch.}
+\label{alg:agent_loop}
+\small
+\begin{algorithmic}[1]
+\Require $(G_t,X_t)$; horizons $\mathcal{H}$; scenarios
+$\mathcal{S}_0$; thresholds
+$(\tau_{\mathrm{data}},\tau_{\mathrm{conf}},z,\pi_{\min})$; MC count $M$
+\Ensure Alerts $\mathcal{A}_t$; scenario summary $\mathcal{R}_t$;
+tickets $\mathcal{D}_t$
+\State $DH_t\!\gets\!\mathrm{DataHealth}(G_t,X_t)$;
+$\mathrm{SAFE\_MODE}_t\!\gets\!\mathbb{I}\{DH_t\!<\!\tau_{\mathrm{data}}\}$
+\ForAll{$h\!\in\!\mathcal{H}$}
+  \State $\mathcal{P}_{t,h}\!\gets\!\text{\fmname.Forecast}(G_t,X_t,h)$
+  \State $\widehat{G}_{t+h}\!\gets\!\mathrm{BuildPredGraph}(\mathcal{P}_{t,h};\pi_{\min})$
+  \State $\{\widetilde{G}^{(m)}_{t+h}\}\!\gets\!\mathrm{MCSample}(\mathcal{P}_{t,h})$
+  \State Compute $\mathbf{N}_{t,h}\!=\!\Phi(\widehat{G}_{t+h},X_t)$,
+                       attach rolling stats, derive alerts
+                       $\mathcal{A}_{t,h}$ and confidences $C_t(\cdot)$
+  \ForAll{$s\!\in\!\mathcal{S}_0$}
+    \State Compute $L_{t,h}(s)$, $\widetilde{L}^{(m)}_{t,h}(s)$,
+                   $\mathrm{CVaR}_{0.5}(s,h)$
+  \EndFor
+\EndFor
+\State $\mathcal{D}_t\!\gets\!\mathrm{PlaybookDecision}(\mathcal{A}_t,
+                       \mathcal{R}_t,DH_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$
+\State \Return $(\mathcal{A}_t,\mathcal{R}_t,\mathcal{D}_t)$
+\end{algorithmic}
+\end{algorithm}

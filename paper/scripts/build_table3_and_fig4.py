@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build paper-ready Table 3 and Figure 4 from experiment outputs."""
+"""Build paper-ready Table 3 and Figure 4 from experiment outputs.
+
+If the cross-family re-judge aggregate exists, explanation-quality scores are
+reported under the Opus 4.8 judge used by the current paper.
+"""
 from __future__ import annotations
 
 import csv
@@ -49,6 +53,19 @@ def _load_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def _load_opus48_judge_scores() -> dict[str, float]:
+    path = RESULTS / "rejudge_aggregated.json"
+    if not path.exists():
+        return {}
+    data = _load_json(path)
+    return {
+        row["method"]: float(row["mean_quality"])
+        for row in data.get("rejudge_track_a", [])
+        if row.get("judge_model") == "claude-opus-4.8"
+        and row.get("mean_quality") is not None
+    }
+
+
 def _cost_adjusted(precision: float | None, fir: float | None) -> float | None:
     if precision is None or fir is None:
         return None
@@ -92,6 +109,7 @@ def build_rows() -> list[dict]:
     c0llm = llm_cmp["m6_fm_llm"]
     c0llm_gated = llm_cmp.get("m7_fm_llm_gated")
     c3 = llm_cmp["m2_snapshot_llm"]
+    opus48 = _load_opus48_judge_scores()
 
     rows = [
         {
@@ -99,6 +117,12 @@ def build_rows() -> list[dict]:
             "method_name": "Persist+Rules",
             "ticket_precision": _round_or_none(b5_c2.get("ticket_precision")),
             "audit_completeness": _round_or_none(b5_c2.get("audit_completeness")),
+            "ticket_f1": _round_or_none(
+                _ticket_f1(
+                    b5_c2.get("ticket_precision"),
+                    b5_c2.get("audit_completeness"),
+                )
+            ),
             "target_stability": _round_or_none(b5_c2.get("target_stability")),
             "severity_correlation": None,
             "false_intervention_rate": _round_or_none(b5_c2.get("false_intervention_rate")),
@@ -111,6 +135,12 @@ def build_rows() -> list[dict]:
             "method_name": "FM+Rules",
             "ticket_precision": _round_or_none(b5_c0.get("ticket_precision")),
             "audit_completeness": _round_or_none(b5_c0.get("audit_completeness")),
+            "ticket_f1": _round_or_none(
+                _ticket_f1(
+                    b5_c0.get("ticket_precision"),
+                    b5_c0.get("audit_completeness"),
+                )
+            ),
             "target_stability": _round_or_none(b5_c0.get("target_stability")),
             "severity_correlation": None,
             "false_intervention_rate": _round_or_none(b5_c0.get("false_intervention_rate")),
@@ -128,7 +158,10 @@ def build_rows() -> list[dict]:
             "false_intervention_rate": _round_or_none(c3.get("false_intervention_rate")),
             "grounding_score": _round_or_none(c3.get("grounding_score")),
             "consistency": _round_or_none(c3.get("consistency")),
-            "explanation_quality": _round_or_none(c3.get("explanation_quality"), ndigits=2),
+            "explanation_quality": _round_or_none(
+                opus48.get("m2_snapshot_llm", c3.get("explanation_quality")),
+                ndigits=2,
+            ),
         },
         {
             "method_id": "m6_fm_llm",
@@ -140,7 +173,10 @@ def build_rows() -> list[dict]:
             "false_intervention_rate": _round_or_none(c0llm.get("false_intervention_rate")),
             "grounding_score": _round_or_none(c0llm.get("grounding_score")),
             "consistency": _round_or_none(c0llm.get("consistency")),
-            "explanation_quality": _round_or_none(c0llm.get("explanation_quality"), ndigits=2),
+            "explanation_quality": _round_or_none(
+                opus48.get("m6_fm_llm", c0llm.get("explanation_quality")),
+                ndigits=2,
+            ),
         },
     ]
     if c0llm_gated is not None:
@@ -155,14 +191,19 @@ def build_rows() -> list[dict]:
             "grounding_score": _round_or_none(c0llm_gated.get("grounding_score")),
             "consistency": _round_or_none(c0llm_gated.get("consistency")),
             "explanation_quality": _round_or_none(
-                c0llm_gated.get("explanation_quality"), ndigits=2
+                opus48.get(
+                    "m7_fm_llm_gated",
+                    c0llm_gated.get("explanation_quality"),
+                ),
+                ndigits=2,
             ),
         })
 
     for row in rows:
-        row["ticket_f1"] = _round_or_none(
-            _ticket_f1(row["ticket_precision"], row["audit_completeness"])
-        )
+        if "ticket_f1" not in row:
+            row["ticket_f1"] = _round_or_none(
+                _ticket_f1(row["ticket_precision"], row["audit_completeness"])
+            )
         row["cost_adjusted_score"] = _round_or_none(
             _cost_adjusted(row["ticket_precision"], row["false_intervention_rate"])
         )
@@ -212,7 +253,7 @@ def write_table_files(rows: list[dict]) -> None:
             if v is None:
                 return "N/A"
             return f"{v:.{digs}f}"
-        explain_str = "N/A" if r["explanation_quality"] is None else f"{r['explanation_quality']:.1f}/5"
+        explain_str = "N/A" if r["explanation_quality"] is None else f"{r['explanation_quality']:.2f}/5"
         method_id_tex = r['method_id'].replace('_', r'\_')
         lines.append(
             f"\\texttt{{{method_id_tex}}} {r['method_name']} & "
@@ -236,7 +277,9 @@ def write_table_files(rows: list[dict]) -> None:
         "absolute values are small because each week's stressed pool "
         "$\\mathcal{S}_t^h$ contains $\\sim 283$ protocols while the agent "
         "emits $0.7$--$2$ tickets per week, so recall is budget-bounded by "
-        "construction. Higher Prec, Recall, F1, Stabil, Ground, Consist, "
+        "construction. Judge scores use Claude~Opus~4.8 when "
+        "\\texttt{rejudge\\_aggregated.json} is available. Higher Prec, "
+        "Recall, F1, Stabil, Ground, Consist, "
         "Explain, and CostAdj are better; lower FIR is better.}",
         "\\label{tab:task2_table3}",
         "\\vspace{2pt}",
@@ -341,8 +384,10 @@ def write_figure(rows: list[dict]) -> None:
     for idx, value in enumerate(judge_values):
         ax_judge.text(idx, value + 0.12, f"{value:.2f}", ha="center", va="bottom", fontsize=8)
     if len(judge_values) >= 3:
+        fm_judge_delta = judge_values[1] - judge_values[0]
+        gate_judge_delta = judge_values[2] - judge_values[1]
         ax_judge.annotate(
-            "+FM: +0.45",
+            f"+FM: {fm_judge_delta:+.2f}",
             xy=(1, judge_values[1] + 0.05),
             xytext=(0.5, 3.35),
             ha="center",
@@ -350,7 +395,7 @@ def write_figure(rows: list[dict]) -> None:
             arrowprops={"arrowstyle": "->", "color": "#555555", "linewidth": 0.9},
         )
         ax_judge.annotate(
-            "+Gate: +0.21",
+            f"+Gate: {gate_judge_delta:+.2f}",
             xy=(2, judge_values[2] + 0.05),
             xytext=(1.5, 3.85),
             ha="center",

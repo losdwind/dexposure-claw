@@ -55,7 +55,7 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk rely largely on static heuristics or general-purpose LLM reasoning, and lack a forecasting backbone for graph-structured exposure dynamics. We propose a forecast-grounded regulatory decision framework: forecast future exposure graphs with DeXposure-FM, measure network risk and scenario stress deterministically, translate the evidence into supervisory tickets, and gate intervention actions by data health and confidence. To evaluate this framework class, we introduce \emph{DeXposure-Bench}, a six-axis benchmark for FM\,+\,LLM decision pipelines on temporal exposure graphs, with regulator-aligned absolute-loss ground truth and eight reference method implementations. We instantiate the framework as \emph{DeXposure-Claw}, a deployable agentic system with ticket-level audit logs. On the frozen 2025 decision split, DeXposure-Claw raises ticket F1 from $0.0076$ (persistence\,+\,rules) to $0.0233$ (\textbf{$+208\%$}) and LLM-as-judge explanation quality from $2.03$ to $2.69/5$ (\textbf{$+33\%$}). The improvement is not free: FM\,+\,LLM variants improve recall and explanations at a non-trivial false-intervention cost ($\mathrm{FIR}\approx 0.44$) compared with rule-based baselines ($\mathrm{FIR}=0$). The benchmark therefore characterises DeXposure-Claw as a deployable Pareto option rather than a uniformly dominant replacement for conservative rules. We release the harness, dataset, reference implementations, and ticket-level audit logs to support extension.
+Decentralised finance (DeFi) has become a densely interconnected financial system in which credit exposures propagate through tokenised liabilities, making timely \emph{risk monitoring} and \emph{decision recommendation} essential for investors, protocol operators, and regulators. Existing agentic pipelines for DeFi risk rely largely on static heuristics or general-purpose LLM reasoning, and lack a forecasting backbone for graph-structured exposure dynamics. We propose a forecast-grounded regulatory decision framework: forecast future exposure graphs with DeXposure-FM, measure network risk and scenario stress deterministically, translate the evidence into supervisory tickets, and gate intervention actions by data health and confidence. To evaluate this framework class, we introduce \emph{DeXposure-Bench}, a six-axis benchmark for FM\,+\,LLM decision pipelines on temporal exposure graphs, with regulator-aligned absolute-loss ground truth and eight reference method implementations. We instantiate the framework as \emph{DeXposure-Claw}, a deployable agentic system with ticket-level audit logs. On the frozen 2025 decision split, DeXposure-Claw raises ticket F1 from $0.0076$ (persistence\,+\,rules) to $0.0233$ (\textbf{$+207\%$}) at a measurable false-intervention cost ($\mathrm{FIR}\approx 0.44$) compared with rule-based baselines ($\mathrm{FIR}=0$). A tier-above Claude~Opus~4.8 judge---with a cross-family panel of Gemini~2.5~Pro and GPT-5.5---confirms the headline ordering across judge families. Swapping the decision LLM for a tier-below Claude~Sonnet~4.6 \emph{strictly dominates} the Opus~4.7 baseline on every LLM-bearing axis: F1 rises further to $0.0288$, FIR collapses to $0.000$, judge quality reaches $2.65/5$, at $\sim$5$\times$ lower inference cost. The benchmark therefore characterises DeXposure-Claw as a deployable Pareto option under the headline Opus~4.7 configuration, with a strict improvement available under the cheaper Sonnet~4.6 decision LLM. We release the harness, dataset, reference implementations, and ticket-level audit logs to support extension.
 
 \end{abstract}
 
@@ -80,7 +80,7 @@ Agentic system, graph, time series, foundation model, decentralised finance, fin
 
 We presented a forecast-grounded regulatory decision framework for DeFi exposure networks, the benchmark needed to test it, and a deployable agentic instantiation. The framework casts supervision as a forecast--measure--decide--gate pipeline: predicted exposure graphs feed deterministic monitoring and scenario engines, decision policies turn evidence into supervisory tickets, and safety gates determine when intervention-level actions are allowed. \textsc{DeXposure-Bench} makes this framework testable through six evaluation axes, a regulator-aligned absolute-loss ground truth, and reference implementations covering persistence, EvolveGCN, rule engines, snapshot LLMs, and FM\,+\,LLM variants. \textsc{DeXposure-Claw} packages the same framework as an auditable agentic system.
 
-The main empirical lesson is not that every learned component dominates every conservative baseline. Rather, DeXposure-Claw moves the operating point: it raises ticket F1 from $0.0076$ to $0.0233$ ($+208\%$) and explanation quality from $2.03$ to $2.69/5$ ($+33\%$), while the benchmark makes the associated false-intervention cost visible. This is the role of the benchmark: it shows where the FM helps (trend, calibration, robustness), where persistence remains strong, where LLM decision improves recall and explanation, and where gates are required to keep deployment auditable. In this sense, the system is best read as a recall--explanation Pareto option for supervisory settings, not as a universal replacement for conservative rules.
+The main empirical lesson is not that every learned component dominates every conservative baseline. Rather, DeXposure-Claw moves the operating point: it raises ticket F1 from $0.0076$ to $0.0233$ ($+207\%$) under the headline Opus~4.7 decision LLM, and further to $0.0288$ ($+24\%$ on \texttt{m7}) under a tier-below Sonnet~4.6 decision LLM that simultaneously eliminates the false-intervention cost (FIR $0.437 \to 0.000$). The benchmark makes the associated trade-offs visible: it shows where the FM helps (trend, calibration, robustness), where persistence remains strong, where LLM decision improves recall and explanation, where gates are required to keep deployment auditable, and---under a cross-family judge panel (Claude Opus~4.8, Gemini~2.5~Pro, GPT-5.5)---which sub-claims survive a stronger judge and which (e.g., the gate's explanation-quality delta) shrink to a ceiling artefact of the earlier tier-below Haiku-4.5 judge. In this sense, the system is best read as a recall--explanation Pareto option under Opus~4.7, with strict dominance available under the cheaper Sonnet~4.6 decision LLM.
 
 \paragraph{Deployability characterisation}
 For deployment, the important result is that the operating trade-offs are measured rather than hidden. The FM\,+\,monitor\,+\,scenario pipeline runs within a weekly supervisory cadence on a single RTX~4090, and every emitted ticket carries the prediction, monitor scores, scenario evidence, and, when applicable, LLM rationale that produced it. The ablations identify which components are load-bearing in clean operation and which act as reserves under degraded data or crisis dynamics. We release these ticket-level audit logs with the harness so that downstream operators can repeat the same characterisation under their own data conditions.
@@ -113,6 +113,16 @@ methods. The main text aggregates these into a single qualitative
 finding (\S\ref{sec:exp}); this appendix retains the full
 audit artifact.
 \input{sections/A2-b4_stress_Detail.tex}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/fig8_b4_stress_fidelity}
+\caption{\texttt{b4\_stress} scenario fidelity computed from the
+per-method stress JSON artifacts in \texttt{paper/results}. FM variants
+closely track persistence on loss MAE and target overlap across scenarios,
+while EvolveGCN is visibly weaker on target overlap and on the S1/S5 loss
+cases.}
+\label{fig:b4_stress_fidelity}
+\end{figure}
 \clearpage
 
 \section{Per-regime \texttt{b6\_robustness} results}
@@ -159,6 +169,18 @@ fraction to $100\%$ in every regime and collapses FIR to $0$ by
 suppressing intervention tickets, while \emph{off} produces FIR up to
 $0.541$.
 \input{sections/A5-A1_isolated_Detail.tex}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/fig11_ablation_reserve}
+\caption{Reserve-mechanism ablations computed from the supplementary
+ablation artifacts in
+\texttt{paper/results/run\_20260517\_161248\_ablation\_gpu}. Left:
+strict data-health gating suppresses intervention-level tickets and
+collapses FIR under degraded data. Right: multi-horizon monitoring yields
+roughly four times as many crisis-window alerts as $h{=}4$ alone while
+preserving the same precision range.}
+\label{fig:ablation_reserve}
+\end{figure}
 \clearpage
 
 %\newpage

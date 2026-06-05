@@ -1,38 +1,42 @@
-% =====================================================================
-% Section 9: Ethics Statement  (outside page budget; required if
-% the work touches sensitive data / decisions — ours does)
-% =====================================================================
-
 \section*{Ethics Statement}
 \label{sec:ethics}
 
-% TODO: ~1/2 page covering:
-%
-%   \paragraph{Data provenance.} The exposure dataset is built from
-%   public on-chain measurements aggregated via DeFiLlama; no
-%   private user data or wallet-level personally-identifying
-%   information is used. Protocol-level aggregates are the unit of
-%   analysis.
-%
-%   \paragraph{Decision risk.} The system emits supervisory tickets,
-%   not automated trades or automated interventions. The high-stakes
-%   action types (\texttt{Recommend-Reduce}, \texttt{Contingency})
-%   are gated on a data-health score and a confidence score, and the
-%   pipeline emits a "safe mode" notice when either gate fails. We
-%   characterise the system as decision support for a human
-%   supervisor, not as an autonomous risk agent. The measured
-%   false-intervention rate (FIR$\approx 0.44$ for the FM+LLM
-%   variant) is reported in the headline results table so that
-%   downstream operators can weight the trade-off against their own
-%   risk tolerance.
-%
-%   \paragraph{LLM use disclosure.} Claude Opus 4.7 is used as
-%   (i) the decision-layer LLM, (ii) the LLM-as-judge for the
-%   explanation-quality axis. We do not claim that judge scores are
-%   independent of the decision LLM; this is part of the offline
-%   evaluation gap noted in the Limitations section.
-%
-%   \paragraph{Release.} Code, harness, eight reference
-%   implementations, and ticket-level audit logs will be released
-%   under a permissive open licence. The model checkpoints will be
-%   released subject to dataset-licence compatibility checks.
+\paragraph{Data provenance.}
+\corpusname{} is built from public on-chain measurements
+aggregated via DefiLlama~\citep{DefiLlama2026}. No private user data,
+wallet-level personally-identifying information, or off-chain
+identity data is used. Protocol-level aggregates are the unit of
+analysis throughout.
+
+\paragraph{Decision risk.}
+\sysname{} emits supervisory tickets, not automated trades or
+automated interventions. The high-severity action types
+(\texttt{Recommend-Reduce}, \texttt{Contingency}) are gated on a
+data-health score and a confidence score, and the pipeline emits a
+safe-mode notice when either gate fails. We characterise the system
+as decision support for a human supervisor, not as an autonomous
+risk agent. The measured false-intervention rate
+($\mathrm{FIR}\!\approx\!0.44$ for the \fmname$+$LLM variant) is
+reported in the headline results table so that downstream operators
+can weigh the trade-off against their own risk tolerance before
+deployment.
+
+\paragraph{LLM use disclosure.}
+The decision-layer LLM (\texttt{m2}, \texttt{m6}, \texttt{m7}) is
+Claude Opus~4.7 in the main configuration; Claude Sonnet~4.6 and
+Google Gemini~2.5~Pro are reported as decision-layer ablations.
+The LLM-as-judge for the explanation-quality axis is a
+three-model cross-family panel: Claude Opus~4.8 (within-family
+upgrade, strictly tier-above Opus~4.7), Google Gemini~2.5~Pro,
+and OpenAI GPT-5.5 (cross-family). All judges are run with
+reasoning effort set to \emph{minimal} so the comparison is
+controlled for thinking budget. Claude Haiku~4.5 from a prior
+run is reported in the appendix as a weak-judge baseline. Every
+model is accessed through the OpenRouter unified API at
+temperature~$0$.
+
+\paragraph{Release.}
+We will release the harness, the eight reference implementations,
+and the ticket-level audit logs under a permissive open licence.
+Model checkpoints will be released subject to dataset-licence
+compatibility checks.

@@ -1,37 +1,50 @@
-% =====================================================================
-% Section 8: Limitations  (REQUIRED by EMNLP/ARR; outside page budget)
-% Source: paper/sections/7-Limitations.tex (light adaptation)
-% =====================================================================
-
 \section*{Limitations}
 \label{sec:limitations}
 
-% TODO: Keep the three limitations from the TKDE version but reframe
-% phrasing for an NLP-industry reader. Each is one paragraph.
-%
-%   \paragraph{Single domain.} All results are on weekly DeFi
-%   exposure graphs (4{,}300 protocols, 24{,}300 tokens, 43.7M
-%   exposure entries, 283 weekly snapshots, 2020--2025). Whether the
-%   same FM+LLM+gate template transfers to NFT lending, perpetual
-%   derivatives, or cross-chain bridge networks is untested and will
-%   require domain-specific re-calibration of the conformal split and
-%   the stressed-set percentile $\pi$.
-%
-%   \paragraph{Weekly cadence.} The pipeline runs at weekly
-%   granularity. Real DeFi shocks unfold within hours; a production
-%   deployment would need sub-hourly snapshots and re-evaluation of
-%   conformal calibration on the resulting denser time series. The
-%   historical 4--5 week lead times reported here should be read as
-%   "how early the weekly monitor turns", not as end-to-end alert
-%   latency.
-%
-%   \paragraph{Offline LLM-judge evaluation.} The explanation-quality
-%   axis uses Claude Opus 4.7 as a single judge; we have not yet run
-%   the multi-judge / human-judge calibration that AgentBench-style
-%   evaluations recommend. The ticket-precision axis scores against
-%   an absolute-loss ground truth, which captures supervisory
-%   relevance but not the downstream effect of supervisory action
-%   (whether the recommended risk reduction would actually have
-%   averted contagion). A controlled live evaluation with a
-%   regulator in the loop remains the primary direction the bench
-%   approximates but cannot replace.
+\paragraph{Backtest, not field deployment.}
+All results come from a historical backtest over $283$ weekly
+snapshots of \corpusname{} (2020--2025). We have not run
+\sysname{} as a live weekly cron at a supervisory authority. The
+ticket-level audit logs we release come from the backtest. Field
+deployment lessons---operator behaviour, end-to-end latency under
+real data feeds, regulator-in-the-loop calibration---are out of
+scope for this paper and remain the most pressing future direction.
+
+\paragraph{Single domain.}
+The bench evaluates a single on-chain risk surface (DeFi
+inter-protocol credit exposure). Generalisation to NFT lending,
+perpetual derivatives, or cross-chain bridge networks is untested
+and will require domain-specific re-calibration of the conformal
+split and the stressed-set percentile $\pi$.
+
+\paragraph{Weekly resolution.}
+The pipeline operates at weekly granularity, but several DeFi shocks
+unfold within hours---Terra/Luna erased \$40B in under 48~hours. A
+sub-hourly production deployment would require denser snapshot
+ingestion and re-evaluation of conformal calibration on the
+resulting denser time series. The $4$--$5$ week lead times we
+report should be read as ``how early the weekly monitor turns'',
+not as end-to-end alert latency.
+
+\paragraph{Judge thinking-budget is held minimal.}
+The cross-family judge panel (Claude Opus~4.8, Google
+Gemini~2.5~Pro, OpenAI GPT-5.5) is run with reasoning effort set
+to \emph{minimal} so the comparison against the
+non-reasoning Anthropic baseline is apples-to-apples on
+intrinsic model capability rather than thinking budget. Default
+reasoning mode on Gemini~2.5~Pro and GPT-5.5 would change the
+reported scores; we treat the reasoning-on configuration as a
+distinct evaluation surface and leave it for a follow-up study.
+Practitioners deploying the judge at default reasoning settings
+should re-calibrate the score thresholds reported here. Human-judge
+calibration with practising supervisors remains the most pressing
+methodological extension.
+
+\paragraph{Offline decision evaluation.}
+\texttt{b5\_decision} scores tickets against a regulator-aligned
+absolute-loss ground truth, which captures supervisory targeting
+priority but not the downstream effect of supervisory action---whether
+the recommended risk reduction would actually have averted
+contagion. A controlled live evaluation with a regulator in the
+loop, which the bench approximates but cannot replace, remains the
+primary direction we plan to extend the harness in.

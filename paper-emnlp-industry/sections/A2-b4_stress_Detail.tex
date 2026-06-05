@@ -1,0 +1,48 @@
+% b4_stress: scenario detail across 5 stress scenarios x 4 methods.
+\begin{table*}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{\texttt{b4\_stress} per-scenario detail. Loss MAE in normalised
+units; Distress count MAE in protocols; target overlap@10 measured against
+the actual future graph. Best per scenario row in \textbf{bold}. The main
+pattern is conservative: FM variants roughly match the strong persistence
+baseline on loss and target-overlap metrics, while EvolveGCN is generally
+weaker on downstream what-if fidelity.}
+\label{tab:b4_detail}
+\begin{tabular}{l l c c c c}
+\toprule
+Scenario & Method & Loss MAE ($\downarrow$) & Distress MAE ($\downarrow$) & Prop.~Depth MAE ($\downarrow$) & Overlap@10 ($\uparrow$) \\
+\midrule
+\multirow{4}{*}{S1 (single protocol)}
+& \texttt{m1\_persistence} & 0.0668 & \textbf{200.3} & 0.897 & \textbf{0.314} \\
+& \texttt{m3\_evolvegcn}   & 0.1072 & 218.1 & 0.966 & 0.034 \\
+& \texttt{m4\_fm\_only}    & \textbf{0.0667} & 201.4 & 0.897 & \textbf{0.314} \\
+& \texttt{m5\_fm\_rules}   & \textbf{0.0667} & 201.6 & 0.897 & \textbf{0.314} \\
+\midrule
+\multirow{4}{*}{S2 (cross-protocol)}
+& \texttt{m1\_persistence} & \textbf{0.0150} & \textbf{27.3} & 0.000 & 0.521 \\
+& \texttt{m3\_evolvegcn}   & 0.0116 & 196.4 & 0.000 & 0.189 \\
+& \texttt{m4\_fm\_only}    & 0.0151 & 50.3 & 0.000 & \textbf{0.525} \\
+& \texttt{m5\_fm\_rules}   & 0.0151 & 52.1 & 0.000 & \textbf{0.525} \\
+\midrule
+\multirow{4}{*}{S3 (bridge)}
+& \texttt{m1\_persistence} & \textbf{0.0079} & 0.0 & 0.000 & 0.445 \\
+& \texttt{m3\_evolvegcn}   & 0.0156 & 0.0 & 0.000 & 0.269 \\
+& \texttt{m4\_fm\_only}    & 0.0080 & 0.0 & 0.000 & 0.445 \\
+& \texttt{m5\_fm\_rules}   & 0.0080 & 0.0 & 0.000 & 0.445 \\
+\midrule
+\multirow{4}{*}{S4 (stablecoin)}
+& \texttt{m1\_persistence} & 0.0100 & 0.0 & 0.034 & 0.536 \\
+& \texttt{m3\_evolvegcn}   & 0.0200 & 0.0 & 0.034 & 0.293 \\
+& \texttt{m4\_fm\_only}    & \textbf{0.0099} & 0.0 & 0.034 & 0.536 \\
+& \texttt{m5\_fm\_rules}   & \textbf{0.0099} & 0.0 & 0.034 & 0.536 \\
+\midrule
+\multirow{4}{*}{S5 (lending)}
+& \texttt{m1\_persistence} & 0.0100 & 0.0 & 0.000 & \textbf{0.602} \\
+& \texttt{m3\_evolvegcn}   & 0.0538 & 0.0 & 1.000 & 0.330 \\
+& \texttt{m4\_fm\_only}    & \textbf{0.0099} & 0.0 & 0.000 & \textbf{0.602} \\
+& \texttt{m5\_fm\_rules}   & \textbf{0.0099} & 0.0 & 0.000 & \textbf{0.602} \\
+\bottomrule
+\end{tabular}
+\end{table*}

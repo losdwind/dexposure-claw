@@ -86,9 +86,31 @@ Table~\ref{tab:task1_summary} reports the Task~I evidence ledger used in the mai
     \label{fig:task1_deployable_signal}
 \end{figure*}
 
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=0.94\textwidth]{figures/fig6_b1_horizon_diagnostics}
+    \caption{\texttt{b1\_forecast} all-horizon diagnostics computed from
+    \texttt{paper/results/run\_20260515\_pipeline\_full}. Persistence remains
+    competitive on PageRank MAE and rank correlation across horizons, while
+    the FM variants carry the trend-consistency signal that persistence cannot
+    express.}
+    \label{fig:b1_horizon_diagnostics}
+\end{figure*}
+
 \paragraph{Persistence is a deceptively strong point-metric baseline} On PageRank MAE, Gini MAE, and rank correlation, persistence matches or marginally beats the FM at every horizon (rank correlation $0.570$ vs $0.558$ at $h{=}4$; PR MAE $3.4$ vs $4.5$ in $10^{-5}$ units). Weekly DeFi exposure structure is heavily auto-correlated, so any predictor that returns the most recent graph captures the dominant source of variance ``for free''---the same phenomenon that makes seasonal-naive a strong baseline in classical forecasting. A new model must clear this bar before its other properties matter.
 
 \paragraph{FM gains are concentrated in trend and robustness, not in absolute error} The FM produces a non-trivial trend signal (trend consistency $0.525$--$0.632$ across horizons) while persistence is structurally pinned at $0$. Under data degradation (\texttt{b6\_robustness}, mean relative degradation $0.113$ vs $0.148$ for persistence), the FM drops $24\%$ less on average. These results support a narrower claim than pointwise superiority: the FM contributes direction, uncertainty, and robustness features that persistence does not provide, while persistence remains the better static point-metric baseline.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig7_b6_robustness_heatmap}
+    \caption{\texttt{b6\_robustness} relative degradation heatmap computed
+    from the per-regime JSON artifacts in \texttt{paper/results}. The
+    low-data regime is the dominant degradation channel; feature noise and
+    missing-feature perturbations leave persistence unchanged and only mildly
+    affect the FM variants.}
+    \label{fig:b6_robustness_heatmap}
+\end{figure}
 
 \paragraph{Calibration is strong; learned GNN transfer remains difficult} The FM achieves PI coverage $0.913$ against a $0.90$ target with ECE $0.013$ on \texttt{b3\_calibration}, both within the expected slack of split-conformal calibration. Persistence has no native uncertainty estimate and is omitted from this row. EvolveGCN is generally weaker than persistence and FM variants on the downstream metrics in the appendices, which we attribute to data efficiency: $222$ weekly training snapshots fall below the regime where it learns a useful structural prior, while the FM benefits from large-scale pre-training transfer.
 
@@ -134,18 +156,48 @@ Table~\ref{tab:task2_table3} then reports the full decision-quality audit across
 
 \paragraph{Persistence+Rules wins on single-metric precision} \texttt{m1\_persistence\_rules} achieves the highest ticket precision ($0.720$) and, because its false intervention rate is $0$, also the highest FIR-penalised cost-adjusted score ($0.720$). This is consistent with conservative rule-engine behaviour: it raises few tickets and most are correct. It is the right baseline for any system that wants to claim improvement on decision quality.
 
-\paragraph{FM+LLM triples recall but at a real precision cost} \texttt{m6\_fm\_llm} raises recall from $0.004$ (persistence) to $0.012$---a $3\times$ improvement on the regulator-aligned recall axis---at the cost of precision ($0.570$ vs $0.720$) and a substantial false intervention rate (FIR $0.448$). The safety gate (\texttt{m7\_fm\_llm\_gated}) partially mitigates this and raises the LLM-as-judge score from $2.48$ to $2.69$/$5$, but does not fully recover precision. Both LLM variants reach grounding $1.000$, so the failure mode is not hallucination---it is over-reaching to high-severity actions when monitor evidence is weak.
+\paragraph{FM+LLM triples recall but at a real precision cost} \texttt{m6\_fm\_llm} raises recall from $0.004$ (persistence) to $0.012$---a $3\times$ improvement on the regulator-aligned recall axis---at the cost of precision ($0.570$ vs $0.720$) and a substantial false intervention rate (FIR $0.448$). The safety gate (\texttt{m7\_fm\_llm\_gated}) reduces FIR only marginally ($0.448 \to 0.437$) and, under the stronger Opus~4.8 judge, raises the LLM-as-judge score from $2.41$ to $2.45$/$5$ ($+0.04$); the larger $+0.21$ gain we observed under the earlier Claude~Haiku~4.5 judge is partially a ceiling artefact of using a tier-below judge to score a tier-above decision LLM (Table~\ref{tab:judge_panel}). Both LLM variants reach grounding $1.000$, so the failure mode is not hallucination---it is over-reaching to high-severity actions when monitor evidence is weak.
 
-\paragraph{Layer-wise decomposition} Holding the decision policy fixed at LLM and adding the FM signal lifts ticket F1 by $32\%$ ($0.0183 \to 0.0241$); holding the predictor fixed at FM and swapping rules for LLM lifts F1 by another $27\%$ ($0.0189 \to 0.0241$). The two layers therefore make additive, non-substitutable contributions to F1. Adding the safety gate trades $3\%$ F1 for $+0.21$ judge score, which is the operating point a deployment operator should select when explanation quality is the binding constraint.
+\paragraph{Layer-wise decomposition} Holding the decision policy fixed at LLM and adding the FM signal lifts ticket F1 by $32\%$ ($0.0183 \to 0.0241$); holding the predictor fixed at FM and swapping rules for LLM lifts F1 by another $27\%$ ($0.0190 \to 0.0241$). The two layers therefore make additive, non-substitutable contributions to F1. Adding the safety gate trades $3\%$ F1 for a small judge-quality change ($+0.04$ under Opus~4.8, $+0.35$ under Gemini~2.5~Pro, $0$ under GPT-5.5; Table~\ref{tab:judge_panel}). Under the stronger cross-family judge panel, the gate's primary value is operational---every emitted intervention-level ticket clears two pre-defined gates with auditable logs---rather than expressible as a single explanation-quality delta.
+
+\paragraph{Cross-family judge robustness} A standard LLM-as-judge concern is that the decision and the judge LLM share a training family. We re-judge \texttt{m2}/\texttt{m6}/\texttt{m7} with a cross-family panel chosen to be tier-above the Opus~4.7 decision LLM: Claude~Opus~4.8 (within-family upgrade), Google Gemini~2.5~Pro, and OpenAI GPT-5.5 (Table~\ref{tab:judge_panel}). The Gemini and GPT judges are reasoning-by-default frontier models; we attach OpenRouter's $\mathrm{reasoning}\!=\!\{\mathrm{effort:minimal}\}$ to both so the thinking budget matches the non-reasoning Anthropic baseline. All three judges keep \texttt{m7} at or above \texttt{m6} and strictly above \texttt{m2} on the released configuration; \texttt{m7}'s mean score is within $0.45$ across the panel. The cross-family agreement closes the judge-family confound a single Anthropic judge would leave open.
+
+\input{sections/T5-JudgePanel.tex}
+
+\paragraph{A tier-below, cheaper decision LLM strictly dominates the headline operating point} We re-run the decision layer of \texttt{m6} and \texttt{m7} on the \emph{same} FM-derived prompts with two non-Opus-4.7 decision LLMs---Claude~Sonnet~4.6 (within-family, tier-below, $\sim$5$\times$ cheaper) and Google Gemini~2.5~Pro (cross-family)---and re-score with the same Opus~4.8 judge (Table~\ref{tab:decision_panel}). On both architectures, Sonnet~4.6 is a strict Pareto improvement over Opus~4.7: F1 rises ($+15\%$ on \texttt{m6}, $+24\%$ on \texttt{m7}), the false-intervention rate collapses from $0.437$--$0.448$ to $0.000$, and judge quality improves ($+0.11$ on \texttt{m6}, $+0.20$ on \texttt{m7}). The cross-family Gemini~2.5~Pro decision is more conservative still (lower F1, FIR~=~$0.000$), confirming that the over-intervention failure mode is specific to Opus~4.7 rather than a generic LLM-decision artefact. The deployable headline operating point is therefore \texttt{m7} with Sonnet~4.6: F1~=~$0.0288$, FIR~=~$0.000$, judge~=~$2.65$, outperforming every row in Table~\ref{tab:task2_table3} on every LLM-bearing axis at a fraction of the inference cost. This shifts the deployment recommendation from a Pareto trade-off (precision vs.\ recall+explanation) to a strict improvement under the cheaper decision model.
+
+\input{sections/T6-DecisionPanel.tex}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig10_judge_decision_surface}
+    \caption{Decision-model operating-point diagnostic computed from the
+    \texttt{paper/results/} re-judge and LLM-evaluation artifacts. Replacing
+    Opus~4.7 with Sonnet~4.6 moves both \texttt{m6} and \texttt{m7} to a
+    higher-F1, zero-FIR operating point; marker size is proportional to the
+    Opus~4.8 judge score.}
+    \label{fig:judge_decision_surface}
+\end{figure}
 
 \paragraph{Early-warning timeline analysis}
 To determine whether the weighted-degree monitoring alerts (\texttt{h1\_weighted\_degree}) constitute genuine \emph{early warnings} or merely post-hoc damage reports, we conduct a per-week historical alert timeline analysis around the Terra/Luna (2022-05-09), FTX (2022-11-07), and SVB/USDC (2023-03-10) events. Table~\ref{tab:alert_timeline} summarises the results.
 
 \input{sections/T3-AlertTimeline.tex}
 
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig9_b2_warning_budget}
+    \caption{\texttt{b2\_warning} budget sweep computed from
+    \texttt{b2\_warning\_\_h1\_weighted\_degree.json}. Increasing the alert
+    budget improves the scaled F1-warning score by expanding recall, while
+    precision remains event-dependent; SVB/USDC stays at precision $1.0$
+    across all budgets.}
+    \label{fig:b2_warning_budget}
+\end{figure}
+
 The data supports pre-event lead time for this monitor: median lead times are $4$--$5$ weeks across all three crises, with SVB/USDC reaching precision $1.000$ at every alert budget. This should be read as historical monitor evidence, not as an FM-specific test-split result. F1 is small in absolute terms because the regulator-aligned ground-truth pool $\mathcal{S}_t^h$ contains $\sim 283$ protocols per week, so a budget of $5$--$20$ alerts covers only a thin slice of the recall surface.
 
-\paragraph{Stress-test fidelity (\texttt{b4\_stress})} Per-scenario stress-test outputs are reported in Table~\ref{tab:b4_detail} (Appendix~\ref{app:b4_detail}). As with \texttt{b1\_forecast}, persistence is a strong baseline because each scenario applies a structural shock to the current graph and the realised loss vector therefore correlates strongly with the persistence prediction. The FM variants roughly match persistence on Loss MAE and Overlap@$10$ and sometimes marginally improve loss MAE, but the differences are small; this table is best read as evidence that the scenario engine remains competitive with persistence rather than as a sweeping FM win. EvolveGCN is generally weaker on target overlap and distressed-count fidelity, mirroring its weakness on \texttt{b1\_forecast}.
+\paragraph{Stress-test fidelity (\texttt{b4\_stress})} Per-scenario stress-test outputs are reported in Table~\ref{tab:b4_detail} and visualised in Figure~\ref{fig:b4_stress_fidelity} (Appendix~\ref{app:b4_detail}). As with \texttt{b1\_forecast}, persistence is a strong baseline because each scenario applies a structural shock to the current graph and the realised loss vector therefore correlates strongly with the persistence prediction. The FM variants roughly match persistence on Loss MAE and Overlap@$10$ and sometimes marginally improve loss MAE, but the differences are small; this table is best read as evidence that the scenario engine remains competitive with persistence rather than as a sweeping FM win. EvolveGCN is generally weaker on target overlap and distressed-count fidelity, mirroring its weakness on \texttt{b1\_forecast}.
 
 \subsection{Ablation Study}
 
@@ -155,4 +207,4 @@ We separate clean-data load-bearing components from stress-reserve mechanisms th
 
 \paragraph{Standard conditions (Panel~A)} Under clean 2025 test data, the confidence gate (A2) is load-bearing: removing it increases the false intervention rate from $0.000$ to $0.429$. The scenario engine (A3) is also load-bearing for target extraction: skipping it reduces ticket precision from $0.600$ to $0.000$. Data-health gating (A1) and multi-horizon diversity (A6) show no measurable impact in this clean setting because data quality is high and $h=4$ dominates alert generation.
 
-\paragraph{Stress conditions (Panels~B--C)} To test whether A1 and A6 are unnecessary or merely dormant on clean data, we evaluate them under targeted stress conditions. For A1, we apply severe feature/edge degradation regimes (80--98\% masking) and isolate the data-health gate from the confidence gate by setting $\tau_{\mathrm{conf}}=0$. Under these conditions, disabling the data-health gate increases the false intervention rate to $0.27$--$0.60$ (Panel~B), while triggered safe-mode suppresses interventions back to $0.000$, showing that A1 functions as a \emph{safety reserve under data degradation}. For A6, we compare single-horizon ($h=4$) against multi-horizon ($h\in\{1,4,8,12\}$) monitoring across the Terra/Luna, FTX, and SVB/USDC crisis windows: multi-horizon generates roughly $4\times$ more alerts (73--98 vs.\ 19--23) while maintaining the same precision range ($0.533$--$0.624$) and zero false interventions (Panel~C). Thus A6 broadens alert coverage in crisis windows, but Table~\ref{tab:ablation} does not show a clean-data precision gain. The ablation evidence therefore supports a two-part interpretation: A2 and A3 carry the clean deployment path, while A1 and A6 are reserve mechanisms for degraded-data and crisis-window operation.
+\paragraph{Stress conditions (Panels~B--C)} To test whether A1 and A6 are unnecessary or merely dormant on clean data, we evaluate them under targeted stress conditions. For A1, we apply severe feature/edge degradation regimes (80--98\% masking) and isolate the data-health gate from the confidence gate by setting $\tau_{\mathrm{conf}}=0$. Under these conditions, disabling the data-health gate increases the false intervention rate to $0.27$--$0.60$ (Panel~B), while triggered safe-mode suppresses interventions back to $0.000$, showing that A1 functions as a \emph{safety reserve under data degradation}. For A6, we compare single-horizon ($h=4$) against multi-horizon ($h\in\{1,4,8,12\}$) monitoring across the Terra/Luna, FTX, and SVB/USDC crisis windows: multi-horizon generates roughly $4\times$ more alerts (73--98 vs.\ 19--23) while maintaining the same precision range ($0.533$--$0.624$) and zero false interventions (Panel~C). Figure~\ref{fig:ablation_reserve} visualises these reserve effects from the supplementary ablation artifacts. Thus A6 broadens alert coverage in crisis windows, but Table~\ref{tab:ablation} does not show a clean-data precision gain. The ablation evidence therefore supports a two-part interpretation: A2 and A3 carry the clean deployment path, while A1 and A6 are reserve mechanisms for degraded-data and crisis-window operation.

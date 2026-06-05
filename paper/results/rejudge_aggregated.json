@@ -1,0 +1,140 @@
+{
+  "rejudge_track_a": [
+    {
+      "method": "m2_snapshot_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.241,
+      "std_quality": 0.435,
+      "old_haiku_mean": 2.034,
+      "total_cost_usd": 0.1988
+    },
+    {
+      "method": "m2_snapshot_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.69,
+      "std_quality": 1.339,
+      "old_haiku_mean": 2.034,
+      "total_cost_usd": 0.0789
+    },
+    {
+      "method": "m2_snapshot_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 1.897,
+      "std_quality": 0.31,
+      "old_haiku_mean": 2.034,
+      "total_cost_usd": 0.1243
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.414,
+      "std_quality": 0.568,
+      "old_haiku_mean": 2.483,
+      "total_cost_usd": 0.0
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.552,
+      "std_quality": 1.478,
+      "old_haiku_mean": 2.483,
+      "total_cost_usd": 0.0819
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "std_quality": 0.572,
+      "old_haiku_mean": 2.483,
+      "total_cost_usd": 0.1716
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "std_quality": 0.572,
+      "old_haiku_mean": 2.69,
+      "total_cost_usd": 0.2053
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.897,
+      "std_quality": 1.52,
+      "old_haiku_mean": 2.69,
+      "total_cost_usd": 0.0802
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "std_quality": 0.506,
+      "old_haiku_mean": 2.69,
+      "total_cost_usd": 0.1745
+    }
+  ],
+  "redecide_track_b": [
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.517,
+      "mean_precision": 0.5693,
+      "mean_completeness": 0.0141,
+      "mean_f1": 0.0276,
+      "mean_fir": 0.0
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "google/gemini-2.5-pro",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.207,
+      "mean_precision": 0.569,
+      "mean_completeness": 0.0065,
+      "mean_f1": 0.0129,
+      "mean_fir": 0.0
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.655,
+      "mean_precision": 0.5859,
+      "mean_completeness": 0.0147,
+      "mean_f1": 0.0288,
+      "mean_fir": 0.0
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision_model": "google/gemini-2.5-pro",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.379,
+      "mean_precision": 0.5672,
+      "mean_completeness": 0.0071,
+      "mean_f1": 0.0139,
+      "mean_fir": 0.0
+    }
+  ]
+}

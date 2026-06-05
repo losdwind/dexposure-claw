@@ -1,13 +1,72 @@
-% =====================================================================
-% Appendix A: FM and notation
-% Source: paper/sections/3-Pre.tex
-% =====================================================================
-
 \section{Forecaster Interface and Notation}
 \label{app:fm-notation}
 
-% TODO: Move the contents of paper/sections/3-Pre.tex here essentially
-% unchanged. This is reference material for readers who want the full
-% definition of the forecast primitive, the predicted-graph
-% construction (Eq. 2-3 in the TKDE version), and the MC sampling
-% procedure.
+\subsection{Credit exposure}
+Let $X_G(q)$ be the set of tokens issued by protocol $q$ and
+$X_p(t)$ the set of tokens held by protocol $p$ at time $t$. Protocol
+$p$ has a credit exposure to protocol $q$ at $t$ if
+$X_p(t)\!\cap\!X_G(q)\!\neq\!\emptyset$~\citep{wu2025dexposuredatasetbenchmarksinterprotocol}.
+This token-mediated dependence generalises counterparty credit risk
+from traditional finance to DeFi.
+
+\subsection{Network representation}
+Over an interval $\tau\!=\!t_2\!-\!t_1$, exposures form a weighted
+directed graph $G_\tau\!=\!(P_\tau,E_\tau)$. Node weights are
+$w_\tau(p)\!=\!\sum_{\sigma\in X_p(t_1)\cap X_p(t_2)} v_{t_2,\sigma}$
+where $v_{t_2,\sigma}$ is the USD value of token $\sigma$ at $t_2$;
+edge weights aggregate non-negative token flows from $p$ to $q$
+mapped to issuer $q$, as defined
+in~\citet{wu2025dexposuredatasetbenchmarksinterprotocol}. We adopt
+the same construction without modification.
+
+\subsection{Forecast primitive and predicted graph}
+At each decision epoch $t$ the agent queries
+$\mathcal{P}_{t,h}\!\leftarrow\!\text{\fmname.Forecast}(G_t,X_t,h)$.
+From $\mathcal{P}_{t,h}$ we build a representative predicted graph
+via a thresholded expected-weight operator,
+\begin{align}
+\widehat{w}_{pq,t+h} &:= \Pr(e_{pq,t+h}\!=\!1)\cdot
+                        \mathbb{E}[w_{pq,t+h}\mid e_{pq,t+h}\!=\!1],
+\label{eq:expected-graph} \\
+\widehat{E}_{t+h}    &:= \{(p,q) : \Pr(e_{pq,t+h}\!=\!1) > \pi_{\min}\},
+\end{align}
+with $\pi_{\min}\!=\!0.2$ (tuned on validation). For uncertainty
+quantification we draw $M\!=\!50$ Monte Carlo samples
+$\{\widetilde{G}^{(m)}_{t+h}\}$ by Bernoulli edge sampling and
+Gaussian weight perturbation of $\mathcal{P}_{t,h}$.
+
+\subsection{Hybrid prediction strategy}
+In practice \fmname{} keeps all edges from $G_t$, reweights them as
+$w'_{pq}\!=\!w_{pq} + \Pr(e_{pq,t+h}\!=\!1)\cdot\widehat{r}_{pq}$
+where $\widehat{r}_{pq}$ is the FM residual, and additionally adds
+new edges whose existence probability exceeds $\pi_{\min}$. This
+preserves network structure while letting the FM adjust weights and
+predict new connections.
+
+\subsection{Architecture and training}
+\label{ssec:fm-spec}
+\fmname{} is built on the GraphPFN graph-tabular foundation
+backbone~\citep{HollmannEtAl2025TabPFN,
+eremeev2025turningtabularfoundationmodels} with a LiMiX-16M tabular
+transformer encoder: $12$ layers, $4$ attention heads, hidden
+dimension $64$. The same backbone serves three heads---edge
+existence (binary), edge weight (regression), and node-TVL change
+(regression)---trained jointly with a BCE$+$MSE composite loss. We
+fine-tune one checkpoint per horizon $h\!\in\!\{1,4,8,12\}$ for
+$20$ epochs with AdamW (learning rate $10^{-4}$ for heads,
+$10^{-5}$ for the backbone). Training uses $104$ weekly snapshots
+(March 2020--January 2024), validation uses $12$ weeks
+(February--April 2024), and the leaderboard test split is the
+remaining $33$ weeks (\S\ref{app:bench-details}). Full-graph
+in-context inference fits a single RTX~4090; one weekly forecast
+across all four horizons completes in well under a minute.
+
+Held-out link-prediction quality on the validation split is
+AUPRC$\,=\!0.978$ / $0.973$ / $0.967$ / $0.967$ and
+AUROC$\,=\!0.996$ / $0.995$ / $0.993$ / $0.993$ at $h\!=\!1$ / $4$
+/ $8$ / $12$ respectively; a frozen GraphPFN baseline (no
+fine-tuning) achieves AUPRC $0.936$--$0.940$ at the same horizons,
+isolating the contribution of domain fine-tuning. These intrinsic
+forecaster numbers do not appear in the main text because the
+paper's contribution is the operating point of the full pipeline,
+not the FM's headline accuracy.

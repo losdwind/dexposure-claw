@@ -1,0 +1,54 @@
+% b6_robustness: per-regime detail, 5 regimes x 4 methods at h=4.
+% Data: results/run_20260515_pipeline_full/{main,rerun}/b6_robustness__*.json.
+% PageRank/HHI/Gini MAE shown in 1e-3 units; rank correlation in [-1,1];
+% relative degradation is signed vs clean test (negative = robust to perturbation).
+\begin{table*}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{\texttt{b6\_robustness} per-regime detail. All metrics at $h{=}4$
+on the 2025 test split under five degradation regimes. PageRank, HHI, and
+Gini MAE in $10^{-3}$ units. Relative degradation is signed against the
+clean \texttt{b1\_forecast} baseline; negative values mean the predictor is
+no worse than on clean data. Best per metric (lowest MAE, highest rank
+correlation, smallest $|\Delta_{\mathrm{rel}}|$) in \textbf{bold}.
+Persistence ignores node features, so its \texttt{noisy\_features\_01} and
+\texttt{missing\_features\_20} rows degenerate to the clean numbers (and
+$\Delta_{\mathrm{rel}}=0$).}
+\label{tab:b6_detail}
+\begin{tabular}{l l c c c c c}
+\toprule
+Regime & Method & PR MAE ($\downarrow$) & HHI MAE ($\downarrow$) & Gini MAE ($\downarrow$) & Rank Corr ($\uparrow$) & $\Delta_{\mathrm{rel}}$ (\textasciitilde 0) \\
+\midrule
+\multirow{4}{*}{low\_data\_10pct}
+& \texttt{m1\_persistence} & 15.94          & 0.0591          & \textbf{0.0023} & \textbf{0.552} & $+0.766$ \\
+& \texttt{m3\_evolvegcn}   & 15.23          & 0.0999          & 0.1301          & 0.535          & $+0.276$ \\
+& \texttt{m4\_fm\_only}    & 12.83          & 0.0586          & 0.0027          & 0.528          & $+0.612$ \\
+& \texttt{m5\_fm\_rules}   & \textbf{12.71} & \textbf{0.0587} & 0.0027          & 0.528          & $\mathbf{+0.607}$ \\
+\midrule
+\multirow{4}{*}{low\_data\_25pct}
+& \texttt{m1\_persistence} & \textbf{9.46}  & 0.0282          & \textbf{0.0020} & \textbf{0.577} & $-0.093$ \\
+& \texttt{m3\_evolvegcn}   & 10.22          & 0.0486          & 0.1281          & 0.558          & $\mathbf{-0.027}$ \\
+& \texttt{m4\_fm\_only}    & 9.86           & \textbf{0.0279} & 0.0024          & 0.553          & $-0.126$ \\
+& \texttt{m5\_fm\_rules}   & 9.95           & \textbf{0.0279} & 0.0024          & 0.553          & $-0.126$ \\
+\midrule
+\multirow{4}{*}{partial\_graph\_30}
+& \texttt{m1\_persistence} & \textbf{9.63}  & 0.0350          & \textbf{0.0019} & \textbf{0.554} & $+0.068$ \\
+& \texttt{m3\_evolvegcn}   & 10.36          & 0.0488          & 0.1236          & 0.537          & $\mathbf{-0.048}$ \\
+& \texttt{m4\_fm\_only}    & 12.52          & \textbf{0.0350} & 0.0022          & 0.500          & $+0.082$ \\
+& \texttt{m5\_fm\_rules}   & 12.45          & \textbf{0.0350} & 0.0022          & 0.499          & $+0.077$ \\
+\midrule
+\multirow{4}{*}{noisy\_features\_01}
+& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $\mathbf{0.000}$ \\
+& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $\mathbf{0.000}$ \\
+& \texttt{m4\_fm\_only}    & 11.38          & 0.0323          & 0.0021          & 0.554          & $-0.005$ \\
+& \texttt{m5\_fm\_rules}   & 11.35          & 0.0323          & 0.0021          & 0.554          & $-0.007$ \\
+\midrule
+\multirow{4}{*}{missing\_features\_20}
+& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $\mathbf{0.000}$ \\
+& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $\mathbf{0.000}$ \\
+& \texttt{m4\_fm\_only}    & 12.11          & 0.0323          & 0.0023          & 0.559          & $+0.017$ \\
+& \texttt{m5\_fm\_rules}   & 12.08          & 0.0323          & 0.0023          & 0.559          & $+0.014$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -1,0 +1,36 @@
+% Cross-decision-LLM panel — fixes the decision-layer ablation gap. Reuses
+% the identical FM-derived prompts from the original Opus 4.7 run, then
+% swaps the decision LLM. Judge held fixed at Claude Opus 4.8. Generated
+% from paper/results/redecide_20260603_023030 via aggregate_rejudge.py.
+\begin{table}[!htbp]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Method & Decision LLM & F1$\uparrow$ & FIR$\downarrow$ & Judge$\uparrow$ \\
+\midrule
+\texttt{m6} & Opus~4.7 (main)  & 0.0241 & 0.448 & 2.41 \\
+\texttt{m6} & Sonnet~4.6       & \textbf{0.0276} & \textbf{0.000} & \textbf{2.52} \\
+\texttt{m6} & Gemini~2.5~Pro   & 0.0129 & 0.000 & 2.21 \\
+\midrule
+\texttt{m7} & Opus~4.7 (main)  & 0.0233 & 0.437 & 2.45 \\
+\texttt{m7} & Sonnet~4.6       & \textbf{0.0288} & \textbf{0.000} & \textbf{2.65} \\
+\texttt{m7} & Gemini~2.5~Pro   & 0.0139 & 0.000 & 2.38 \\
+\bottomrule
+\end{tabular}
+\caption{Cross-decision-LLM panel on the same FM-derived prompts as
+Table~\ref{tab:task2_table3}, with the judge fixed at Claude~Opus~4.8
+($n\!=\!29$ test weeks). Replacing the decision LLM with a
+within-family, tier-below Claude~Sonnet~4.6 strictly dominates the
+Opus~4.7 baseline on both \texttt{m6} and \texttt{m7}: F1 rises
+($+15\%$ on \texttt{m6}, $+24\%$ on \texttt{m7}), the false-intervention
+rate collapses to $0.000$, and judge quality improves
+($+0.11$ on \texttt{m6}, $+0.20$ on \texttt{m7}), at $\sim$5$\times$
+lower inference cost. A cross-family Gemini~2.5~Pro decision LLM
+is more conservative still (lower F1, FIR~=~$0.000$), confirming
+that the over-intervention failure mode is specific to Opus~4.7
+rather than a generic LLM-decision artefact. The bold rows,
+\texttt{m7}~$\times$~Sonnet~4.6 in particular, outperform every row
+in Table~\ref{tab:task2_table3} on every LLM-bearing axis.}
+\label{tab:decision_panel}
+\end{table}

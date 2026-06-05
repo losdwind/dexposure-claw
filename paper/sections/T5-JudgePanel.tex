@@ -1,0 +1,32 @@
+% Cross-family LLM-as-judge panel — addresses the standard single-family
+% judge concern (Zheng et al., NeurIPS 2023). Decision LLM held fixed at
+% Claude Opus 4.7; only the judge varies. Gemini and GPT use OpenRouter's
+% reasoning effort=minimal so the thinking budget matches the non-reasoning
+% Anthropic baseline. Generated from paper/results/rejudge_20260603_023028
+% via paper/experiments/aggregate_rejudge.py.
+\begin{table}[!htbp]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Method & Opus~4.8 & Gemini~2.5~Pro & GPT-5.5 & Haiku~4.5\textsuperscript{\dag} \\
+\midrule
+\texttt{m2\_snapshot\_llm} & 2.24 & 2.69 & 1.90 & 2.03 \\
+\texttt{m6\_fm\_llm}       & 2.41 & 2.55 & 2.45 & 2.48 \\
+\texttt{m7\_fm\_llm\_gated} & \textbf{2.45} & \textbf{2.90} & 2.45 & 2.69 \\
+\bottomrule
+\end{tabular}
+\caption{Cross-family LLM-as-judge panel ($n\!=\!29$ test weeks).
+Decision LLM held fixed at Claude~Opus~4.7; only the judge varies.
+Gemini and GPT use OpenRouter's $\mathrm{reasoning}\!=\!\{\mathrm{effort:minimal}\}$
+control so the thinking budget matches the non-reasoning Anthropic
+baseline. All three frontier judges keep \texttt{m7} at or above
+\texttt{m6} and strictly above \texttt{m2} on the released
+configuration, closing the residual judge-family confound that a
+single Anthropic judge alone would leave open.
+\textsuperscript{\dag}~Claude~Haiku~4.5 from an earlier pilot run
+is a tier-below weak-judge reference; the headline
+$+0.21$ gate effect under Haiku shrinks to $+0.04$ under the
+tier-above Opus~4.8 judge (see~\S\ref{sec:exp}).}
+\label{tab:judge_panel}
+\end{table}

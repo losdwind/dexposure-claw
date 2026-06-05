@@ -1,0 +1,37 @@
+% b2_warning: per-event per-budget detail for the shared weighted-degree
+% monitor (h1). Lead time is event-level and constant across budgets.
+% Data: results/run_20260515_pipeline_full/main/b2_warning__h1_weighted_degree.json.
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{\texttt{b2\_warning} per-event detail for the shared weighted-degree
+monitor (\texttt{h1\_weighted\_degree}) across alert budgets $K\in\{5,10,20\}$.
+Recall and F1-warning shown in $10^{-3}$ units (the full DeFi corpus contains
+$\sim$4{,}300 protocols, so per-week recall denominators are large). Lead
+time is event-level and not budget-sensitive: $5$ weeks for Terra/Luna and
+FTX, $4$ weeks for SVB-USDC. \texttt{b2\_warning} sits upstream of the
+predictor choice, so a single monitor is shared across all methods
+(see \S\ref{sec:results}).}
+\label{tab:b2_budget}
+\begin{tabular}{l c c c c c c}
+\toprule
+Event & $K$ & Prec. ($\uparrow$) & Rec.\,$\times 10^{3}$ ($\uparrow$) & F1\textsubscript{w}\,$\times 10^{3}$ ($\uparrow$) & Stab. ($\uparrow$) & $|\mathcal{A}|$ \\
+\midrule
+\multirow{3}{*}{Terra/Luna}
+& 5  & 0.60 & 1.81 & 3.61 & 0.44 & 11 \\
+& 10 & 0.70 & 3.26 & 6.49 & 0.62 & 19 \\
+& 20 & 0.65 & 7.97 & 15.74 & 0.74 & 36 \\
+\midrule
+\multirow{3}{*}{FTX}
+& 5  & 0.60 & 1.33 & 2.65 & 0.64 & 10 \\
+& 10 & 0.70 & 2.39 & 4.77 & 0.72 & 18 \\
+& 20 & 0.55 & 4.79 & 9.49 & 0.72 & 39 \\
+\midrule
+\multirow{3}{*}{SVB-USDC}
+& 5  & 1.00 & 1.81 & 3.62 & 0.55 & 10 \\
+& 10 & 1.00 & 2.82 & 5.62 & 0.75 & 15 \\
+& 20 & 1.00 & 5.64 & 11.22 & 0.81 & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}

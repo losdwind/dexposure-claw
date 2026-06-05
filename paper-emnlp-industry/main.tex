@@ -19,10 +19,10 @@
 
 \documentclass[11pt]{article}
 
-% --- ACL 2026 style (download separately, see header) ---
+% --- ACL 2026 style ---
 \usepackage[review]{acl}   % "review" = anonymous; remove for camera-ready
 
-% --- Standard packages we already used in TKDE version ---
+% --- Standard packages ---
 \usepackage{times}
 \usepackage{latexsym}
 \usepackage[T1]{fontenc}
@@ -41,7 +41,9 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{xcolor}
-\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+% hyperref is pre-loaded by acl.sty; do not re-load.
 \hypersetup{hidelinks}
 
 % --- Anonymised system / artifact names for submission ---
@@ -52,8 +54,9 @@
 \newcommand{\corpusname}{Exposure-Corpus} % was: DeXposure dataset
 
 % =====================================================================
-\title{Forecast-Grounded LLM Agents for Financial-Network Supervision:\\
-A Deployed Pipeline, Benchmark, and Operating-Point Audit}
+\title{DeXposure-Claw: An Agentic System for DeFi Risk Monitoring and
+Decision Recommendation Based on a Graph Time-Series Foundation
+Model}
 
 % Anonymous author block for submission.
 \author{Anonymous Submission \\
@@ -66,27 +69,33 @@ A Deployed Pipeline, Benchmark, and Operating-Point Audit}
 \begin{abstract}
 General-purpose LLM agents asked to recommend financial-risk
 interventions from raw on-chain data tend to hallucinate severity and
-over-trigger high-stakes actions. We describe a deployed LLM-agent
-pipeline for decentralised-finance supervision in which the LLM
-reasons not over raw transactions but over \emph{structured forecasted
-evidence}: a graph time-series forecaster produces predicted exposure
-networks, deterministic monitors and stress scenarios convert them
-into a typed evidence bundle, and the LLM emits supervisory tickets
-with rationales. Two safety gates---a data-health gate and a
-confidence gate---determine when intervention-level tickets are
-allowed; every emitted ticket carries the evidence bundle and
-rationale that produced it.
+over-trigger high-stakes actions. We design and characterise a
+\emph{deployment-ready} LLM-agent pipeline for decentralised-finance
+supervision in which the LLM reasons not over raw transactions but
+over \emph{structured forecasted evidence}: a graph time-series
+forecaster produces predicted exposure networks, deterministic
+monitors and stress scenarios convert them into a typed evidence
+bundle, and the LLM emits supervisory tickets with rationales. Two
+safety gates---a data-health gate and a confidence gate---determine
+when intervention-level tickets are allowed; every emitted ticket
+carries the evidence bundle and rationale that produced it.
 We release an evaluation harness that scores such pipelines on six
-axes, including ticket F1 against a regulator-aligned absolute-loss
-ground truth, LLM-as-judge explanation quality, and a
-false-intervention rate. With eight reference implementations on five
-years of weekly DeFi exposure graphs, the full LLM-agent stack raises
-ticket F1 from $0.0076$ to $0.0233$ (\textbf{$+208\%$}) and judge
-score from $2.03$ to $2.69/5$ (\textbf{$+33\%$}), while making the
-resulting false-intervention cost (FIR$\approx 0.44$ vs $0$ for rules)
-visible. We characterise the system as a recall--explanation Pareto
-option for supervisory deployment, not a uniform replacement for
-conservative rules, and release ticket-level audit logs.
+axes, anchored to a \emph{regulator-aligned absolute-loss} ground
+truth that replaces the fractional-change metric used in prior
+systemic-risk evaluations, and additionally measures LLM-as-judge
+explanation quality and a false-intervention rate. With eight reference implementations and
+five years of weekly DeFi exposure graphs, the full LLM-agent stack
+raises ticket F1 from $0.0076$ to $0.0233$ (\textbf{$+207\%$}) at a
+visible false-intervention cost (FIR~$\approx$~$0.44$ vs $0$ for
+rules). A tier-above Opus~4.8 judge with a cross-family panel
+(Gemini~2.5~Pro, GPT-5.5) confirms the headline ordering; swapping
+the decision LLM for a tier-below Sonnet~4.6 \emph{strictly}
+dominates Opus~4.7 on every LLM-bearing axis---F1 rises further to
+$0.0288$, FIR collapses to $0.000$, judge quality reaches $2.65$,
+at $\sim$5$\times$ lower inference cost. We characterise the resulting system as a
+recall--explanation Pareto option for supervisory settings, not a
+uniform replacement for conservative rules, and release ticket-level
+audit logs from the historical backtest.
 \end{abstract}
 
 % =====================================================================
@@ -96,17 +105,21 @@ conservative rules, and release ticket-level audit logs.
 \input{sections/4-bench}
 \input{sections/5-results}
 \input{sections/6-lessons}
-\input{sections/7-conclusion}
+% \input{sections/7-conclusion} -- removed: content duplicated the abstract
+% and pushed Limitations onto page 8; §6 Deployment Lessons is the industry-
+% style closing for this paper.
 
 % --- Required by EMNLP / ARR; does NOT count toward 6-page budget ---
 \input{sections/8-limitations}
 \input{sections/9-ethics}
 
 % =====================================================================
-\bibliographystyle{acl_natbib}
+% Bibliography style is set by acl.sty.
 \bibliography{references}
 
 % =====================================================================
+\clearpage
+\onecolumn
 \appendix
 \input{sections/A-fm-notation}
 \input{sections/B-pipeline-math}

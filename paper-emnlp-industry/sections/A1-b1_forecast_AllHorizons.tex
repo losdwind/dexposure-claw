@@ -1,0 +1,41 @@
+% b1_forecast: 4 horizons x 4 methods x core metrics.
+% Data: results/run_20260515_pipeline_full/{main,rerun}.
+\begin{table*}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{\texttt{b1\_forecast} all-horizon forecasting on the 2025 test split.
+PageRank MAE shown in $10^{-5}$ units. Best per horizon in \textbf{bold}.
+Trend consistency for \texttt{m1\_persistence} is structurally $0$ because
+$\hat G_{t+h}=G_t$ produces no trend signal.}
+\label{tab:b1_all_horizons}
+\begin{tabular}{l l c c c c c}
+\toprule
+$h$ & Method & PR MAE ($\downarrow$) & HHI MAE ($\downarrow$) & Gini MAE ($\downarrow$) & Rank Corr ($\uparrow$) & Trend Cons ($\uparrow$) \\
+\midrule
+\multirow{4}{*}{1}
+& \texttt{m1\_persistence} & \textbf{3.6} & 0.0376 & \textbf{0.0027} & \textbf{0.556} & 0.000 \\
+& \texttt{m3\_evolvegcn}   & 3.7          & 0.0481 & 0.1149          & 0.535          & 0.444 \\
+& \texttt{m4\_fm\_only}    & 4.7          & 0.0376 & 0.0029          & 0.549          & \textbf{0.531} \\
+& \texttt{m5\_fm\_rules}   & 4.7          & 0.0376 & 0.0029          & 0.549          & 0.525 \\
+\midrule
+\multirow{4}{*}{4}
+& \texttt{m1\_persistence} & \textbf{3.4} & 0.0322 & \textbf{0.0018} & \textbf{0.570} & 0.000 \\
+& \texttt{m3\_evolvegcn}   & 3.5          & 0.0489 & 0.1326          & 0.551          & 0.324 \\
+& \texttt{m4\_fm\_only}    & 4.5          & \textbf{0.0321} & 0.0022 & 0.559          & 0.621 \\
+& \texttt{m5\_fm\_rules}   & 4.5          & \textbf{0.0321} & 0.0022 & 0.558          & \textbf{0.628} \\
+\midrule
+\multirow{4}{*}{8}
+& \texttt{m1\_persistence} & \textbf{3.9} & 0.0399 & \textbf{0.0028} & \textbf{0.517} & 0.000 \\
+& \texttt{m3\_evolvegcn}   & 4.0          & 0.0492 & 0.1140          & 0.499          & 0.296 \\
+& \texttt{m4\_fm\_only}    & 4.5          & 0.0398 & 0.0030          & 0.508          & 0.624 \\
+& \texttt{m5\_fm\_rules}   & 4.5          & 0.0398 & 0.0030          & 0.508          & \textbf{0.632} \\
+\midrule
+\multirow{4}{*}{12}
+& \texttt{m1\_persistence} & \textbf{3.7} & 0.0393 & \textbf{0.0027} & \textbf{0.525} & 0.000 \\
+& \texttt{m3\_evolvegcn}   & 3.8          & 0.0534 & 0.1245          & 0.509          & 0.314 \\
+& \texttt{m4\_fm\_only}    & 4.1          & \textbf{0.0392} & 0.0029 & 0.516          & \textbf{0.600} \\
+& \texttt{m5\_fm\_rules}   & 4.1          & \textbf{0.0392} & 0.0029 & 0.516          & \textbf{0.600} \\
+\bottomrule
+\end{tabular}
+\end{table*}

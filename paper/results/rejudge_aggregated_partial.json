@@ -1,0 +1,37 @@
+{
+  "rejudge_track_a": [
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.414,
+      "std_quality": 0.568,
+      "old_haiku_mean": 2.483,
+      "total_cost_usd": 0.2013
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-opus-4.7",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 19,
+      "mean_quality": 2.421,
+      "std_quality": 1.465,
+      "old_haiku_mean": 2.474,
+      "total_cost_usd": 0.0539
+    }
+  ],
+  "redecide_track_b": [
+    {
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 3,
+      "mean_quality": 2,
+      "mean_precision": 0.8571,
+      "mean_completeness": 0.0202,
+      "mean_f1": 0.0394,
+      "mean_fir": 0.0
+    }
+  ]
+}

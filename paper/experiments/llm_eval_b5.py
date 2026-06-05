@@ -76,13 +76,54 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 LLM_API_URL = os.environ.get("LLM_API_URL", "https://openrouter.ai/api/v1/chat/completions")
 LLM_API_KEY = os.environ.get("OPENROUTER_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
 
-# Cost per million tokens (OpenRouter listed prices, USD)
+# Cost per million tokens (OpenRouter listed prices, USD).
+# Keys MUST be the exact slug OpenRouter exposes. Anthropic slugs use dots
+# (claude-opus-4.8), not dashes. For non-Anthropic models always pass the
+# full slug (provider/model). The call_llm helper auto-prefixes "anthropic/"
+# only when no provider is set.
+# Legacy dash-form aliases are kept so existing run logs and CLI flags keep
+# working; they all point at the same row as the dotted slug.
 MODEL_COSTS = {
-    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
+    # Anthropic (dotted, real OpenRouter slugs)
+    "claude-haiku-4.5": {"input": 1.0, "output": 5.0},
+    "claude-sonnet-4.6": {"input": 3.0, "output": 15.0},
+    "claude-opus-4.6": {"input": 5.0, "output": 25.0},
+    "claude-opus-4.7": {"input": 5.0, "output": 25.0},
+    "claude-opus-4.8": {"input": 5.0, "output": 25.0},
+    # Legacy dash-form aliases (kept for backward compat with prior run logs)
     "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
     "claude-opus-4-6": {"input": 5.0, "output": 25.0},
     "claude-opus-4-7": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-8": {"input": 5.0, "output": 25.0},
+    # OpenAI (full OpenRouter slugs)
+    "openai/gpt-5.4": {"input": 1.25, "output": 10.0},
+    "openai/gpt-5.5": {"input": 2.0, "output": 15.0},
+    "openai/gpt-5.5-pro": {"input": 3.0, "output": 20.0},
+    # Google
+    "google/gemini-2.5-pro": {"input": 1.25, "output": 5.0},
+    "google/gemini-3.1-pro-preview": {"input": 1.5, "output": 8.0},
+    # xAI
+    "x-ai/grok-4.3": {"input": 3.0, "output": 15.0},
+    "x-ai/grok-4.20": {"input": 3.0, "output": 15.0},
+    # DeepSeek
+    "deepseek/deepseek-v3.2": {"input": 0.27, "output": 1.10},
+    "deepseek/deepseek-v4-pro": {"input": 0.55, "output": 2.20},
 }
+
+
+def _normalize_model_slug(model: str) -> str:
+    """Convert internal dash-form Anthropic names into OpenRouter dot-form.
+
+    Anthropic OpenRouter slugs use dots (claude-opus-4.8). Code, CLI flags,
+    and historical logs sometimes use the dash form (claude-opus-4-8); this
+    helper rewrites the trailing version segment so both styles reach the
+    same model row.
+    """
+    if "/" in model:
+        return model  # already provider-qualified
+    import re as _re
+    return _re.sub(r"-(\d+)-(\d+)$", r"-\1.\2", model)
 SEVERITY_ORDER = {"Monitor": 1, "Investigate": 2, "Recommend-Reduce": 3, "Contingency": 4}
 GATED_LLM_METHODS = {"m7_fm_llm_gated"}
 
@@ -514,14 +555,40 @@ def build_prompt(method: str, date: str, horizon: int,
 # ---------------------------------------------------------------------------
 
 
-def call_llm(system: str, user: str, model: str | None = None) -> dict:
+def _is_reasoning_model(api_model: str) -> bool:
+    """Return True for OpenRouter models that produce hidden reasoning tokens
+    by default (Gemini 2.x/3.x, GPT-5.x). Anthropic models default to no
+    extended thinking and are treated as non-reasoning here.
+    """
+    m = api_model.lower()
+    if m.startswith("google/gemini-2.") or m.startswith("google/gemini-3."):
+        return True
+    if m.startswith("openai/gpt-5"):
+        return True
+    if m.startswith("x-ai/grok-4"):
+        return True
+    return False
+
+
+def call_llm(system: str, user: str, model: str | None = None,
+             reasoning_effort: str | None = None) -> dict:
     """Call LLM via OpenRouter (or any OpenAI-compatible endpoint).
+
+    For models that default to chain-of-thought reasoning (Gemini 2.x/3.x,
+    GPT-5.x, Grok-4) we attach a reasoning control so judge/decision
+    comparisons stay apples-to-apples against Anthropic models, which have
+    no extended thinking by default. Pass `reasoning_effort="minimal"`
+    explicitly to force minimal thinking; the default ("auto") attaches
+    "minimal" only for reasoning-by-default models.
 
     Returns parsed JSON + usage metadata.
     """
     import urllib.request, urllib.error
 
     model = model or DECISION_MODEL
+    # Normalize dash-form (claude-opus-4-8) to OpenRouter dot-form (4.8)
+    # before adding the provider prefix.
+    model = _normalize_model_slug(model)
     # OpenRouter needs provider prefix
     api_model = f"anthropic/{model}" if "/" not in model else model
 
@@ -534,6 +601,15 @@ def call_llm(system: str, user: str, model: str | None = None) -> dict:
         "temperature": LLM_TEMPERATURE,
         "max_tokens": LLM_MAX_TOKENS,
     }
+
+    # Apply reasoning control: explicit override, or "minimal" auto-attached
+    # for reasoning-by-default models so the cross-family judge panel is run
+    # at a comparable thinking budget.
+    eff = reasoning_effort
+    if eff is None and _is_reasoning_model(api_model):
+        eff = "minimal"
+    if eff is not None:
+        payload["reasoning"] = {"effort": eff}
 
     import http.client
 

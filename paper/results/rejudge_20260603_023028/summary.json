@@ -1,0 +1,112 @@
+{
+  "grid": [
+    {
+      "method": "m6_fm_llm",
+      "judge": "claude-opus-4.8",
+      "judge_model": "claude-opus-4.8",
+      "error": "cannot access local variable 'summary' where it is not associated with a value"
+    },
+    {
+      "method": "m6_fm_llm",
+      "judge": "google/gemini-2.5-pro",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.552,
+      "total_cost_usd": 0.0819,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m6_fm_llm",
+      "judge": "openai/gpt-5.5",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "total_cost_usd": 0.1716,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "judge": "claude-opus-4.8",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "total_cost_usd": 0.2053,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "judge": "google/gemini-2.5-pro",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.897,
+      "total_cost_usd": 0.0802,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "judge": "openai/gpt-5.5",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 2.448,
+      "total_cost_usd": 0.1745,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m2_snapshot_llm",
+      "judge": "claude-opus-4.8",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.241,
+      "total_cost_usd": 0.1988,
+      "n_parse_fallback": 7
+    },
+    {
+      "method": "m2_snapshot_llm",
+      "judge": "google/gemini-2.5-pro",
+      "judge_model": "google/gemini-2.5-pro",
+      "n_weeks": 29,
+      "mean_quality": 2.69,
+      "total_cost_usd": 0.0789,
+      "n_parse_fallback": 0
+    },
+    {
+      "method": "m2_snapshot_llm",
+      "judge": "openai/gpt-5.5",
+      "judge_model": "openai/gpt-5.5",
+      "n_weeks": 29,
+      "mean_quality": 1.897,
+      "total_cost_usd": 0.1243,
+      "n_parse_fallback": 0
+    }
+  ],
+  "table": [
+    {
+      "method": "m2_snapshot_llm",
+      "claude-opus-4.8": 2.241,
+      "google/gemini-2.5-pro": 2.69,
+      "openai/gpt-5.5": 1.897
+    },
+    {
+      "method": "m6_fm_llm",
+      "claude-opus-4.8": null,
+      "google/gemini-2.5-pro": 2.552,
+      "openai/gpt-5.5": 2.448
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "claude-opus-4.8": 2.448,
+      "google/gemini-2.5-pro": 2.897,
+      "openai/gpt-5.5": 2.448
+    }
+  ],
+  "judges": [
+    "claude-opus-4.8",
+    "google/gemini-2.5-pro",
+    "openai/gpt-5.5"
+  ],
+  "methods": [
+    "m2_snapshot_llm",
+    "m6_fm_llm",
+    "m7_fm_llm_gated"
+  ]
+}

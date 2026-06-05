@@ -1,27 +1,96 @@
-% =====================================================================
-% Section 1: Introduction  (~3/4 page)
-% Source to compress: paper/sections/1-Intro.tex
-% Reframing: lead with NLP/agent problem, not DeFi domain problem.
-% Three-bullet contribution order: deployed pipeline, harness, audit.
-% =====================================================================
-
 \section{Introduction}
 \label{sec:intro}
 
-% TODO: Paragraph 1 — Hook (compress Terra/Luna + FTX to ~3 sentences),
-%   reframe the bottleneck as "general-purpose LLM agents hallucinate
-%   severity when reasoning over raw on-chain data".
+In May 2022 the Terra/Luna collapse erased over \$40 billion in
+48~hours, triggering cascading liquidations through lending protocols,
+DEXs, and yield aggregators that held UST-denominated
+assets~\citep{VidalTomasEtAl2023FTX}. Five months later FTX wiped out
+another \$8 billion. These crises were not isolated: in
+decentralised finance (DeFi), credit exposures form a dense,
+time-varying network of tokenised claims that no single participant
+fully observes, and shocks travel through it within hours.
 
-% TODO: Paragraph 2 — Our framing.
-%   We address this by routing the LLM's input through a typed evidence
-%   bundle built from a graph time-series forecaster + deterministic
-%   monitors + stress scenarios, gated by data-health + confidence.
+A natural response is to build an \emph{agent}: an LLM-driven
+pipeline that ingests on-chain measurements, surfaces early-warning
+signals, and recommends risk-mitigating actions with auditable
+rationale. The temptation is to point a general-purpose LLM agent at
+raw on-chain data and let it reason. We have found, and our reference
+implementations confirm (\S\ref{sec:results}), that this fails in a
+specific and recurring way: the LLM \emph{hallucinates severity}. It
+recommends high-stakes interventions even when the underlying
+evidence is weak, missing, or stale---grounding score $1.000$,
+false-intervention rate $0.448$. In a supervisory setting, this
+failure mode is far more costly than missed detections, because every
+intervention is observable and politically expensive.
 
-% TODO: Paragraph 3 — Contributions, ordered for NLP audience:
-%   1. Deployed LLM-agent pipeline with safety gating + audit logs.
-%   2. Evaluation harness (six axes, regulator-aligned absolute-loss
-%      ground truth, 8 reference implementations).
-%   3. Operating-point audit: F1 +208%, judge +33%, at measured FIR cost.
-%      Characterised as Pareto option, not uniform win.
+To measure such a failure mode honestly we first need a ground
+truth that matches how supervisors actually prioritise. Prior
+systemic-risk evaluations rank protocols by \emph{fractional} weight
+change~\citep{BERTOMEU2024105321,gonon2025computingsystemicriskmeasures,
+li2025hgmae}, which over-weights tiny protocols of low systemic
+relevance and is not what a supervisor ranks by. \textbf{We define
+a regulator-aligned \emph{absolute-loss} ground truth}
+(\S\ref{sec:bench}) and use it to score, for the first time, an
+integrated forecast$+$monitor$+$scenario$+$LLM$+$gate pipeline
+against what a supervisor would actually prioritise. The
+characterisation produces the first joint measurement of forecast
+quality, monitor lead time, and ticket quality on the same
+regulator-aligned target, and the first quantification of the
+false-intervention cost for an LLM agent operating in this
+setting---a cost that finance-specific LLM-agent
+work~\citep{yao2025arbiter,mao2025knowyourintent,luo2025llmcrypto,
+jeon2026blindtrade} has not measured because none of those systems
+is scored against a regulator-aligned ground truth in the first
+place.
 
-% TODO: Paragraph 4 — Roadmap (1-2 sentences).
+We close this gap with three contributions:
+\begin{itemize}[leftmargin=*,itemsep=2pt,topsep=2pt]
+    \item \textbf{A deployment-ready LLM-agent supervisory pipeline}
+    (\sysname; \S\ref{sec:pipeline}). A graph time-series
+    foundation model (\fmname) produces predicted exposure networks;
+    five deterministic monitors and five stress scenarios convert
+    them into a typed evidence bundle; an LLM emits supervisory
+    tickets with rationale; and two safety gates (data-health,
+    confidence) determine when intervention-level tickets are
+    allowed. Every emitted ticket carries the evidence bundle that
+    produced it.
+
+    \item \textbf{An evaluation harness}
+    (\benchname; \S\ref{sec:bench}). Six axes spanning
+    forecast quality, streaming anomaly detection, predictive
+    uncertainty, what-if scenario fidelity, supervisory ticket
+    quality, and data-quality robustness, with a regulator-aligned
+    \emph{absolute-loss} ground truth (\S\ref{sec:bench}) and eight
+    reference method implementations including persistence, EvolveGCN
+    \citep{ParejaEtAl2020EvolveGCN}, rule engines, snapshot LLMs, and
+    \fmname-coupled LLM variants.
+
+    \item \textbf{An operating-point characterisation}
+    (\S\ref{sec:results}). On the frozen 2025 split of
+    \corpusname, the full \fmname$+$LLM$+$gate stack
+    raises ticket F1 from $0.0076$ to $0.0233$ ($+207\%$). A
+    tier-above Claude~Opus~4.8 judge
+    \citep{Zheng2023LLMJudge} and a cross-family panel
+    (Gemini~2.5~Pro, GPT-5.5) preserve the ordering
+    \texttt{m7}$\geq$\texttt{m6}$>$\texttt{m2}; under the
+    Opus~4.7 decision LLM the false-intervention rate rises to
+    $\approx 0.44$. Replacing the decision LLM with a tier-below
+    Sonnet~4.6 \emph{strictly dominates} Opus~4.7 on both
+    \texttt{m6} and \texttt{m7}: F1 rises further to $0.0288$
+    on \texttt{m7}, FIR collapses to $0.000$, and judge
+    quality reaches $2.65$, at $\sim$5$\times$ lower inference
+    cost---the deployable headline operating point.
+\end{itemize}
+
+\noindent
+\textbf{Honest scope and track fit.} We have run the pipeline as a
+historical backtest over $283$ weekly snapshots of real
+DefiLlama-sourced exposure data (2020--2025), not as a live
+production cron at a supervisory authority. The contribution is
+therefore best read against two of the EMNLP Industry Track's
+explicit acceptable categories---\emph{methods for deployed systems
+(evaluation, ethics, robustness)} and \emph{insights based on
+real-world datasets}---rather than as a deployment case study.
+The ticket-level audit logs we release come from the backtest and
+are intended for operators who want to recompute the operating
+point on their own data conditions before adopting the system.

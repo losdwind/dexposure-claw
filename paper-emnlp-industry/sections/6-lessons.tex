@@ -1,35 +1,47 @@
-% =====================================================================
-% Section 6: Deployment Lessons  (~half page)
-% NEW SECTION — does not exist in the TKDE version. This is the
-% section that Industry Track reviewers want most.
-% =====================================================================
-
 \section{Deployment Lessons}
 \label{sec:lessons}
 
-% TODO: 4 short, named lessons. Each is a single paragraph led by a
-% bold tag. Keep each paragraph ≤ 4 sentences.
-%
-%   \textbf{L1. Grounding $\ne$ correctness.} Grounding score 1.000
-%   means the LLM cites real evidence fields, not that its severity
-%   recommendation is right. Our LLM variants over-reach on severity
-%   even when their citations are perfect; the FIR=0.448 cost is paid
-%   here, not at the citation level.
-%
-%   \textbf{L2. Audit logs are a design artefact, not an output.}
-%   Every emitted ticket carries the prediction, monitor scores,
-%   scenario evidence, and rationale that produced it. We release
-%   ticket-level audit logs so downstream operators can recompute
-%   their own operating point without re-running the pipeline.
-%
-%   \textbf{L3. Safety gates are reserves, not always-on filters.}
-%   On clean 2025 data the data-health gate is dormant; under
-%   degraded data it suppresses up to 60% of interventions that
-%   would otherwise produce false alarms. This is what makes the
-%   system safe to leave running unattended between supervisor
-%   reviews.
-%
-%   \textbf{L4. Academic-budget cadence.} A full weekly run of the
-%   pipeline fits a single RTX~4090 plus ~\$10 of LLM API spend.
-%   This is what makes the system actually deployable in an
-%   academic-supervisory setting, not just in an industrial bank.
+We surface four lessons from building \sysname{} that we expect to
+transfer to other forecast$\to$LLM pipelines for high-stakes
+structured-evidence decisions.
+
+\paragraph{L1. Grounding $\ne$ correctness.}
+Our LLM variants achieve grounding score $1.000$: every cited number
+in every emitted ticket is traceable to a field of the input
+evidence bundle. They still pay $\mathrm{FIR}\!=\!0.448$. The failure
+is not that the LLM invents evidence; it is that the LLM
+\emph{over-reads} weak-but-present evidence as a justification for
+high-severity action. Grounding tells you the agent did not
+hallucinate citations; only a downstream metric that measures
+intervention realism (FIR against an absolute-loss ground truth) tells
+you whether the agent is safe to act on.
+
+\paragraph{L2. Audit logs are a design artefact, not an output.}
+Every emitted ticket carries the forecast distribution, monitor
+scores, scenario CVaRs, the LLM rationale, the gate states, and the
+seeds that produced it. We release these ticket-level audit logs
+because the operating point we report is not what every operator
+will need: a more conservative supervisor will retune
+$\tau_{\mathrm{data}}$ or $\tau_{\mathrm{conf}}$ and rerun the
+decision policy without re-invoking the FM or the LLM. Audit logs
+treated as a first-class artefact make the system retunable
+post-hoc.
+
+\paragraph{L3. Safety gates are reserves, not always-on filters.}
+On clean 2025 data the data-health gate is dormant
+(\S\ref{sec:results}); its impact is invisible to a leaderboard
+that does not include a degradation track. Under masking regimes,
+the gate suppresses up to $60\%$ of FIR-eligible tickets at the cost
+of suspending intervention-level actions. The deployable lesson is
+to evaluate gates on dedicated stress regimes rather than on clean
+test splits; if you only evaluate on the latter you will conclude
+the gate is unnecessary and ship without it.
+
+% L4 (Cadence fits an academic budget) removed: the cost claim
+% (~5x lower inference cost with Sonnet 4.6 + weekly cron on a
+% single RTX 4090) is now covered by Table 3 caption + §5 narrative.
+
+% Closing paragraph removed in v3: the backtest-not-deployment
+% disclosure is already in Limitations and the intro's "Honest
+% scope and track fit"; repeating it here pushed the Conclusion
+% across the 6-page boundary.

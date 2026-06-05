@@ -1,24 +1,52 @@
-% =====================================================================
-% Section 2: Related Work  (~3/4 page, heavily compressed)
-% Source to compress: paper/sections/2-RelatedWorks.tex
-% Industry Track tolerates much less related work than Main.
-% =====================================================================
-
 \section{Related Work}
 \label{sec:related}
 
-% TODO: Three short paragraphs, no subsections:
-%
-%   (a) LLM agents in finance / ops. Cite Arbiter, KnowYourIntent,
-%       any deployed-LLM-for-finance work. Gap: none route the LLM's
-%       input through a typed structured-evidence bundle from a
-%       domain forecaster.
-%
-%   (b) LLM-agent evaluation. HELM, AgentBench, SWE-bench measure
-%       open-ended reasoning / coding. Temporal-graph benchmarks
-%       (TGB, OGB) stop at structural prediction. Gap: no benchmark
-%       scores supervisory-decision quality with regulator-aligned
-%       ground truth + LLM-as-judge + false-intervention rate.
-%
-%   (c) Graph foundation models for risk. Brief; cite anonymously
-%       (this is where the FM-side prior work goes).
+\paragraph{Bench positioning and ground-truth definition.}
+LLM-agent benchmarks (HELM~\citep{liang2022helm},
+SWE-bench~\citep{jimenez2024swebench},
+AgentBench~\citep{liu2024agentbench}) score open-ended reasoning,
+software repair, and generic agent behaviour; temporal-graph
+benchmarks (TGB~\citep{huang2023tgb}, OGB~\citep{hu2020ogb}) score
+structural prediction quality. Neither scores whether an LLM agent's
+supervisory decisions match what a regulator would actually
+prioritise. The closest prior systemic-risk evaluations
+\citep{BERTOMEU2024105321,gonon2025computingsystemicriskmeasures,
+li2025hgmae} rank protocols by \emph{fractional} weight change, which
+disproportionately surfaces tiny protocols of low systemic relevance.
+\benchname{} replaces this with an \emph{absolute}-loss ground truth
+(\S\ref{sec:bench}) so that every downstream axis is scored against
+what supervisors actually rank by.
+
+\paragraph{LLM agents in finance and DeFi.}
+General agent patterns such as ReAct~\citep{YaoEtAl2023ReAct}
+combine reasoning with tool use; FinGPT~\citep{YangEtAl2023FinGPT}
+adapts language models to financial data. Within DeFi, agentic
+systems have so far targeted transaction
+auditing~\citep{yao2025arbiter}, intent
+mining~\citep{mao2025knowyourintent}, smart-contract
+verification~\citep{hu2026heimdallr,kong2026knowdit}, price
+manipulation~\citep{liu2025pmdetector}, and explanation for graph
+anomalies~\citep{watson2025explainfirst}; portfolio-oriented agents
+combine graph encoders with LLMs~\citep{luo2025llmcrypto,
+jeon2026blindtrade}. These systems consume raw transactions or token
+text, not structured forecasted evidence, and none reports a
+false-intervention rate against a regulator-aligned ground truth---a
+gap our characterisation (\S\ref{sec:results}) closes.
+
+\paragraph{Forecast-grounded LLM agents in other domains.}
+Pairing a domain forecaster with an LLM decision layer is an emerging
+deployment pattern. In macroeconomics, ChatGPT-augmented PMI
+nowcasting~\citep{deBondtSun2025ChatGPTNowcast} and LLM-driven
+macroeconomic forecasting~\citep{CarrieroEtAl2024MacroLLM} both feed
+structured numeric inputs into an LLM that produces interpretable
+narratives; a BIS primer surveys the wider
+pattern~\citep{KwonEtAl2024BISLLMprimer}. Time-series foundation
+models such as Chronos~\citep{AnsariEtAl2024Chronos},
+Lag-Llama~\citep{RasulEtAl2023LagLlama}, and
+TimesFM~\citep{DasEtAl2024TimesFM} make the forecaster reusable
+across tasks; tabular foundation models extend the same idea to
+heterogeneous structured data~\citep{HollmannEtAl2025TabPFN,
+eremeev2025turningtabularfoundationmodels}. None of these
+forecast$\to$LLM pipelines, to our knowledge, has been scored
+against a regulator-aligned ground truth for high-stakes
+financial-network supervision.

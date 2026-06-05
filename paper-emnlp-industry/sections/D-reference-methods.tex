@@ -1,14 +1,52 @@
-% =====================================================================
-% Appendix D: Reference methods
-% Source: paper/sections/5-Bench.tex (tab:bench-methods)
-% =====================================================================
-
-\section{Reference Method Implementations}
+\section{Reference Methods}
 \label{app:reference-methods}
 
-% TODO: Move from paper/sections/5-Bench.tex the full reference-method
-% table (tab:bench-methods) listing all 8 reference methods with
-% predictor + policy + role, plus 1 paragraph per method describing
-% interface (predict_graph / decide_actions signatures) and any
-% method-specific hyperparameters. This appendix is what a reader
-% needs to add a 9th method.
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}lllX@{}}
+\toprule
+ID                              & Predictor      & Policy                & Role \\
+\midrule
+\texttt{h1\_weighted\_degree}   & ---            & heuristic alert       & Streaming anomaly baseline (\texttt{b2}) \\
+\texttt{m1\_persistence\_rules} & $G_{t+h}\!=\!G_t$ & rule engine        & Decision baseline \\
+\texttt{m2\_snapshot\_llm}      & current snap   & LLM                   & LLM-only ablation (no forecast) \\
+\texttt{m3\_evolvegcn}          & EvolveGCN      & ---                   & Learned-GNN baseline \\
+\texttt{m4\_fm\_only}           & \fmname{}      & ---                   & FM-only ablation \\
+\texttt{m5\_fm\_rules}          & \fmname{}      & rule engine           & FM + rules \\
+\texttt{m6\_fm\_llm}            & \fmname{}      & LLM                   & Full FM + LLM stack \\
+\texttt{m7\_fm\_llm\_gated}     & \fmname{}      & LLM + safety gate     & Safety-gated FM + LLM \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+The eight methods expose all four cuts of the four-layer ablation:
+adding the predictor layer
+(\texttt{m1}$\!\to\!$\texttt{m5}), swapping the decision layer
+(\texttt{m5}$\!\to\!$\texttt{m6}), adding the safety gate
+(\texttt{m6}$\!\to\!$\texttt{m7}), and removing the predictor from
+the LLM stack (\texttt{m2}$\!\leftrightarrow\!$\texttt{m6}). All
+methods conform to a shared
+\texttt{predict\_graph}\,/\,\texttt{decide\_actions} interface;
+adding a ninth method is a single-file change.
+
+\paragraph{LLM model panel and decoding.}
+All LLM-bearing methods (\texttt{m2}, \texttt{m6}, \texttt{m7}) are
+evaluated under three decision-layer configurations:
+Claude~Opus~4.7 (main), Claude~Sonnet~4.6 (within-family,
+tier-below ablation), and Google~Gemini~2.5~Pro (cross-family
+ablation). Each runs at temperature $0$ and $\max\_tokens=4096$;
+self-consistency is probed with three repeated calls per week and
+Jaccard overlap on emitted ticket targets and severities.
+
+The LLM-as-judge for the explanation-quality axis is a
+three-model panel chosen so the judge tier is at or above the
+decision tier on the public 2026 Artificial Analysis index:
+Claude~Opus~4.8 (within-family upgrade, strictly above Opus~4.7),
+Google~Gemini~2.5~Pro, and OpenAI~GPT-5.5 (cross-family
+upgrades). The Gemini and GPT judges are reasoning-by-default
+models; we attach OpenRouter's $\mathrm{reasoning}=
+\{\mathrm{effort:minimal}\}$ control to both so the judge
+thinking budget matches the non-reasoning Anthropic baseline.
+Claude~Haiku~4.5 from a pilot run is reported as a weak-judge
+reference. Every model is served through the OpenRouter unified
+API; observed cost is on the order of a few US dollars per
+full sweep of the 29-week test split.

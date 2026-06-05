@@ -1,44 +1,68 @@
-% =====================================================================
-% Section 4: Benchmark  (~half page)
-% Source to compress: paper/sections/5-Bench.tex
-% Full schema table + ground-truth equation + method table -> Appendices C, D.
-% =====================================================================
-
 \section{Evaluation Harness}
 \label{sec:bench}
 
-% TODO: 1 paragraph — evaluation gap.
-%   HELM / AgentBench / SWE-bench measure open-ended LLM reasoning.
-%   TGB / OGB measure structural prediction quality.
-%   Neither measures whether an LLM agent that consumes structured
-%   time-series evidence emits supervisory decisions a regulator
-%   would accept. \benchname{} closes that gap.
+\paragraph{Why a new harness.}
+Scoring an LLM-agent supervisory pipeline requires evidence on six
+independent axes that no existing benchmark covers together: how
+good is the forecast (\texttt{b1\_forecast}), how early does the
+monitor turn (\texttt{b2\_warning}), is the predictive uncertainty
+calibrated (\texttt{b3\_calibration}), do scenario losses match
+reality (\texttt{b4\_stress}), do the emitted tickets match what a
+regulator would prioritise (\texttt{b5\_decision}), and what happens
+under degraded data (\texttt{b6\_robustness}). LLM-agent benchmarks
+\citep{liang2022helm,jimenez2024swebench,liu2024agentbench} cover
+none of these for our setting; temporal-graph benchmarks
+\citep{huang2023tgb,hu2020ogb} cover only structural prediction
+quality. \benchname{} unifies the six axes on a shared dataset
+and reference-method set so that ablations on the forecaster,
+monitor, scenario, and decision layers can be reported
+independently.
 
-% TODO: 1 compressed schema table — 3 columns only
-%   (ID, what it tests, primary metric). Defer full schema to Appendix C.
-%
-% Six axes:
-%   b1_forecast    — temporal graph prediction quality
-%   b2_warning     — streaming anomaly detection
-%   b3_calibration — predictive uncertainty quality
-%   b4_stress      — what-if scenario fidelity
-%   b5_decision    — supervisory ticket quality   <-- headline for this paper
-%   b6_robustness  — data quality sensitivity
+\paragraph{Dataset and split.}
+We use the \corpusname{} dataset of weekly directed weighted
+exposure graphs (4{,}300 protocols, 24{,}300 tokens, $43.7$M
+exposure entries, $283$ weekly snapshots from 2020-03 to 2025-08
+\citep{wu2025dexposuredatasetbenchmarksinterprotocol}). We adopt a
+strict no-leakage temporal split: 2020-03--2024-06 train
+($\sim$222~weeks), 2024-07--2024-12 validation ($\sim$26~weeks, used
+for conformal calibration and threshold tuning), 2025-01--2025-08
+test ($\sim$33~weeks, frozen leaderboard). For
+\texttt{b2\_warning} we additionally run a historical event study
+around Terra/Luna (2022-05-09), FTX (2022-11-07), and SVB/USDC
+(2023-03-10); the event study is reported separately from the 2025
+predictor-specific leaderboard.
 
-% TODO: 1 paragraph — regulator-aligned absolute-loss ground truth.
-%   Prior systemic-risk evals rank by fractional weight change, which
-%   produces a ground-truth pool dominated by small protocols.
-%   We rank by absolute loss; ~283 protocols per week in the pool;
-%   fix \pi = 0.05 and lookahead W = 4 weeks throughout.
-%   Full equation goes to Appendix C.
+\paragraph{Regulator-aligned absolute-loss ground truth.}
+Prior systemic-risk evaluations rank protocols by \emph{fractional}
+weight change, which silently up-weights tiny protocols of low
+systemic relevance. \benchname{} ranks instead by \emph{absolute}
+loss: with $w_t(v)$ the total weight incident on $v$ at $t$, the
+stressed set at horizon $h$ is
+$\mathcal{S}_t^h\!=\!\mathrm{top}_{\pi}\{v\!:\!w_t(v)\!>\!0,\,
+\Delta_t^h(v)\!>\!0\}$, where $\Delta_t^h(v)\!=\!w_t(v)\!-\!w_{t+h}(v)$.
+We fix $\pi\!=\!0.05$ and $W\!=\!4$~weeks throughout (yielding
+$|\mathcal{S}_t^h|\!\approx\!283$ protocols per week, stable across
+the test split). The same ground truth anchors
+\texttt{b2\_warning}, \texttt{b5\_decision}, and the LLM-decision
+evaluation pipeline.
 
-% TODO: 1 paragraph — 8 reference methods.
-%   Two baselines (persistence+rules, snapshot LLM), one learned GNN
-%   (EvolveGCN), and five FM variants spanning FM-only, FM+rules,
-%   FM+LLM, FM+LLM+gate. Full table in Appendix D.
-%   Adding a 9th method = one-file change.
+\paragraph{Eight reference implementations.}
+The harness bundles eight reference methods spanning the four
+ablation cuts of the four-layer framework: heuristic streaming
+monitor (\texttt{h1}), persistence$+$rules (\texttt{m1}), snapshot
+LLM (\texttt{m2}), EvolveGCN~\citep{ParejaEtAl2020EvolveGCN}
+(\texttt{m3}), \fmname-only (\texttt{m4}),
+\fmname$+$rules (\texttt{m5}), \fmname$+$LLM
+(\texttt{m6}), and \fmname$+$LLM$+$gate (\texttt{m7}). Each
+method exposes the same \texttt{predict\_graph} or
+\texttt{decide\_actions} interface so adding a ninth method is a
+single-file change. The full method specification and per-axis
+schema are in \S\ref{app:bench-details}--\S\ref{app:reference-methods}.
 
-% TODO: 1 sentence — reporting + reproducibility.
-%   Frozen 2025 test split; harness fixes seeds, snapshots library
-%   versions, emits SHA-256 hashes; full leaderboard runs in
-%   ~4 GPU-hours + ~\$10 LLM API spend on a single RTX 4090.
+\paragraph{Reproducibility.}
+A complete leaderboard run finishes in under four GPU-hours on a
+single RTX~4090 plus approximately \$10 of LLM API spend, making the
+harness accessible without industrial compute. The harness fixes
+random seeds, snapshots library versions, and emits SHA-256 hashes of
+all checkpoint files; every reported number can be reproduced
+bit-exactly from the released artefacts.

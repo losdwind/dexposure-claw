@@ -1,0 +1,60 @@
+{
+  "cells": [
+    {
+      "method": "m6_fm_llm",
+      "decision": "claude-sonnet-4.6",
+      "judge": "claude-opus-4.8",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.517,
+      "mean_precision": 0.5693,
+      "mean_completeness": 0.0141,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 0.2797,
+      "judge_cost_usd": 0.0303
+    },
+    {
+      "method": "m6_fm_llm",
+      "decision": "google/gemini-2.5-pro",
+      "judge": "claude-opus-4.8",
+      "decision_model": "google/gemini-2.5-pro",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.207,
+      "mean_precision": 0.569,
+      "mean_completeness": 0.0065,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 0.5432,
+      "judge_cost_usd": 0.19
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision": "claude-sonnet-4.6",
+      "judge": "claude-opus-4.8",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.655,
+      "mean_precision": 0.5859,
+      "mean_completeness": 0.0147,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 2.0854,
+      "judge_cost_usd": 0.2268
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision": "google/gemini-2.5-pro",
+      "judge": "claude-opus-4.8",
+      "decision_model": "google/gemini-2.5-pro",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 29,
+      "mean_quality": 2.379,
+      "mean_precision": 0.5672,
+      "mean_completeness": 0.0071,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 0.5446,
+      "judge_cost_usd": 0.1888
+    }
+  ]
+}
