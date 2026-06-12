@@ -55,9 +55,8 @@
 \newcommand{\corpusname}{Exposure-Corpus}
 
 % =====================================================================
-\title{\sysname{}: An Agentic System for DeFi Risk Monitoring and
-Decision Recommendation Based on a Graph Time-Series Foundation
-Model}
+\title{\sysname{}: An Agentic System for Risk Monitoring and
+Decision Recommendation on Decentralised Financial Networks}
 
 % Anonymous author block for submission.
 \author{Anonymous Submission \\
@@ -68,43 +67,41 @@ Model}
 
 % =====================================================================
 \begin{abstract}
-General-purpose LLM agents asked to recommend financial-risk
-interventions can \emph{hallucinate severity}: handed evidence of
-elevated risk, they over-read it, recommending high-stakes actions
-whose every cited number is traceable to the input yet whose targets
-are never actually stressed. We design and characterise a
-\emph{deployment-ready} LLM-agent pipeline for decentralised-finance
-supervision that measures and contains this failure mode: a graph
-time-series forecaster produces predicted exposure networks,
-deterministic monitors and stress scenarios convert them into a
-typed evidence bundle, and the LLM emits supervisory tickets with
-rationales. Two safety gates---a data-health gate and a confidence
-gate---determine when intervention-level tickets are allowed; every
-emitted ticket carries the evidence bundle and rationale that
-produced it. We release an evaluation harness that scores such
-pipelines on six axes, anchored to a \emph{regulator-aligned
-absolute-loss} ground truth that replaces the fractional-change
-metric used in prior systemic-risk evaluations, and additionally
-measures LLM-as-judge explanation quality and a false-intervention
-rate (FIR). With eight reference implementations and five years of
-weekly DeFi exposure graphs, the full LLM-agent stack raises ticket
-F1 from $0.0076$ to $0.0233$ ($+207\%$) at a visible
-false-intervention cost (FIR~$\approx$~$0.44$ under an Opus~4.7
-decision LLM vs $0$ for rules). A tier-above Opus~4.8 judge and a
-cross-family panel (Gemini~2.5~Pro, GPT-5.5) all rank the full stack
-top on explanation quality. Replacing the decision LLM with a
-tier-below Sonnet~4.6 yields a Pareto improvement over
-Opus~4.7 on every LLM-bearing axis (F1 $0.0288$, FIR $0.000$,
-judge $2.65$) at $\sim$5$\times$ lower inference cost. We
-characterise the resulting system as a recall--explanation Pareto
-option for supervisory settings, not a uniform replacement for
-conservative rules, and release ticket-level audit logs from the
-historical backtest.
+Decentralised finance (DeFi) exposes supervisors to fast-moving,
+networked credit risk: shocks propagate across protocols before
+human operators can inspect raw on-chain data. LLM agents are a
+natural response, but they are hard to trust with high-stakes
+interventions---handed weak or stale evidence they can
+\emph{over-read} it, and prior systemic-risk evaluations give no
+regulator-aligned way to measure the resulting false alarms. We
+introduce \sysname{}, a forecast-grounded agentic supervision
+system that routes LLM decisions through structured evidence
+rather than raw transactions. \fmname{}, a graph time-series
+foundation model, forecasts future exposure networks;
+deterministic monitors and stress scenarios convert the forecasts
+into typed alerts and scenario losses; data-health and confidence
+gates decide when intervention-level tickets are admissible; and
+every released ticket carries its evidence bundle, rationale, and
+gate states for audit. On \benchname{}, a six-axis harness with a
+regulator-aligned absolute-loss ground truth, five years of weekly
+DeFi exposure graphs, and eight reference implementations, the
+full stack lifts ticket F1 over a conservative rules baseline from
+$0.0076$ to $0.0233$ ($p\!<\!10^{-4}$), at a visible
+false-intervention cost under an Opus~4.7 decision model
+(FIR~$\approx$~$0.44$). Swapping in a tier-below
+Sonnet~4.6 raises F1 to $0.0288$, eliminates measured false
+interventions, and directionally improves explanation quality at
+$\sim$5$\times$ lower inference cost. These results position
+\sysname{} as an auditable recall--explanation Pareto option for
+human-in-the-loop DeFi supervision, not a replacement for
+conservative rules; we release the evaluation harness and
+ticket-level audit logs from the historical backtest.
 \end{abstract}
 
 % =====================================================================
 \input{sections/1-intro}
 \input{sections/2-related}
+\input{sections/pre}
 \input{sections/3-pipeline}
 \input{sections/4-bench}
 \input{sections/5-results}

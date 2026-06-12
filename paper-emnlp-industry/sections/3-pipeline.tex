@@ -3,32 +3,27 @@
 
 \begin{figure*}[t]
 \centering
-\resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview}}
+\resizebox{0.80\textwidth}{!}{\input{figures/fig1_system_overview}}
 \caption{\sysname{}: a four-layer pipeline. The agent ingests the
 weekly exposure graph $G_t$, runs \fmname{} prediction (Layer~1),
 monitor and scenario engines (Layer~2), an LLM decision layer
-(Layer~3), and a safety gate (Layer~4) that emits either the
-supervisory ticket $\tau^{\star}$ or a safe-mode notice. Bottom
-annotations report the per-layer F1 / judge lift from
-\S\ref{sec:results}.}
+(Layer~3), and a safety gate (Layer~4) emitting either a
+supervisory ticket $\tau^{\star}$ or a safe-mode notice; bottom
+annotations give per-layer F1 / judge lifts (\S\ref{sec:results}).}
 \label{fig:system}
 \end{figure*}
 
-\sysname{} is a four-layer pipeline (Figure~\ref{fig:system}).
-Layer~1 forecasts the near-future exposure graph with \fmname;
-Layer~2 converts the forecast into a typed evidence bundle of
-monitor alerts and stress scenarios; Layer~3 hands the bundle to an
-LLM that emits supervisory tickets with rationale; Layer~4 gates
-intervention-level actions on a data-health and a confidence check.
-The pipeline runs at weekly cadence on a single RTX~4090; a
-decision epoch takes under a minute of GPU time and well under a
-dollar of LLM API spend (\S\ref{sec:bench}).
+\sysname{} is a four-layer pipeline (Figure~\ref{fig:system}):
+forecast (\fmname), evidence (monitors, scenarios), LLM decision,
+and safety gates. It runs at weekly cadence on a single
+RTX~4090; a decision epoch takes under a minute of GPU time and
+well under a dollar of LLM API spend (\S\ref{sec:bench}).
 
 \subsection{Forecaster interface}
 \label{ssec:forecaster}
-At each decision epoch $t$ the agent observes a credit-exposure
-snapshot $G_t=(V,E_t,W_t)$ (an inter-protocol token-mediated exposure
-graph; see \S\ref{app:fm-notation}) and node covariates $X_t$. It
+At each decision epoch $t$ the agent observes the credit-exposure
+snapshot $G_t$ and node covariates $X_t$
+(\S\ref{sec:preliminaries}). It
 queries \fmname{} for a forecast distribution
 $\mathcal{P}_{t,h}\!\leftarrow\!\text{\fmname.Forecast}(G_t,X_t,h)$
 at horizons $\mathcal{H}\!=\!\{1,4,8,12\}$ weeks, constructs an
@@ -77,16 +72,15 @@ targets and severities).
 \subsection{Safety gates}
 \label{ssec:gates}
 Two gates determine the feasibility of intervention-level
-actions. The \emph{data-health gate}
-$DH_t\!=\!\mathrm{mean}(\mathrm{fresh}_t,\mathrm{miss}_t,
-\mathrm{topo}_t,\mathrm{disc}_t)\!<\!\tau_{\mathrm{data}}\!=\!0.7$
+actions (\S\ref{sec:preliminaries}). The \emph{data-health gate}
+$DH_t\!<\!\tau_{\mathrm{data}}\!=\!0.7$
 triggers safe mode, in which only \texttt{Monitor} and
 \texttt{Investigate} tickets are emitted, regardless of LLM
 recommendation. The \emph{confidence gate}
 $\bar{C}_t\!<\!\tau_{\mathrm{conf}}\!=\!0.6$ blocks
-intervention-level tickets even when data is healthy. Every emitted
-ticket carries the full evidence bundle, rationale, and gate
-states; the audit log is the unit of release (\S\ref{sec:lessons}).
+intervention-level tickets even when data is healthy. Every
+emitted ticket carries the full evidence bundle, rationale, and
+gate states (\S\ref{sec:lessons}).
 
 \noindent
 The end-to-end algorithm is in

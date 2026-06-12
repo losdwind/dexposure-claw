@@ -10,10 +10,9 @@ calibrated (\texttt{b3\_calibration}), do scenario losses match
 reality (\texttt{b4\_stress}), do the emitted tickets match what a
 regulator would prioritise (\texttt{b5\_decision}), and what happens
 under degraded data (\texttt{b6\_robustness}). No existing
-benchmark covers these axes together (\S\ref{sec:related}).
-\benchname{} unifies the six axes on a shared dataset
-and reference-method set so that ablations on the forecaster,
-monitor, scenario, and decision layers can be reported
+benchmark covers these axes together (\S\ref{sec:related});
+\benchname{} unifies them on a shared dataset and
+reference-method set so layer-wise ablations can be reported
 independently.
 
 \paragraph{Dataset and split.}
@@ -36,10 +35,8 @@ predictor-specific leaderboard.
 Prior systemic-risk evaluations rank protocols by \emph{fractional}
 weight change, which silently up-weights tiny protocols of low
 systemic relevance. \benchname{} ranks instead by \emph{absolute}
-loss: with $w_t(v)$ the total weight incident on $v$ at $t$, the
-stressed set at horizon $h$ is
-$\mathcal{S}_t^h\!=\!\mathrm{top}_{\pi}\{v\!:\!w_t(v)\!>\!0,\,
-\Delta_t^h(v)\!>\!0\}$, where $\Delta_t^h(v)\!=\!w_t(v)\!-\!w_{t+h}(v)$.
+loss, scoring tickets against the stressed set $\mathcal{S}_t^h$
+and FIR of \S\ref{sec:preliminaries}.
 We fix $\pi\!=\!0.05$ and the ground-truth horizon $h\!=\!4$~weeks
 throughout (yielding $|\mathcal{S}_t^h|\!\approx\!283$ protocols
 per week); the last four test weeks lack a $4$-week-ahead
@@ -65,6 +62,6 @@ schema are in \S\ref{app:bench-details}--\S\ref{app:reference-methods}.
 A complete leaderboard run finishes in under four GPU-hours on a
 single RTX~4090 plus approximately \$10 of LLM API spend, making the
 harness accessible without industrial compute. The harness fixes
-random seeds, snapshots library versions, and emits SHA-256 hashes of
-all checkpoint files; every reported number can be reproduced
-bit-exactly from the released artefacts.
+seeds, snapshots library versions, and hashes checkpoints; every
+reported number reproduces bit-exactly from the released
+artefacts.

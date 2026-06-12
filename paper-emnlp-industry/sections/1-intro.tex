@@ -1,95 +1,69 @@
 \section{Introduction}
 \label{sec:intro}
 
-In May 2022 the Terra/Luna collapse erased over \$40 billion in
-48~hours, triggering cascading liquidations through lending protocols,
-DEXs, and yield aggregators that held UST-denominated
-assets~\citep{VidalTomasEtAl2023FTX}. Five months later FTX wiped out
-another \$8 billion. These crises were not isolated: in
-decentralised finance (DeFi), credit exposures form a dense,
-time-varying network of tokenised claims that no single participant
-fully observes, and shocks travel through it within hours.
+Decentralised finance (DeFi) creates fast-moving networks of
+token-mediated credit exposure among lending protocols,
+decentralised exchanges, stablecoins, bridges, and yield
+aggregators. The May~2022 Terra/Luna collapse erased over \$40
+billion in 48~hours, and FTX and SVB/USDC followed within
+months~\citep{VidalTomasEtAl2023FTX}: shocks traverse the network
+faster than supervisors can inspect raw on-chain data, motivating
+decision-support systems that forecast emerging exposure risk and
+recommend timely supervisory responses.
 
-A natural response is to build an \emph{agent}: an LLM-driven
-pipeline that ingests on-chain measurements, surfaces early-warning
-signals, and recommends risk-mitigating actions with auditable
-rationale. Our reference implementations (\S\ref{sec:results}) show
-that the obvious designs fail in two ways. Reading raw on-chain
-snapshots, the LLM is conservative but weak: poorly targeted
-tickets (F1 $0.0183$), and the lowest-scored rationales under every
-judge we test. Fed richer \emph{forecasted} evidence, it targets
-better but \emph{hallucinates severity}: every cited number is
-traceable to the evidence bundle (grounding $1.000$), yet $44.8\%$
-of its intervention-level tickets point at protocols that are never
-actually stressed. In a supervisory setting the second failure is
-far costlier than missed detections, because every intervention is
+A straightforward response is an LLM agent over on-chain
+measurements. Our reference implementations (\S\ref{sec:results})
+show the obvious designs fail in two ways. Reading
+raw on-chain snapshots, the LLM is conservative but weak: poorly
+targeted tickets (F1 $0.0183$) and the lowest-scored rationales
+under every judge we test. Fed richer \emph{forecasted} evidence,
+it targets better but \emph{hallucinates severity}: every cited
+number is traceable to the evidence bundle (grounding $1.000$),
+yet $44.8\%$ of its intervention-level tickets point at protocols
+that are never actually stressed. The second failure is far
+costlier in a supervisory setting: every intervention is
 observable and politically expensive.
 
-To measure such a failure mode honestly we first need a ground
-truth that matches how supervisors actually prioritise. Prior
-systemic-risk evaluations rank protocols by \emph{fractional} weight
-change~\citep{BERTOMEU2024105321,gonon2025computingsystemicriskmeasures,
-li2025hgmae}, which over-weights tiny protocols of low systemic
-relevance and is not what a supervisor ranks by. \textbf{We define
-a regulator-aligned \emph{absolute-loss} ground truth}
-(\S\ref{sec:bench}) and use it to score, for the first time, an
-integrated forecast$+$monitor$+$scenario$+$LLM$+$gate pipeline
-against what a supervisor would actually prioritise. The
-characterisation produces the first joint measurement of forecast
-quality, monitor lead time, and ticket quality on the same
-regulator-aligned target, and the first quantification of the
-false-intervention cost for an LLM agent operating in this
-setting---a cost that finance-specific LLM-agent
+We introduce \sysname{} (\S\ref{sec:pipeline}), a
+forecast-grounded agentic system for DeFi risk monitoring and
+decision recommendation that routes LLM decisions through
+structured evidence and \emph{measures} the over-intervention
+cost that richer evidence induces. A graph time-series foundation
+model (\fmname) forecasts future exposure networks; deterministic
+monitors and stress scenarios convert the forecasts into typed
+evidence; an LLM emits ranked supervisory tickets with targets,
+severities, and evidence-linked rationales; and data-health and
+confidence gates restrict intervention-level recommendations.
+Every ticket is released with its evidence bundle, rationale, and
+gate states for auditability.
+
+We evaluate with \benchname{} (\S\ref{sec:bench}), a six-axis
+harness over eight reference implementations. Its decision
+axis scores tickets against a regulator-aligned
+\emph{absolute-loss} ground truth (\S\ref{sec:preliminaries})
+rather than the fractional-change ranking of prior systemic-risk
+evaluations~\citep{BERTOMEU2024105321,gonon2025computingsystemicriskmeasures,
+li2025hgmae}, so false interventions are measured directly---a
+cost that finance-specific LLM-agent
 work~\citep{yao2025arbiter,mao2025knowyourintent,luo2025llmcrypto,
-jeon2026blindtrade} has not measured, since none of those systems
-is scored against a regulator-aligned ground truth.
-
-We close this gap with three contributions:
-\begin{itemize}[leftmargin=*,itemsep=2pt,topsep=2pt]
-    \item \textbf{A deployment-ready LLM-agent supervisory pipeline}
-    (\sysname; \S\ref{sec:pipeline}). A graph time-series
-    foundation model (\fmname) produces predicted exposure networks;
-    five deterministic monitors and five stress scenarios convert
-    them into a typed evidence bundle; an LLM emits supervisory
-    tickets with rationale; and two safety gates (data-health,
-    confidence) determine when intervention-level tickets are
-    allowed.
-
-    \item \textbf{An evaluation harness}
-    (\benchname; \S\ref{sec:bench}). Six axes spanning
-    forecast quality, streaming anomaly detection, predictive
-    uncertainty, what-if scenario fidelity, supervisory ticket
-    quality, and data-quality robustness, with a regulator-aligned
-    \emph{absolute-loss} ground truth (\S\ref{sec:bench}) and eight
-    reference method implementations including persistence, EvolveGCN
-    \citep{ParejaEtAl2020EvolveGCN}, rule engines, snapshot LLMs, and
-    \fmname-coupled LLM variants.
-
-    \item \textbf{An operating-point characterisation}
-    (\S\ref{sec:results}). On the frozen 2025 split of
-    \corpusname, the full \fmname$+$LLM$+$gate stack
-    raises ticket F1 from $0.0076$ to $0.0233$ ($+207\%$). A
-    tier-above Claude~Opus~4.8 judge
-    \citep{Zheng2023LLMJudge} and a cross-family panel
-    (Gemini~2.5~Pro, GPT-5.5) all rank the gated stack
-    \texttt{m7} highest on explanation quality; under the
-    Opus~4.7 decision LLM the false-intervention rate rises to
-    $\approx 0.44$. A tier-below Sonnet~4.6 decision LLM yields a
-    Pareto improvement on both \texttt{m6} and \texttt{m7}:
-    F1 rises further to $0.0288$, FIR collapses to $0.000$, and
-    judge quality reaches $2.65$, at $\sim$5$\times$ lower
-    inference cost---the deployable headline operating point.
-\end{itemize}
+jeon2026blindtrade} has not reported. Across five years of weekly
+DeFi exposure graphs the full stack lifts ticket F1 from $0.0076$
+(conservative persistence-rules baseline) to $0.0233$
+($p\!<\!10^{-4}$), and three frontier judges across model
+families~\citep{Zheng2023LLMJudge} all rank it highest on
+explanation quality---at a visible false-intervention cost under
+the Opus~4.7 decision LLM (FIR $\approx 0.44$). A tier-below
+Sonnet~4.6 decision LLM gives the headline operating point: F1
+$0.0288$, measured false interventions zero, explanation quality
+directionally higher, at $\sim$5$\times$ lower inference cost.
+\sysname{} is thus an auditable recall--explanation Pareto option
+for human-in-the-loop supervision, not a replacement for
+conservative rules.
 
 \noindent
-\textbf{Honest scope and track fit.} We have run the pipeline as a
-historical backtest over $283$ weekly snapshots of real
-DefiLlama-sourced exposure data (2020--2025), not as a live
-production cron at a supervisory authority. The contribution is
-therefore best read as \emph{methods for deployed systems
-(evaluation, ethics, robustness)} and \emph{insights based on
-real-world datasets}---two of the Industry Track's explicit
-categories---rather than as a deployment case study.
-The released ticket-level audit logs come from the backtest,
-letting operators recompute the operating point under their own
-data conditions before adopting the system.
+\textbf{Honest scope.} All results come from a historical
+backtest over $283$ weekly snapshots of real DefiLlama-sourced
+exposure data (2020--2025), not a live deployment---a
+\emph{methods for deployed systems} and \emph{real-world
+insights} contribution rather than a deployment case study; the
+released ticket-level audit logs come from this backtest.
