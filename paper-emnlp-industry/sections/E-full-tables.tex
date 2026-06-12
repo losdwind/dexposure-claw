@@ -4,6 +4,19 @@
 This appendix expands the headline numbers of \S\ref{sec:results}
 into the per-slice audits underlying them.
 
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig4_method_comparison.pdf}
+\caption{Layer-wise contribution and cost (visualising
+Tables~\ref{tab:headline} and~\ref{tab:decision-panel}). Adding the
+FM signal to a snapshot LLM improves ticket F1 and explanation
+quality; swapping the FM-fed rule engine for the LLM improves
+recall-oriented F1 further; the same LLM variants incur a
+substantial false-intervention rate, partially mitigated by the
+safety gate.}
+\label{fig:layerwise}
+\end{figure}
+
 \subsection{Full all-horizon \texttt{b1\_forecast} results}
 \label{app:b1-full}
 \input{sections/A1-b1_forecast_AllHorizons}
@@ -29,8 +42,10 @@ into the per-slice audits underlying them.
 \input{sections/T4-Ablation}
 Panel~B: under severe feature/edge masking, FIR ranges over
 $[0.27,0.60]$ when the data-health gate is disabled
-($\tau_{\mathrm{conf}}\!=\!0$), and collapses to $0.000$ when the
-gate is triggered, by suppressing intervention tickets.
+($\tau_{\mathrm{data}}\!=\!0$; the confidence gate is held off at
+$\tau_{\mathrm{conf}}\!=\!0$ throughout Panel~B to isolate A1), and
+collapses to $0.000$ when the gate is triggered, by suppressing
+intervention tickets.
 Panel~C: multi-horizon monitoring ($h\!\in\!\{1,4,8,12\}$) generates
 73--98 alerts in the three crisis windows vs 19--23 for
 single-horizon ($h\!=\!4$), at unchanged precision range

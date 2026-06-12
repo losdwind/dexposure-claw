@@ -1,0 +1,23 @@
+{
+  "benchmark": "b5_decision",
+  "method": "m1_persistence_rules",
+  "timestamp": "2026-06-11T00:20:28.112643",
+  "elapsed_seconds": 1295.32,
+  "log_file": "results/local_rerun_m1/b5_decision__m1_persistence_rules__20260610_235852.log",
+  "results": [
+    {
+      "method": "m1_persistence_rules",
+      "ticket_precision": 0.6333333333333333,
+      "target_recall_at_k": 0.004052784925731258,
+      "score_discrimination": 0.0,
+      "target_stability": 0.5325963718820862,
+      "stress_pool_size_mean": 283.51724137931035,
+      "n_tickets_mean": 0.8275862068965517,
+      "risk_reduction": 0.09116506992977855,
+      "audit_completeness": 0.004052784925731258,
+      "suppression_rate": 0.0,
+      "false_intervention_rate": 0.0,
+      "n_weeks_evaluated": 29
+    }
+  ]
+}

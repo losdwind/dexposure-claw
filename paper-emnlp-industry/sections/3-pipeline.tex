@@ -5,11 +5,12 @@
 \centering
 \resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview}}
 \caption{\sysname{}: a four-layer pipeline. The agent ingests the
-weekly exposure graph $G_t$, runs FM prediction (Layer~1), monitor
-and scenario engines (Layer~2), an LLM decision layer (Layer~3), and
-a safety gate (Layer~4) that emits either the supervisory ticket
-$\tau^{\star}$ or a safe-mode notice. Bottom annotations report the
-per-layer F1 / judge lift from \S\ref{sec:results}.}
+weekly exposure graph $G_t$, runs \fmname{} prediction (Layer~1),
+monitor and scenario engines (Layer~2), an LLM decision layer
+(Layer~3), and a safety gate (Layer~4) that emits either the
+supervisory ticket $\tau^{\star}$ or a safe-mode notice. Bottom
+annotations report the per-layer F1 / judge lift from
+\S\ref{sec:results}.}
 \label{fig:system}
 \end{figure*}
 
@@ -19,8 +20,9 @@ Layer~2 converts the forecast into a typed evidence bundle of
 monitor alerts and stress scenarios; Layer~3 hands the bundle to an
 LLM that emits supervisory tickets with rationale; Layer~4 gates
 intervention-level actions on a data-health and a confidence check.
-The pipeline runs at weekly cadence on a single RTX~4090 with
-approximately \$10 of LLM API spend per run.
+The pipeline runs at weekly cadence on a single RTX~4090; a
+decision epoch takes under a minute of GPU time and well under a
+dollar of LLM API spend (\S\ref{sec:bench}).
 
 \subsection{Forecaster interface}
 \label{ssec:forecaster}
@@ -43,11 +45,12 @@ fragility, and instability of the predicted graph: top-1 PageRank
 \citep{BrinPage1998PageRank}, HHI concentration
 \citep{Rhoades1993HHI}, network density, PageRank Gini, and degree
 Gini. An alert fires when a monitor metric departs from its
-$L\!=\!26$ week rolling baseline by more than $z\!=\!2$ standard
-deviations; each alert is attached to (i) an attribution top-$K$ of
-contributing edges by marginal contribution, and (ii) an
-uncertainty-aware confidence score $C_t(a)\!\in\![0,1]$ that decays
-with low data-health, wide MC dispersion, and longer horizons.
+$L\!=\!42$ week rolling baseline by more than $z\!=\!2$ standard
+deviations; each alert is attached to (i) an attribution top-$K$
+($K\!=\!5$) of contributing edges by marginal contribution, and
+(ii) an uncertainty-aware confidence score $C_t(a)\!\in\![0,1]$
+that decays with low data-health, wide MC dispersion, and longer
+horizons.
 
 In parallel, a \emph{scenario engine} applies five standardised
 stress shocks---single protocol failure, bridge cluster failure,
@@ -67,9 +70,9 @@ drawn from a fixed four-action playbook
 (\texttt{Monitor}, \texttt{Investigate}, \texttt{Recommend-Reduce}, and
 \texttt{Contingency}),
 (b) a target set of protocols, and (c) a free-form rationale that
-cites specific evidence fields by name. We additionally probe
-self-consistency by repeating the call three times at temperature~$0$
-and reporting Jaccard overlap on targets and severities.
+cites specific evidence fields by name. Self-consistency is probed
+with three repeated calls at temperature~$0$ (Jaccard overlap on
+targets and severities).
 
 \subsection{Safety gates}
 \label{ssec:gates}
@@ -82,9 +85,8 @@ triggers safe mode, in which only \texttt{Monitor} and
 recommendation. The \emph{confidence gate}
 $\bar{C}_t\!<\!\tau_{\mathrm{conf}}\!=\!0.6$ blocks
 intervention-level tickets even when data is healthy. Every emitted
-ticket carries the full evidence bundle, the LLM rationale, and the
-gate states that produced it; the audit log is the unit of release
-(\S\ref{sec:lessons}).
+ticket carries the full evidence bundle, rationale, and gate
+states; the audit log is the unit of release (\S\ref{sec:lessons}).
 
 \noindent
 The end-to-end algorithm is in

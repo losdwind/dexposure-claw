@@ -1,0 +1,146 @@
+[
+  {
+    "method": "m5_fm_rules",
+    "crisis": "terra_luna",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 17,
+    "n_alerts": 78,
+    "alerts_per_horizon": {
+      "1": 20,
+      "4": 20,
+      "8": 19,
+      "12": 19
+    },
+    "ticket_precision": 0.5764705882352941,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.16319444444444442,
+    "audit_completeness": 0.0012274675340217314,
+    "n_tickets": 34,
+    "n_intervention": 0
+  },
+  {
+    "method": "m1_persistence_rules",
+    "crisis": "terra_luna",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 17,
+    "n_alerts": 8,
+    "alerts_per_horizon": {
+      "1": 2,
+      "4": 2,
+      "8": 2,
+      "12": 2
+    },
+    "ticket_precision": 0.2,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.8819444444444444,
+    "audit_completeness": 5.0405766419678416e-05,
+    "n_tickets": 4,
+    "n_intervention": 0
+  },
+  {
+    "method": "m5_fm_rules",
+    "crisis": "ftx",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 18,
+    "n_alerts": 96,
+    "alerts_per_horizon": {
+      "1": 23,
+      "4": 26,
+      "8": 23,
+      "12": 24
+    },
+    "ticket_precision": 0.5333333333333333,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.40896358543417355,
+    "audit_completeness": 0.0011161738834093492,
+    "n_tickets": 36,
+    "n_intervention": 0
+  },
+  {
+    "method": "m1_persistence_rules",
+    "crisis": "ftx",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 18,
+    "n_alerts": 28,
+    "alerts_per_horizon": {
+      "1": 7,
+      "4": 7,
+      "8": 7,
+      "12": 7
+    },
+    "ticket_precision": 0.68,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.6013071895424836,
+    "audit_completeness": 0.00039649695445002843,
+    "n_tickets": 10,
+    "n_intervention": 0
+  },
+  {
+    "method": "m5_fm_rules",
+    "crisis": "svb",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 22,
+    "n_alerts": 96,
+    "alerts_per_horizon": {
+      "1": 22,
+      "4": 28,
+      "8": 23,
+      "12": 23
+    },
+    "ticket_precision": 0.6090909090909091,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.35298563869992433,
+    "audit_completeness": 0.0010465120040466678,
+    "n_tickets": 44,
+    "n_intervention": 0
+  },
+  {
+    "method": "m1_persistence_rules",
+    "crisis": "svb",
+    "horizons": [
+      1,
+      4,
+      8,
+      12
+    ],
+    "n_weeks": 22,
+    "n_alerts": 40,
+    "alerts_per_horizon": {
+      "1": 10,
+      "4": 10,
+      "8": 10,
+      "12": 10
+    },
+    "ticket_precision": 0.7,
+    "false_intervention_rate": 0.0,
+    "target_stability": 0.44179894179894186,
+    "audit_completeness": 0.0005048298868950417,
+    "n_tickets": 20,
+    "n_intervention": 0
+  }
+]

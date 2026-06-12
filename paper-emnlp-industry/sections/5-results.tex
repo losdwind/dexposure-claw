@@ -1,99 +1,93 @@
 \section{Empirical Results}
 \label{sec:results}
 
-We use \benchname{} to ask three questions about the pipeline.
-First, does \fmname{} provide forecast signal that persistence does
-not (\texttt{b1}, \texttt{b3}, \texttt{b6})? Second, does routing the
-LLM through structured evidence improve supervisory tickets once
-precision, recall, explanation quality, and false interventions are
-measured jointly (\texttt{b4}, \texttt{b5})? Third, which components
-are load-bearing and which are reserves under degradation
-(ablations)? All headline numbers come from the frozen 2025 test
-split.
+We use \benchname{} to ask three questions. Does \fmname{} provide
+forecast signal that persistence does not (\texttt{b1},
+\texttt{b3}, \texttt{b6})? Does routing the LLM through structured
+evidence improve supervisory tickets once precision, recall,
+explanation quality, and false interventions are scored jointly
+(\texttt{b4}, \texttt{b5})? Which components are load-bearing, and
+which are reserves under degradation (ablations)?
 
 \paragraph{\fmname{} contributes trend, calibration, and robustness; persistence still wins on static point error.}
 On static error metrics, persistence is a deceptively strong
-baseline: at $h\!=\!4$ it matches the FM on PageRank MAE
-($3.4\!\times\!10^{-5}$ vs $4.5\!\times\!10^{-5}$) and Spearman rank
-correlation ($0.570$ vs $0.558$). The FM contributes signal where
+baseline: at $h\!=\!4$ it beats the FM on PageRank MAE
+($3.4\!\times\!10^{-5}$ vs $4.5\!\times\!10^{-5}$) and edges it on
+Spearman rank correlation ($0.570$ vs $0.558$). The FM contributes signal where
 persistence is structurally pinned: trend consistency
 $0.525$--$0.632$ across horizons (persistence: $0$);
 \texttt{b3\_calibration} PI coverage $0.913$ against a $0.90$
 target and ECE $0.013$; \texttt{b6\_robustness} mean relative
-degradation $0.113$ vs $0.148$ for persistence ($24\%$ less
-degradation under data corruption). The full per-horizon and
-per-regime audits are in \S\ref{app:full-tables}.
+degradation $0.113$ vs $0.148$ for persistence ($24\%$ less). The
+full per-horizon and per-regime audits are in
+\S\ref{app:full-tables}.
 
 \paragraph{Headline decision-quality result.}
 Table~\ref{tab:headline} consolidates the central
 \texttt{b5\_decision} comparison. The persistence$+$rules baseline
-(\texttt{m1}) achieves the highest single-axis precision ($0.720$,
-in \S\ref{app:full-tables}) and a false-intervention rate of $0$ by
-virtue of raising few tickets. Against this baseline, the full
+(\texttt{m1}) achieves the highest single-axis precision ($0.720$)
+and a false-intervention rate of $0$ by virtue of raising few
+tickets. Against this baseline, the full
 \fmname$+$LLM$+$gate stack (\texttt{m7}) lifts ticket F1 from
-$0.0076$ to $0.0233$ ($+207\%$). Against the comparable pure-LLM
+$0.0076$ to $0.0233$ ($+207\%$; $p\!<\!10^{-4}$). Against the comparable pure-LLM
 baseline that consumes raw snapshots without the forecaster
 (\texttt{m2}, the only other LLM-bearing row), \texttt{m7} lifts
-LLM-as-judge explanation quality from $2.24$ to $2.45/5$ ($+9.4\%$)
-under a Claude Opus~4.8 judge that is tier-above the Claude
-Opus~4.7 decision LLM, satisfying the standard judge-stronger
-constraint of the LLM-as-judge literature
-\citep{Zheng2023LLMJudge}. The cost surfaces sharply once
-\texttt{m2} is in the table: adding the FM signal to the LLM
-(\texttt{m2}$\!\to\!$\texttt{m6}) raises the false-intervention rate
-from $0.000$ to $0.448$. The safety gate
+LLM-as-judge explanation quality from $2.24$ to $2.45$ on a 1--5
+scale ($+9.4\%$) under a tier-above Claude~Opus~4.8 judge
+\citep{Zheng2023LLMJudge}; the lift is significant under GPT-5.5
+($p\!<\!0.001$) but not Opus~4.8 ($p\!=\!0.23$;
+\S\ref{app:stats})---directional rather than confirmed. The
+cost surfaces sharply once \texttt{m2} is in the table: adding the
+FM signal to the LLM (\texttt{m2}$\!\to\!$\texttt{m6}) raises the
+false-intervention rate from $0.000$ to $0.448$
+($p\!<\!10^{-4}$). The safety gate
 (\texttt{m6}$\!\to\!$\texttt{m7}) reduces FIR only marginally
-($0.448\!\to\!0.437$); under the stronger judge the gate's effect on
-judge score is also marginal ($+0.04$), revealing that the
-$+0.21$ gain reported under the weaker Claude Haiku~4.5 judge in
-prior pilots was partially a ceiling artifact. Both LLM variants
+($0.448\!\to\!0.437$), and its effects on F1 and judge score are
+within noise (\S\ref{app:stats}). Both LLM variants
 reach grounding $1.000$, so the failure mode is not citation
 hallucination but \emph{over-reading the forecaster's evidence as
 warrant for high-severity action}.\footnote{\texttt{m3\_evolvegcn}
 and \texttt{m4\_fm\_only} are predictor-only and do not emit
-tickets; \texttt{m3}'s \texttt{b1\_forecast} numbers are in
-\S\ref{app:b1-full}. EvolveGCN underperforms persistence on the
-downstream metrics in our regime, consistent with the data
-efficiency limit ($\sim$220 weekly training snapshots).}
+tickets (forecast quality in \S\ref{app:b1-full}); EvolveGCN
+trails persistence downstream, consistent with its $\sim$220
+weekly-snapshot training budget.}
 
 \paragraph{Judge robustness across model families.}
 We re-judge \texttt{m2}/\texttt{m6}/\texttt{m7} with a
 cross-family panel (Table~\ref{tab:judge-panel}). All three
-frontier judges preserve the headline ordering
-\texttt{m7}$\geq$\texttt{m6}$>$\texttt{m2} on the released
-configuration; \texttt{m7}'s mean score is within $0.45$ across
-all three. The largest disagreement is that Gemini~2.5~Pro
-scores \texttt{m2} slightly above \texttt{m6} ($2.69$ vs $2.55$),
-still keeping \texttt{m7} on top. The cross-family agreement
-closes the judge-family confound a single Anthropic judge would
-leave open.
+frontier judges rank \texttt{m7} highest, and its mean score
+varies by at most $0.45$ across the three. The largest disagreement is that
+Gemini~2.5~Pro scores \texttt{m2} slightly above \texttt{m6}
+($2.69$ vs $2.55$), still keeping \texttt{m7} on top; Gemini is
+also ${\sim}3\times$ noisier per week (std $1.3$--$1.5$ vs
+$0.3$--$0.6$), so the inversion sits within judge noise.
+Cross-family agreement on the top system closes the
+judge-family confound.
 
 \begin{table*}[t]
 \centering
 \small
 \setlength{\tabcolsep}{4.5pt}
-\begin{tabularx}{\linewidth}{@{}llXcccccc@{}}
+\begin{tabularx}{\linewidth}{@{}llXccccccc@{}}
 \toprule
-ID & Pred. & Decision        & F1$\uparrow$ & Recall$\uparrow$ & Judge$\uparrow$ & FIR$\downarrow$ & Ground.$\uparrow$ & Stabil.$\uparrow$ \\
+ID & Pred. & Decision        & Prec.$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ & Judge$\uparrow$ & FIR$\downarrow$ & Ground.$\uparrow$ & Stabil.$\uparrow$ \\
 \midrule
-\texttt{m1} & persist.   & rules               & 0.0076          & 0.004 & ---            & \textbf{0.000} & ---   & 0.514 \\
-\texttt{m2} & ---        & LLM (no FM)         & 0.0183          & 0.009 & 2.24           & \textbf{0.000} & 1.000 & 0.532 \\
-\texttt{m5} & \fmname{}  & rules               & 0.0190          & 0.010 & ---            & \textbf{0.000} & ---   & 0.257 \\
-\texttt{m6} & \fmname{}  & LLM                 & \textbf{0.0241} & 0.012 & 2.41           & 0.448          & 1.000 & 0.488 \\
-\texttt{m7} & \fmname{}  & LLM + safety gate   & 0.0233          & 0.012 & \textbf{2.45}  & 0.437          & 1.000 & 0.435 \\
+\texttt{m1} & persist.   & rules               & \textbf{0.720} & 0.004 & 0.0076          & ---            & \textbf{0.000} & ---   & 0.514 \\
+\texttt{m2} & ---        & LLM (no FM)         & 0.575          & 0.009 & 0.0183          & 2.24           & \textbf{0.000} & 1.000 & 0.532 \\
+\texttt{m5} & \fmname{}  & rules               & 0.600          & 0.010 & 0.0190          & ---            & \textbf{0.000} & ---   & 0.257 \\
+\texttt{m6} & \fmname{}  & LLM                 & 0.570          & 0.012 & \textbf{0.0241} & 2.41           & 0.448          & 1.000 & 0.488 \\
+\texttt{m7} & \fmname{}  & LLM + safety gate   & 0.580          & 0.012 & 0.0233          & \textbf{2.45}  & 0.437          & 1.000 & 0.435 \\
 \bottomrule
 \end{tabularx}
 \caption{Headline \texttt{b5\_decision} comparison on the frozen
-2025 test split. Rows are read as a multi-objective trade-off
-rather than a single leaderboard: \texttt{m1} is the conservative
-high-precision baseline; \texttt{m2} is the pure-LLM baseline (no
-forecaster); \texttt{m6}/\texttt{m7} are the FM-grounded LLM
-variants. Judge scores are from a Claude Opus~4.8 judge
-(within-family upgrade, strictly tier-above the Claude Opus~4.7
-decision LLM). Cross-family judge agreement is in
-Table~\ref{tab:judge-panel}. \texttt{m3\_evolvegcn} and
-\texttt{m4\_fm\_only} are predictor-only and do not emit tickets;
-their forecast quality is reported in \S\ref{app:b1-full}.}
+2025 test split ($n\!=\!29$). Rows are read as a multi-objective
+trade-off rather than a single leaderboard: \texttt{m1} is the
+conservative high-precision baseline; \texttt{m2} is the pure-LLM
+baseline (no forecaster); \texttt{m6}/\texttt{m7} are the
+FM-grounded LLM variants. Judge scores (1--5 scale) are from a
+Claude~Opus~4.8 judge, strictly tier-above the Claude~Opus~4.7
+decision LLM; cross-family agreement is in
+Table~\ref{tab:judge-panel}.}
 \label{tab:headline}
 \end{table*}
 
@@ -120,22 +114,18 @@ tier-below weak-judge reference.}
 \paragraph{A tier-below, cheaper decision LLM dominates the headline operating point.}
 We re-run the decision layer of \texttt{m6} and \texttt{m7} on the
 \emph{same} FM-derived prompts with two non-Opus~4.7 decision
-LLMs---Claude Sonnet~4.6 (within-family, tier-below, $\sim$5$\times$
+LLMs---Claude~Sonnet~4.6 (within-family, tier-below, $\sim$5$\times$
 cheaper) and Google Gemini~2.5~Pro (cross-family)---and re-score
 with the same Opus~4.8 judge (Table~\ref{tab:decision-panel}).
-On both architectures, Sonnet~4.6 is a strict Pareto improvement
-over Opus~4.7: F1 rises ($+15\%$ on \texttt{m6}, $+24\%$ on
-\texttt{m7}), the false-intervention rate collapses from
-$0.437$--$0.448$ to $0.000$, and judge quality improves
-($+0.11$ on \texttt{m6}, $+0.20$ on \texttt{m7}). The cross-family
+On both architectures Sonnet~4.6 is a Pareto improvement over
+Opus~4.7: F1 rises ($+15\%$/$+24\%$; $p\!<\!0.001$ on
+\texttt{m7}), FIR collapses from $0.437$--$0.448$ to $0.000$, and
+judge quality is directionally higher ($+0.11$/$+0.20$; n.s.). The cross-family
 Gemini~2.5~Pro decision is more conservative still (lower F1,
-FIR~=~$0.000$), confirming that the over-intervention failure mode
-is specific to Opus~4.7 rather than a generic LLM-decision
-artefact. The headline operating point a practitioner would now
-deploy is \texttt{m7} with Sonnet~4.6: F1~=~$0.0288$,
-FIR~=~$0.000$, and judge~=~$2.65$---higher than every row in
-Table~\ref{tab:headline} on every axis at a fraction of the
-inference cost.
+FIR~=~$0.000$), indicating that over-intervention is a property of
+the decision model rather than of LLM decision layers per se. The
+operating point a practitioner would now deploy is \texttt{m7}
+with Sonnet~4.6 (F1 $0.0288$, FIR $0.000$, judge $2.65$).
 
 \begin{table}[t]
 \centering\small
@@ -154,39 +144,40 @@ Method & Decision LLM & F1$\uparrow$ & FIR$\downarrow$ & Judge$\uparrow$ \\
 \bottomrule
 \end{tabular}
 \caption{Cross-decision-LLM panel on the same FM-derived prompts,
-judge fixed at Claude Opus~4.8 ($n\!=\!29$). Sonnet~4.6 strictly
-dominates Opus~4.7 on both architectures; Gemini~2.5~Pro is more
-conservative still. The bold row, \texttt{m7}~$\times$~Sonnet~4.6,
-outperforms every row in Table~\ref{tab:headline} on every
-LLM-bearing axis at $\sim$5$\times$ lower inference cost.}
+judge fixed at Claude~Opus~4.8 ($n\!=\!29$). Sonnet~4.6 dominates
+Opus~4.7 on both architectures. The bold row
+(\texttt{m7}~$\times$~Sonnet~4.6) beats every row in
+Table~\ref{tab:headline} on every LLM-bearing axis at
+$\sim$5$\times$ lower cost.}
 \label{tab:decision-panel}
 \end{table}
 
 \paragraph{Layer-wise contribution.}
 Holding the decision policy fixed at \emph{LLM} and adding the
 \fmname{} signal lifts ticket F1 by $32\%$
-($0.0183\!\to\!0.0241$); holding the predictor fixed at
-\fmname{} and swapping rules for the LLM lifts F1 by another
-$27\%$ ($0.0189\!\to\!0.0241$). The two layers therefore make
-additive, non-substitutable contributions (Figure~\ref{fig:layerwise}).
-Adding the safety gate trades $3\%$ F1 for a small judge-quality
-change ($+0.04$ under Opus~4.8, $+0.35$ under Gemini~2.5~Pro,
-$0$ under GPT-5.5; Table~\ref{tab:judge-panel}); under the
-stronger judge panel the gate's primary value is operational
-(every emitted intervention-level ticket clears two pre-defined
-gates with auditable logs) rather than expressed as a single
-explanation-quality delta.
+($0.0183\!\to\!0.0241$; $p\!<\!0.001$); holding the predictor
+fixed at \fmname{} and swapping rules for the LLM lifts F1 by
+another $27\%$ ($0.0190\!\to\!0.0241$). The two layers therefore
+make additive, non-substitutable contributions
+(Figure~\ref{fig:layerwise} in \S\ref{app:full-tables}). Adding
+the safety gate trades $3\%$ F1 for judge-quality changes within
+noise; its value is operational---every intervention-level ticket
+clears two pre-defined gates with auditable logs.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig4_method_comparison.pdf}
-\caption{Layer-wise contribution and cost. Adding the FM signal to a
-snapshot LLM improves ticket F1 and explanation quality; swapping
-the FM-fed rule engine for the LLM improves recall-oriented F1
-further; the same LLM variants incur a substantial false-intervention
-rate, partially mitigated by the safety gate.}
-\label{fig:layerwise}
-\end{figure}
+\paragraph{Matched-budget view.}
+F1 conflates target quality with volume:
+\texttt{m6}/\texttt{m7} emit $6.3$--$6.5$ targets per week vs
+$4.9$ for \texttt{m2} and $2.1$ for \texttt{m1}. Truncating every
+method to its top-$k$ targets per week ($k\!\in\!\{1,2,3\}$;
+\S\ref{app:stats-budget}) separates the two effects: the LLM
+variants still roughly double the rules baseline's precision@$k$
+($p\!\leq\!0.0055$), but the FM-fed and raw-snapshot LLM variants
+become statistically indistinguishable. The FM's contribution is
+thus not a sharper top of the ranking but support for a
+\emph{larger} target set at undiminished precision; under
+Opus~4.7 the expanded tail is where over-intervention
+concentrates, while Sonnet~4.6 expands it without escalating
+severity.
 
 \paragraph{Ablation: load-bearing vs reserve components.}
 Under clean 2025 data the confidence gate is load-bearing: removing
@@ -199,12 +190,12 @@ reserves under degradation. Under severe feature/edge masking
 interventions that would otherwise produce false alarms (FIR range
 $[0.27,0.60]$ when disabled vs $0.000$ when triggered);
 multi-horizon monitoring generates $\sim$4$\times$ more alerts in
-crisis windows (Terra/Luna, FTX, SVB/USDC) at unchanged precision.
+the three crisis windows at unchanged precision.
 Per-regime ablation audits are in \S\ref{app:ablation-stress}.
 
 \paragraph{Early-warning timeline (historical event study).}
-For the three pre-test crisis windows the weighted-degree monitor
-\texttt{h1\_weighted\_degree} achieves median lead times of $4$--$5$
+For the three pre-test crisis windows the shared weighted-degree
+monitor (\texttt{h1}) achieves median lead times of $4$--$5$
 weeks with precision $1.000$ at SVB/USDC across all alert budgets
 $K\!\in\!\{5,10,20\}$; per-budget details in
 \S\ref{app:b2-budget}. This is historical monitor evidence, not an

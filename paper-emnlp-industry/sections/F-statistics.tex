@@ -1,0 +1,144 @@
+\section{Statistical Significance and Matched-Budget Analysis}
+\label{app:stats}
+
+All headline metrics are means over the $n\!=\!29$ scored test
+weeks. This appendix reports week-level uncertainty for the central
+comparisons: 95\% percentile bootstrap confidence intervals
+($10{,}000$ resamples of weeks with replacement; F1 is recomputed
+from the resampled mean precision and recall) and two-sided paired
+sign-flip permutation tests ($20{,}000$ permutations, methods
+aligned by week). Analysis code is released with the harness
+(\texttt{scripts/bootstrap\_stats.py},
+\texttt{scripts/matched\_budget.py}).
+
+\subsection{Confidence intervals}
+\label{app:stats-ci}
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{95\% bootstrap CIs for the decision-quality headline
+numbers (decision LLM in parentheses; judge is Claude~Opus~4.8
+throughout). \textsuperscript{\ddag}\texttt{m1}'s per-week
+distribution comes from a local re-run of the released harness:
+its aggregate F1 ($0.0081$) brackets the published GPU-run value
+($0.0076$), and the recall@$k$ and stressed-pool size reproduce
+exactly, but with ${<}1$ ticket per week a few borderline tickets
+flip across environments (re-run precision $0.633$ vs published
+$0.720$), so the \texttt{m1} interval should be read as
+order-of-magnitude.}
+\label{tab:stats_ci}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Configuration & F1 [95\% CI] & FIR [95\% CI] & Judge [95\% CI] \\
+\midrule
+\texttt{m1} rules\textsuperscript{\ddag} & 0.0081 [0.0041, 0.0123] & 0.000 & --- \\
+\texttt{m2} (Opus~4.7)       & 0.0184 [0.0142, 0.0223] & 0.000 & 2.24 [2.10, 2.41] \\
+\texttt{m6} (Opus~4.7)       & 0.0241 [0.0201, 0.0281] & 0.448 [0.293, 0.601] & 2.41 [2.21, 2.62] \\
+\texttt{m7} (Opus~4.7)       & 0.0234 [0.0194, 0.0271] & 0.437 [0.282, 0.592] & 2.45 [2.24, 2.66] \\
+\texttt{m6} (Sonnet~4.6)     & 0.0276 [0.0225, 0.0324] & 0.000 & 2.52 [2.28, 2.79] \\
+\texttt{m7} (Sonnet~4.6)     & 0.0288 [0.0236, 0.0335] & 0.000 & 2.66 [2.41, 2.90] \\
+\texttt{m6} (Gemini~2.5~Pro) & 0.0129 [0.0103, 0.0155] & 0.000 & 2.21 \\
+\texttt{m7} (Gemini~2.5~Pro) & 0.0139 [0.0111, 0.0167] & 0.000 & 2.38 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Paired permutation tests}
+\label{app:stats-perm}
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Two-sided paired permutation $p$-values for the key
+comparisons. Significant effects ($p<0.05$) in \textbf{bold}.}
+\label{tab:stats_perm}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Comparison & Metric & $p$ \\
+\midrule
+\texttt{m6} vs \texttt{m2} (FM signal)        & F1   & \textbf{0.0002} \\
+\texttt{m7} vs \texttt{m1} (full stack)       & F1   & \textbf{$<$0.0001} \\
+\texttt{m7} vs \texttt{m6} (gate)             & F1   & 0.41 \\
+\texttt{m7}$\times$Sonnet vs \texttt{m7}$\times$Opus & F1 & \textbf{0.0004} \\
+\texttt{m6} vs \texttt{m2}                    & FIR  & \textbf{$<$0.0001} \\
+\texttt{m6} vs \texttt{m2} (Opus~4.8 judge)   & Judge & 0.23 \\
+\texttt{m6} vs \texttt{m2} (GPT-5.5 judge)    & Judge & \textbf{0.0002} \\
+\texttt{m6} vs \texttt{m2} (Gemini judge)     & Judge & 0.77 \\
+\texttt{m7} vs \texttt{m6} (Opus~4.8 judge)   & Judge & 1.00 \\
+\texttt{m7}$\times$Sonnet vs \texttt{m7}$\times$Opus & Judge & 0.21 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three readings follow. (i)~The load-bearing quantitative claims---the
+FM signal's F1 lift, the full stack's F1 lift over rules, the
+Sonnet~4.6 F1 improvement, and the over-intervention cost---are
+significant at $p\!<\!0.001$. (ii)~The explanation-quality lift of
+the FM-grounded variants is judge-dependent: significant under
+GPT-5.5, positive but not significant under Opus~4.8 ($p\!=\!0.23$),
+and absent under the (noisiest) Gemini judge. We therefore read the
+judge axis as directional evidence rather than a confirmed effect.
+(iii)~The safety gate's effects on F1 and judge score are
+indistinguishable from noise on clean data, consistent with its
+characterisation as a reserve mechanism (\S\ref{sec:lessons}).
+
+\subsection{Matched-budget recall@$k$}
+\label{app:stats-budget}
+
+Methods emit different numbers of ticket targets per week
+(\texttt{m1} $2.1$, \texttt{m2} $4.9$, \texttt{m7} $6.3$,
+\texttt{m6} $6.5$, \texttt{m7}$\times$Sonnet $7.6$), and unbudgeted
+recall mechanically favours methods that flag more protocols. To separate
+target \emph{quality} from target \emph{volume}, we truncate every
+method to its top-$k$ targets per week (LLM variants ranked by their
+own emitted risk score; \texttt{m1} by ticket confidence) and score
+against the same stressed pool.
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Matched-budget recall@$k$ ($\times 10^{3}$) and
+precision@$k$ on the 2025 test split. At matched budgets every LLM
+variant beats the rules baseline ($p\!\leq\!0.0055$ vs \texttt{m1}
+at all $k$), while the FM-grounded and raw-snapshot LLM variants
+are statistically indistinguishable from each other (all pairwise
+$p\!\geq\!0.10$) and the top-$k$ hit patterns of the three FM-fed
+decision LLMs nearly coincide. \texttt{m1} row from the local
+re-run (Table~\ref{tab:stats_ci} note).}
+\label{tab:matched_budget}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{2}{c}{$k\!=\!1$} & \multicolumn{2}{c}{$k\!=\!2$} & \multicolumn{2}{c}{$k\!=\!3$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Method & R@1 & P@1 & R@2 & P@2 & R@3 & P@3 \\
+\midrule
+\texttt{m1} rules            & 0.71 & 0.24 & 1.71 & 0.28 & 2.45 & 0.26 \\
+\texttt{m2} (Opus~4.7)       & 1.53 & 0.52 & 3.47 & 0.55 & 5.70 & 0.59 \\
+\texttt{m6} (Opus~4.7)       & 1.64 & 0.55 & 3.29 & 0.53 & 5.30 & 0.56 \\
+\texttt{m7} (Opus~4.7)       & 1.64 & 0.55 & 3.47 & 0.55 & 5.30 & 0.56 \\
+\texttt{m7} (Sonnet~4.6)     & 1.64 & 0.55 & 3.47 & 0.55 & 5.30 & 0.56 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The matched-budget view decomposes the headline F1 result into two
+distinct effects. Against the \emph{rules baseline}, LLM targeting
+is genuinely better per target: at every $k$, precision@$k$ roughly
+doubles ($0.52$--$0.59$ vs $0.24$--$0.28$) and recall@$k$ is
+significantly higher ($p\!\leq\!0.0055$). Against the
+\emph{raw-snapshot LLM}, however, the FM's contribution is not a
+higher per-target hit rate at the top of the ranking---at matched
+$k$ the FM-fed and raw-snapshot variants are statistically
+indistinguishable, and the FM-fed variants' top-$k$ targets are
+nearly identical across decision LLMs because the evidence bundle
+pins the highest-exposure protocols. The FM's F1 gain comes from
+supporting a \emph{larger} target set at undiminished precision
+(Table~\ref{tab:headline}), which is also where the
+over-intervention risk concentrates: under Opus~4.7 the expanded
+tail is escalated to intervention-level severity
+($\mathrm{FIR}\!=\!0.448$), while Sonnet~4.6 expands the same set
+without escalating it ($\mathrm{FIR}\!=\!0$).

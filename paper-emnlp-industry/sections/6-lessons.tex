@@ -1,47 +1,36 @@
 \section{Deployment Lessons}
 \label{sec:lessons}
 
-We surface four lessons from building \sysname{} that we expect to
-transfer to other forecast$\to$LLM pipelines for high-stakes
-structured-evidence decisions.
+Three lessons should transfer to other forecast$\to$LLM pipelines
+for high-stakes structured-evidence decisions.
 
 \paragraph{L1. Grounding $\ne$ correctness.}
-Our LLM variants achieve grounding score $1.000$: every cited number
-in every emitted ticket is traceable to a field of the input
-evidence bundle. They still pay $\mathrm{FIR}\!=\!0.448$. The failure
-is not that the LLM invents evidence; it is that the LLM
-\emph{over-reads} weak-but-present evidence as a justification for
-high-severity action. Grounding tells you the agent did not
-hallucinate citations; only a downstream metric that measures
-intervention realism (FIR against an absolute-loss ground truth) tells
-you whether the agent is safe to act on.
+Every LLM variant we test achieves grounding $1.000$: every cited
+number in every ticket traces to a field of the input evidence
+bundle. The FM-grounded variants still pay
+$\mathrm{FIR}\!=\!0.448/0.437$ (ungated/gated) under Opus~4.7. The
+failure is not invented evidence but \emph{over-reading} of
+weak-but-present evidence as justification for high-severity
+action. Grounding says the agent did not hallucinate
+citations; only a downstream intervention-realism metric (FIR
+against an absolute-loss ground truth) says whether it is safe to
+act on.
 
 \paragraph{L2. Audit logs are a design artefact, not an output.}
-Every emitted ticket carries the forecast distribution, monitor
-scores, scenario CVaRs, the LLM rationale, the gate states, and the
-seeds that produced it. We release these ticket-level audit logs
-because the operating point we report is not what every operator
-will need: a more conservative supervisor will retune
-$\tau_{\mathrm{data}}$ or $\tau_{\mathrm{conf}}$ and rerun the
-decision policy without re-invoking the FM or the LLM. Audit logs
-treated as a first-class artefact make the system retunable
-post-hoc.
+Every ticket carries the forecast distribution, monitor scores,
+scenario CVaRs, LLM rationale, gate states, and seeds that
+produced it. We release these logs because our operating point is
+not what every operator will need: a more conservative supervisor
+can retune $\tau_{\mathrm{data}}$ or $\tau_{\mathrm{conf}}$ and
+rerun the decision policy post-hoc, without re-invoking the FM or
+the LLM.
 
 \paragraph{L3. Safety gates are reserves, not always-on filters.}
-On clean 2025 data the data-health gate is dormant
-(\S\ref{sec:results}); its impact is invisible to a leaderboard
-that does not include a degradation track. Under masking regimes,
-the gate suppresses up to $60\%$ of FIR-eligible tickets at the cost
-of suspending intervention-level actions. The deployable lesson is
-to evaluate gates on dedicated stress regimes rather than on clean
-test splits; if you only evaluate on the latter you will conclude
-the gate is unnecessary and ship without it.
+On clean 2025 data the data-health gate is dormant; a leaderboard
+without a degradation track cannot see it. Under masking it
+suppresses up to $60\%$ of FIR-eligible tickets at the cost of
+suspending interventions---so evaluate gates on dedicated stress
+regimes, not only clean splits.
 
-% L4 (Cadence fits an academic budget) removed: the cost claim
-% (~5x lower inference cost with Sonnet 4.6 + weekly cron on a
-% single RTX 4090) is now covered by Table 3 caption + §5 narrative.
-
-% Closing paragraph removed in v3: the backtest-not-deployment
-% disclosure is already in Limitations and the intro's "Honest
-% scope and track fit"; repeating it here pushed the Conclusion
-% across the 6-page boundary.
+% L4 (cost) folded into §5 narrative + Table 3 caption; closing
+% disclosure paragraph lives in Limitations and §1 "Honest scope".

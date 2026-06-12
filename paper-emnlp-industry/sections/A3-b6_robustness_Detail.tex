@@ -11,10 +11,13 @@ on the 2025 test split under five degradation regimes. PageRank, HHI, and
 Gini MAE in $10^{-3}$ units. Relative degradation is signed against the
 clean \texttt{b1\_forecast} baseline; negative values mean the predictor is
 no worse than on clean data. Best per metric (lowest MAE, highest rank
-correlation, smallest $|\Delta_{\mathrm{rel}}|$) in \textbf{bold}.
+correlation, smallest $|\Delta_{\mathrm{rel}}|$) in \textbf{bold};
+ties share the bold.
 Persistence ignores node features, so its \texttt{noisy\_features\_01} and
 \texttt{missing\_features\_20} rows degenerate to the clean numbers (and
-$\Delta_{\mathrm{rel}}=0$).}
+$\Delta_{\mathrm{rel}}=0$); EvolveGCN's predictions also change only
+negligibly under these two regimes
+($|\Delta_{\mathrm{rel}}|<10^{-8}$).}
 \label{tab:b6_detail}
 \begin{tabular}{l l c c c c c}
 \toprule
@@ -22,9 +25,9 @@ Regime & Method & PR MAE ($\downarrow$) & HHI MAE ($\downarrow$) & Gini MAE ($\d
 \midrule
 \multirow{4}{*}{low\_data\_10pct}
 & \texttt{m1\_persistence} & 15.94          & 0.0591          & \textbf{0.0023} & \textbf{0.552} & $+0.766$ \\
-& \texttt{m3\_evolvegcn}   & 15.23          & 0.0999          & 0.1301          & 0.535          & $+0.276$ \\
-& \texttt{m4\_fm\_only}    & 12.83          & 0.0586          & 0.0027          & 0.528          & $+0.612$ \\
-& \texttt{m5\_fm\_rules}   & \textbf{12.71} & \textbf{0.0587} & 0.0027          & 0.528          & $\mathbf{+0.607}$ \\
+& \texttt{m3\_evolvegcn}   & 15.23          & 0.0999          & 0.1301          & 0.535          & $\mathbf{+0.276}$ \\
+& \texttt{m4\_fm\_only}    & 12.83          & \textbf{0.0586} & 0.0027          & 0.528          & $+0.612$ \\
+& \texttt{m5\_fm\_rules}   & \textbf{12.71} & 0.0587          & 0.0027          & 0.528          & $+0.607$ \\
 \midrule
 \multirow{4}{*}{low\_data\_25pct}
 & \texttt{m1\_persistence} & \textbf{9.46}  & 0.0282          & \textbf{0.0020} & \textbf{0.577} & $-0.093$ \\
@@ -33,7 +36,7 @@ Regime & Method & PR MAE ($\downarrow$) & HHI MAE ($\downarrow$) & Gini MAE ($\d
 & \texttt{m5\_fm\_rules}   & 9.95           & \textbf{0.0279} & 0.0024          & 0.553          & $-0.126$ \\
 \midrule
 \multirow{4}{*}{partial\_graph\_30}
-& \texttt{m1\_persistence} & \textbf{9.63}  & 0.0350          & \textbf{0.0019} & \textbf{0.554} & $+0.068$ \\
+& \texttt{m1\_persistence} & \textbf{9.63}  & \textbf{0.0350} & \textbf{0.0019} & \textbf{0.554} & $+0.068$ \\
 & \texttt{m3\_evolvegcn}   & 10.36          & 0.0488          & 0.1236          & 0.537          & $\mathbf{-0.048}$ \\
 & \texttt{m4\_fm\_only}    & 12.52          & \textbf{0.0350} & 0.0022          & 0.500          & $+0.082$ \\
 & \texttt{m5\_fm\_rules}   & 12.45          & \textbf{0.0350} & 0.0022          & 0.499          & $+0.077$ \\

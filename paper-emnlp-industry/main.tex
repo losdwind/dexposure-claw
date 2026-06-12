@@ -1,6 +1,6 @@
 % =====================================================================
 %  EMNLP 2026 Industry Track submission
-%  Skeleton — content TODOs in each section file.
+%  Submission build — sections in sections/, anonymisation macros below.
 %  Folder: paper-emnlp-industry/  (parallel to paper/, does not modify it)
 %
 %  Compile:
@@ -46,15 +46,16 @@
 % hyperref is pre-loaded by acl.sty; do not re-load.
 \hypersetup{hidelinks}
 
-% --- Anonymised system / artifact names for submission ---
-% Restore real names in camera-ready by flipping the booleans below.
-\newcommand{\sysname}{Claw-System}        % was: DeXposure-Claw
-\newcommand{\fmname}{Forecast-FM}         % was: DeXposure-FM
-\newcommand{\benchname}{Decision-Bench}   % was: DeXposure-Bench
-\newcommand{\corpusname}{Exposure-Corpus} % was: DeXposure dataset
+% --- Anonymised system / artefact names for submission ---
+% Real names are restored in camera-ready by editing these four
+% macros (mapping documented in README.md, outside the source).
+\newcommand{\sysname}{Sentinel}
+\newcommand{\fmname}{Forecast-FM}
+\newcommand{\benchname}{Decision-Bench}
+\newcommand{\corpusname}{Exposure-Corpus}
 
 % =====================================================================
-\title{DeXposure-Claw: An Agentic System for DeFi Risk Monitoring and
+\title{\sysname{}: An Agentic System for DeFi Risk Monitoring and
 Decision Recommendation Based on a Graph Time-Series Foundation
 Model}
 
@@ -68,34 +69,37 @@ Model}
 % =====================================================================
 \begin{abstract}
 General-purpose LLM agents asked to recommend financial-risk
-interventions from raw on-chain data tend to hallucinate severity and
-over-trigger high-stakes actions. We design and characterise a
+interventions can \emph{hallucinate severity}: handed evidence of
+elevated risk, they over-read it, recommending high-stakes actions
+whose every cited number is traceable to the input yet whose targets
+are never actually stressed. We design and characterise a
 \emph{deployment-ready} LLM-agent pipeline for decentralised-finance
-supervision in which the LLM reasons not over raw transactions but
-over \emph{structured forecasted evidence}: a graph time-series
-forecaster produces predicted exposure networks, deterministic
-monitors and stress scenarios convert them into a typed evidence
-bundle, and the LLM emits supervisory tickets with rationales. Two
-safety gates---a data-health gate and a confidence gate---determine
-when intervention-level tickets are allowed; every emitted ticket
-carries the evidence bundle and rationale that produced it.
-We release an evaluation harness that scores such pipelines on six
-axes, anchored to a \emph{regulator-aligned absolute-loss} ground
-truth that replaces the fractional-change metric used in prior
-systemic-risk evaluations, and additionally measures LLM-as-judge
-explanation quality and a false-intervention rate. With eight reference implementations and
-five years of weekly DeFi exposure graphs, the full LLM-agent stack
-raises ticket F1 from $0.0076$ to $0.0233$ (\textbf{$+207\%$}) at a
-visible false-intervention cost (FIR~$\approx$~$0.44$ vs $0$ for
-rules). A tier-above Opus~4.8 judge with a cross-family panel
-(Gemini~2.5~Pro, GPT-5.5) confirms the headline ordering; swapping
-the decision LLM for a tier-below Sonnet~4.6 \emph{strictly}
-dominates Opus~4.7 on every LLM-bearing axis---F1 rises further to
-$0.0288$, FIR collapses to $0.000$, judge quality reaches $2.65$,
-at $\sim$5$\times$ lower inference cost. We characterise the resulting system as a
-recall--explanation Pareto option for supervisory settings, not a
-uniform replacement for conservative rules, and release ticket-level
-audit logs from the historical backtest.
+supervision that measures and contains this failure mode: a graph
+time-series forecaster produces predicted exposure networks,
+deterministic monitors and stress scenarios convert them into a
+typed evidence bundle, and the LLM emits supervisory tickets with
+rationales. Two safety gates---a data-health gate and a confidence
+gate---determine when intervention-level tickets are allowed; every
+emitted ticket carries the evidence bundle and rationale that
+produced it. We release an evaluation harness that scores such
+pipelines on six axes, anchored to a \emph{regulator-aligned
+absolute-loss} ground truth that replaces the fractional-change
+metric used in prior systemic-risk evaluations, and additionally
+measures LLM-as-judge explanation quality and a false-intervention
+rate (FIR). With eight reference implementations and five years of
+weekly DeFi exposure graphs, the full LLM-agent stack raises ticket
+F1 from $0.0076$ to $0.0233$ ($+207\%$) at a visible
+false-intervention cost (FIR~$\approx$~$0.44$ under an Opus~4.7
+decision LLM vs $0$ for rules). A tier-above Opus~4.8 judge and a
+cross-family panel (Gemini~2.5~Pro, GPT-5.5) all rank the full stack
+top on explanation quality. Replacing the decision LLM with a
+tier-below Sonnet~4.6 yields a Pareto improvement over
+Opus~4.7 on every LLM-bearing axis (F1 $0.0288$, FIR $0.000$,
+judge $2.65$) at $\sim$5$\times$ lower inference cost. We
+characterise the resulting system as a recall--explanation Pareto
+option for supervisory settings, not a uniform replacement for
+conservative rules, and release ticket-level audit logs from the
+historical backtest.
 \end{abstract}
 
 % =====================================================================
@@ -126,5 +130,6 @@ audit logs from the historical backtest.
 \input{sections/C-bench-details}
 \input{sections/D-reference-methods}
 \input{sections/E-full-tables}
+\input{sections/F-statistics}
 
 \end{document}

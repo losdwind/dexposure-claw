@@ -1,0 +1,121 @@
+{
+ "meta": {
+  "fm_training": "pre-Terra only (holdout >= 2022-04-01), seed 42, 20 epochs, horizons 1/4/8/12",
+  "fm_test_auprc": {
+   "h1": 0.9509,
+   "h4": 0.9313,
+   "h8": 0.918,
+   "h12": 0.907
+  },
+  "decision_model": "claude-sonnet-4.6 (3 consistency runs)",
+  "judge_model": "claude-opus-4.8",
+  "protocol": "identical to main-paper redecide (Table 3); m1/m5 from b5_decision_quality on cloud, m6/m7 replayed locally from exported prompts",
+  "metric_caveat": "m1/m5 ticket_precision is per-alert across horizons; m6/m7 precision is across-week mean of weekly target precision (same split as main paper Table 1)",
+  "parse_note": "3 judge responses initially failed JSON parse ({{...}} escaping); re-judged after parser fix; 0 fallback entries remain",
+  "artifacts": "HF losdwind/graph-dexposure-ckpt runs/20260612_073921 + runs/pre2022_20260612_051331_weights"
+ },
+ "windows": {
+  "terra": {
+   "m5_fm_rules": {
+    "n_weeks": 17,
+    "n_alerts": 78,
+    "precision": 0.5765,
+    "FIR": 0.0,
+    "stability": 0.1632,
+    "audit_completeness": 0.0012274675340217314
+   },
+   "m1_persistence_rules": {
+    "n_weeks": 17,
+    "n_alerts": 8,
+    "precision": 0.2,
+    "FIR": 0.0,
+    "stability": 0.8819,
+    "audit_completeness": 5.0405766419678416e-05
+   },
+   "m6_fm_llm": {
+    "n_weeks": 17,
+    "precision": 0.6436,
+    "recall": 0.0458,
+    "F1": 0.0855,
+    "FIR": 0.0,
+    "judge_quality": 2.882
+   },
+   "m7_fm_llm_gated": {
+    "n_weeks": 17,
+    "precision": 0.6365,
+    "recall": 0.0451,
+    "F1": 0.0842,
+    "FIR": 0.0,
+    "judge_quality": 2.706
+   }
+  },
+  "ftx": {
+   "m5_fm_rules": {
+    "n_weeks": 18,
+    "n_alerts": 96,
+    "precision": 0.5333,
+    "FIR": 0.0,
+    "stability": 0.409,
+    "audit_completeness": 0.0011161738834093492
+   },
+   "m1_persistence_rules": {
+    "n_weeks": 18,
+    "n_alerts": 28,
+    "precision": 0.68,
+    "FIR": 0.0,
+    "stability": 0.6013,
+    "audit_completeness": 0.00039649695445002843
+   },
+   "m6_fm_llm": {
+    "n_weeks": 18,
+    "precision": 0.5662,
+    "recall": 0.0354,
+    "F1": 0.0666,
+    "FIR": 0.0,
+    "judge_quality": 2.833
+   },
+   "m7_fm_llm_gated": {
+    "n_weeks": 18,
+    "precision": 0.5918,
+    "recall": 0.0371,
+    "F1": 0.0698,
+    "FIR": 0.0,
+    "judge_quality": 2.833
+   }
+  },
+  "svb": {
+   "m5_fm_rules": {
+    "n_weeks": 22,
+    "n_alerts": 96,
+    "precision": 0.6091,
+    "FIR": 0.0,
+    "stability": 0.353,
+    "audit_completeness": 0.0010465120040466678
+   },
+   "m1_persistence_rules": {
+    "n_weeks": 22,
+    "n_alerts": 40,
+    "precision": 0.7,
+    "FIR": 0.0,
+    "stability": 0.4418,
+    "audit_completeness": 0.0005048298868950417
+   },
+   "m6_fm_llm": {
+    "n_weeks": 22,
+    "precision": 0.6318,
+    "recall": 0.0312,
+    "F1": 0.0595,
+    "FIR": 0.0,
+    "judge_quality": 2.227
+   },
+   "m7_fm_llm_gated": {
+    "n_weeks": 22,
+    "precision": 0.6349,
+    "recall": 0.033,
+    "F1": 0.0628,
+    "FIR": 0.0,
+    "judge_quality": 2.545
+   }
+  }
+ }
+}

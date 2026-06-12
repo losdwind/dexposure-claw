@@ -1,0 +1,52 @@
+# Variant of cloud/train.yaml WITHOUT workdir/file_mounts sync.
+# Use when SkyPilot's internal rsync fails on the Vast SSH proxy
+# (manual rsync to ~/sky_workdir first, then launch with this YAML).
+# Everything else mirrors cloud/train.yaml; autodown still applies via
+# cloud/train.sh-style flags:
+#   sky launch -y -d -c train -i 15 --down \
+#     --secret HF_TOKEN=... --env TRAIN_CMD="..." cloud/train_nosync.yaml
+
+name: graph-dexposure-train
+
+resources:
+  infra: vast
+  accelerators: RTX4090:1
+  disk_size: 60
+
+envs:
+  TRAIN_CMD: ""
+
+secrets:
+  HF_TOKEN: ""
+
+setup: |
+  command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+  cd ~/sky_workdir
+  uv sync --frozen || uv sync
+
+run: |
+  set -euo pipefail
+  export PATH="$HOME/.local/bin:$PATH"
+  cd ~/sky_workdir
+  if [ -z "$TRAIN_CMD" ]; then
+    echo "ERROR: TRAIN_CMD is empty" >&2
+    exit 1
+  fi
+
+  mkdir -p checkpoints logs
+  echo "[train_nosync.yaml] running: $TRAIN_CMD"
+  bash -c "$TRAIN_CMD" 2>&1 | tee "logs/train_$(date +%Y%m%d_%H%M%S).log"
+
+  if [ -z "${HF_TOKEN:-}" ]; then
+    echo "WARNING: HF_TOKEN not set -- checkpoints will NOT be uploaded and will be DESTROYED with this instance!" >&2
+  else
+    RUN_TAG="$(date +%Y%m%d_%H%M%S)"
+    uvx --from 'huggingface_hub[cli]' hf upload losdwind/graph-dexposure-ckpt \
+      checkpoints "runs/$RUN_TAG/checkpoints" --repo-type model \
+      --commit-message "ckpt $RUN_TAG: $TRAIN_CMD"
+    uvx --from 'huggingface_hub[cli]' hf upload losdwind/graph-dexposure-ckpt \
+      logs "runs/$RUN_TAG/logs" --repo-type model \
+      --commit-message "logs $RUN_TAG"
+    echo "[train_nosync.yaml] uploaded to https://huggingface.co/losdwind/graph-dexposure-ckpt/tree/main/runs/$RUN_TAG"
+  fi

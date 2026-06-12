@@ -14,6 +14,7 @@ Metrics:
 """
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -265,6 +266,7 @@ def run_b5(
     risk_deltas: list[float] = []          # scenario loss delta (simplified)
     stress_pool_sizes: list[int] = []      # sanity: |stressed| per week
     n_tickets_per_week: list[int] = []     # sanity: |tickets| per week
+    weekly_records: list[dict] = []        # per-week dump for bootstrap / budget analyses
 
     prev_targets: set[str] | None = None
 
@@ -376,6 +378,19 @@ def run_b5(
         prev_targets = all_ticket_targets
 
         n_weeks += 1
+        weekly_records.append({
+            "date": snap_t.date,
+            "n_tickets": len(decision.tickets),
+            "targets_scored": sorted(score_map.items(), key=lambda kv: -kv[1]),
+            "truly_stressed": sorted(truly_stressed),
+            "precision_hits": [t in truly_stressed for t in sorted(all_ticket_targets)],
+            "recall_at_k": (
+                len(truly_stressed & all_ticket_targets) / len(truly_stressed)
+                if truly_stressed else None
+            ),
+            "false_interventions": [t in stable_protocols for t in sorted(intervention_targets)],
+            "safe_mode": bool(decision.suppressed),
+        })
         log.step(
             f"week {n_weeks}",
             date=snap_t.date, tickets=len(decision.tickets),
@@ -473,6 +488,18 @@ def run_b5(
         "false_intervention_rate": false_intervention_rate,
         "n_weeks_evaluated": n_weeks,
     }])
+
+    # Per-week dump alongside the aggregate file, for bootstrap CIs and
+    # matched-budget analyses without re-running the pipeline.
+    try:
+        weekly_path = Path(results_dir) / f"b5_weekly__{method_id}.json"
+        weekly_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(weekly_path, "w") as f:
+            json.dump({"method": method_id, "test_split": test_split,
+                       "horizon": horizon, "weeks": weekly_records}, f, indent=1)
+        log.info(f"b5_decision weekly dump: {weekly_path} ({len(weekly_records)} weeks)")
+    except OSError as e:
+        log.warning(f"b5_decision weekly dump failed: {e}")
 
     log.info(f"b5_decision complete: {result}")
     return [result]

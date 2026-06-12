@@ -13,15 +13,17 @@ fully observes, and shocks travel through it within hours.
 A natural response is to build an \emph{agent}: an LLM-driven
 pipeline that ingests on-chain measurements, surfaces early-warning
 signals, and recommends risk-mitigating actions with auditable
-rationale. The temptation is to point a general-purpose LLM agent at
-raw on-chain data and let it reason. We have found, and our reference
-implementations confirm (\S\ref{sec:results}), that this fails in a
-specific and recurring way: the LLM \emph{hallucinates severity}. It
-recommends high-stakes interventions even when the underlying
-evidence is weak, missing, or stale---grounding score $1.000$,
-false-intervention rate $0.448$. In a supervisory setting, this
-failure mode is far more costly than missed detections, because every
-intervention is observable and politically expensive.
+rationale. Our reference implementations (\S\ref{sec:results}) show
+that the obvious designs fail in two ways. Reading raw on-chain
+snapshots, the LLM is conservative but weak: poorly targeted
+tickets (F1 $0.0183$), and the lowest-scored rationales under every
+judge we test. Fed richer \emph{forecasted} evidence, it targets
+better but \emph{hallucinates severity}: every cited number is
+traceable to the evidence bundle (grounding $1.000$), yet $44.8\%$
+of its intervention-level tickets point at protocols that are never
+actually stressed. In a supervisory setting the second failure is
+far costlier than missed detections, because every intervention is
+observable and politically expensive.
 
 To measure such a failure mode honestly we first need a ground
 truth that matches how supervisors actually prioritise. Prior
@@ -39,9 +41,8 @@ regulator-aligned target, and the first quantification of the
 false-intervention cost for an LLM agent operating in this
 setting---a cost that finance-specific LLM-agent
 work~\citep{yao2025arbiter,mao2025knowyourintent,luo2025llmcrypto,
-jeon2026blindtrade} has not measured because none of those systems
-is scored against a regulator-aligned ground truth in the first
-place.
+jeon2026blindtrade} has not measured, since none of those systems
+is scored against a regulator-aligned ground truth.
 
 We close this gap with three contributions:
 \begin{itemize}[leftmargin=*,itemsep=2pt,topsep=2pt]
@@ -52,8 +53,7 @@ We close this gap with three contributions:
     them into a typed evidence bundle; an LLM emits supervisory
     tickets with rationale; and two safety gates (data-health,
     confidence) determine when intervention-level tickets are
-    allowed. Every emitted ticket carries the evidence bundle that
-    produced it.
+    allowed.
 
     \item \textbf{An evaluation harness}
     (\benchname; \S\ref{sec:bench}). Six axes spanning
@@ -71,15 +71,14 @@ We close this gap with three contributions:
     raises ticket F1 from $0.0076$ to $0.0233$ ($+207\%$). A
     tier-above Claude~Opus~4.8 judge
     \citep{Zheng2023LLMJudge} and a cross-family panel
-    (Gemini~2.5~Pro, GPT-5.5) preserve the ordering
-    \texttt{m7}$\geq$\texttt{m6}$>$\texttt{m2}; under the
+    (Gemini~2.5~Pro, GPT-5.5) all rank the gated stack
+    \texttt{m7} highest on explanation quality; under the
     Opus~4.7 decision LLM the false-intervention rate rises to
-    $\approx 0.44$. Replacing the decision LLM with a tier-below
-    Sonnet~4.6 \emph{strictly dominates} Opus~4.7 on both
-    \texttt{m6} and \texttt{m7}: F1 rises further to $0.0288$
-    on \texttt{m7}, FIR collapses to $0.000$, and judge
-    quality reaches $2.65$, at $\sim$5$\times$ lower inference
-    cost---the deployable headline operating point.
+    $\approx 0.44$. A tier-below Sonnet~4.6 decision LLM yields a
+    Pareto improvement on both \texttt{m6} and \texttt{m7}:
+    F1 rises further to $0.0288$, FIR collapses to $0.000$, and
+    judge quality reaches $2.65$, at $\sim$5$\times$ lower
+    inference cost---the deployable headline operating point.
 \end{itemize}
 
 \noindent
@@ -87,10 +86,10 @@ We close this gap with three contributions:
 historical backtest over $283$ weekly snapshots of real
 DefiLlama-sourced exposure data (2020--2025), not as a live
 production cron at a supervisory authority. The contribution is
-therefore best read against two of the EMNLP Industry Track's
-explicit acceptable categories---\emph{methods for deployed systems
+therefore best read as \emph{methods for deployed systems
 (evaluation, ethics, robustness)} and \emph{insights based on
-real-world datasets}---rather than as a deployment case study.
-The ticket-level audit logs we release come from the backtest and
-are intended for operators who want to recompute the operating
-point on their own data conditions before adopting the system.
+real-world datasets}---two of the Industry Track's explicit
+categories---rather than as a deployment case study.
+The released ticket-level audit logs come from the backtest,
+letting operators recompute the operating point under their own
+data conditions before adopting the system.

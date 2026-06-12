@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from dataclasses import dataclass, field, asdict
@@ -50,8 +51,15 @@ MC_NOISE_SIGMA = 2.0
 CRISIS_SPLITS = {
     "terra_luna": ("2022-04~2022-07", "Terra/Luna collapse"),
     "ftx":        ("2022-10~2023-01", "FTX collapse"),
+    "svb":        ("2023-01~2023-05", "SVB/USDC depeg"),
     "calm_2025":  ("2025-01~2025-08", "2025 calm baseline"),
 }
+# Restrict to a subset via env, e.g. CRISIS_SPLIT_KEYS=terra_luna,ftx,svb
+# (needed on the cloud box where the data subset ends in 2023-06).
+_split_keys = os.environ.get("CRISIS_SPLIT_KEYS")
+if _split_keys:
+    _wanted = {k.strip() for k in _split_keys.split(",") if k.strip()}
+    CRISIS_SPLITS = {k: v for k, v in CRISIS_SPLITS.items() if k in _wanted}
 
 METHODS = ["m5_fm_rules", "m1_persistence_rules"]
 HORIZONS = [1, 4, 8, 12]

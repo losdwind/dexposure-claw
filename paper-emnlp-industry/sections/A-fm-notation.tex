@@ -54,14 +54,16 @@ existence (binary), edge weight (regression), and node-TVL change
 (regression)---trained jointly with a BCE$+$MSE composite loss. We
 fine-tune one checkpoint per horizon $h\!\in\!\{1,4,8,12\}$ for
 $20$ epochs with AdamW (learning rate $10^{-4}$ for heads,
-$10^{-5}$ for the backbone). Training uses $104$ weekly snapshots
-(March 2020--January 2024), validation uses $12$ weeks
-(February--April 2024), and the leaderboard test split is the
-remaining $33$ weeks (\S\ref{app:bench-details}). Full-graph
+$10^{-5}$ for the backbone). Fine-tuning draws on \corpusname{}
+snapshots from March~2020 to January~2025: $104$ training weeks,
+$12$ validation weeks (used for early stopping), and $8$ subsequent
+held-out weeks for internal evaluation. All data that influences
+weights or checkpoint selection precedes the frozen 2025
+leaderboard split (\S\ref{app:bench-details}). Full-graph
 in-context inference fits a single RTX~4090; one weekly forecast
 across all four horizons completes in well under a minute.
 
-Held-out link-prediction quality on the validation split is
+Held-out link-prediction quality is
 AUPRC$\,=\!0.978$ / $0.973$ / $0.967$ / $0.967$ and
 AUROC$\,=\!0.996$ / $0.995$ / $0.993$ / $0.993$ at $h\!=\!1$ / $4$
 / $8$ / $12$ respectively; a frozen GraphPFN baseline (no

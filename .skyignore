@@ -1,0 +1,23 @@
+# SkyPilot workdir sync exclusions (used INSTEAD of .gitignore when present).
+# Heavy local-only directories -- do not upload to training instances.
+data/
+checkpoints/
+archive/
+docs/
+icml2026/
+paper-emnlp-industry/
+claw/dist/
+claw/pack/
+
+# Standard junk
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.so
+*.pdf
+build/
+dist/
+*.egg-info/
+tmp/
+cloud/upload/

@@ -49,7 +49,9 @@ $v$, the regulator-aligned stressed set at horizon $h$ is
                                               \Delta_t^h(v)\!>\!0 \bigr\},
 \label{eq:stressed-app}
 \end{equation}
-with $\pi\!=\!0.05$ and lookahead window $W\!=\!4$~weeks. This is the
+with $\pi\!=\!0.05$ and ground-truth horizon $h\!=\!4$~weeks. The
+final four test weeks lack the $4$-week-ahead snapshot $w_{t+4}$
+and are not scored, leaving $n\!=\!29$ evaluated weeks. This is the
 single ground-truth definition used by \texttt{b2}, \texttt{b5}, and
 the LLM-decision evaluation pipeline.
 

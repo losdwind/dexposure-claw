@@ -23,14 +23,14 @@ deployment.
 
 \paragraph{LLM use disclosure.}
 The decision-layer LLM (\texttt{m2}, \texttt{m6}, \texttt{m7}) is
-Claude Opus~4.7 in the main configuration; Claude Sonnet~4.6 and
+Claude~Opus~4.7 in the main configuration; Claude~Sonnet~4.6 and
 Google Gemini~2.5~Pro are reported as decision-layer ablations.
 The LLM-as-judge for the explanation-quality axis is a
-three-model cross-family panel: Claude Opus~4.8 (within-family
+three-model cross-family panel: Claude~Opus~4.8 (within-family
 upgrade, strictly tier-above Opus~4.7), Google Gemini~2.5~Pro,
-and OpenAI GPT-5.5 (cross-family). All judges are run with
+and OpenAI~GPT-5.5 (cross-family). All judges are run with
 reasoning effort set to \emph{minimal} so the comparison is
-controlled for thinking budget. Claude Haiku~4.5 from a prior
+controlled for thinking budget. Claude~Haiku~4.5 from a prior
 run is reported in the appendix as a weak-judge baseline. Every
 model is accessed through the OpenRouter unified API at
 temperature~$0$.

@@ -1,0 +1,68 @@
+# SkyPilot task for GPU training on Vast.ai.
+# Launch ONLY via cloud/train.sh -- it enforces autodown so instances
+# can never be forgotten and left running.
+#
+# Available GPUs / pricing: sky gpus list --infra vast
+
+name: graph-dexposure-train
+
+resources:
+  infra: vast
+  accelerators: RTX4090:1
+  disk_size: 60
+
+# Repo is synced to ~/sky_workdir on the instance.
+# Exclusions (data/, checkpoints/, ...) live in .skyignore at repo root.
+workdir: .
+
+# Large inputs excluded from workdir sync are mounted explicitly.
+# cloud/upload/ is a locally staged folder (pre-cut data subset + base ckpt);
+# consumer: cloud/pre2022_run.sh.
+file_mounts:
+  ~/sky_workdir/data/historical-network_week_2020-03-30.json: cloud/upload/data/historical-network_week_2020-03-30.json
+  ~/sky_workdir/data/meta_df.csv: cloud/upload/data/meta_df.csv
+  ~/sky_workdir/checkpoints/graphpfn-v1.ckpt: cloud/upload/graphpfn-v1.ckpt
+
+envs:
+  TRAIN_CMD: ""
+
+# Injected by cloud/train.sh via --secret (redacted in sky logs/YAML output)
+secrets:
+  HF_TOKEN: ""
+
+setup: |
+  command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen || uv sync
+
+run: |
+  set -euo pipefail
+  export PATH="$HOME/.local/bin:$PATH"
+  if [ -z "$TRAIN_CMD" ]; then
+    echo "ERROR: TRAIN_CMD is empty -- launch via cloud/train.sh" >&2
+    exit 1
+  fi
+
+  mkdir -p checkpoints logs
+  echo "[train.yaml] running: $TRAIN_CMD"
+  bash -c "$TRAIN_CMD" 2>&1 | tee "logs/train_$(date +%Y%m%d_%H%M%S).log"
+
+  # ------------------------------------------------------------------
+  # RESULT UPLOAD -- REQUIRED on Vast.
+  # Vast does not support S3 bucket mounting (STORAGE_MOUNTING), and the
+  # instance self-destructs after this script finishes (+idle window).
+  # Anything not uploaded here is LOST.
+  # Destination: private HF repo losdwind/graph-dexposure-ckpt (free tier).
+  # ------------------------------------------------------------------
+  if [ -z "${HF_TOKEN:-}" ]; then
+    echo "WARNING: HF_TOKEN not set -- checkpoints will NOT be uploaded and will be DESTROYED with this instance!" >&2
+  else
+    RUN_TAG="$(date +%Y%m%d_%H%M%S)"
+    uvx --from 'huggingface_hub[cli]' hf upload losdwind/graph-dexposure-ckpt \
+      checkpoints "runs/$RUN_TAG/checkpoints" --repo-type model \
+      --commit-message "ckpt $RUN_TAG: $TRAIN_CMD"
+    uvx --from 'huggingface_hub[cli]' hf upload losdwind/graph-dexposure-ckpt \
+      logs "runs/$RUN_TAG/logs" --repo-type model \
+      --commit-message "logs $RUN_TAG"
+    echo "[train.yaml] uploaded to https://huggingface.co/losdwind/graph-dexposure-ckpt/tree/main/runs/$RUN_TAG"
+  fi

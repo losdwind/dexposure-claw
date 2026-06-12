@@ -658,6 +658,13 @@ def call_llm(system: str, user: str, model: str | None = None,
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
+        # Judges occasionally mimic the template's escaped braces and emit
+        # {{...}}; unescape and retry before falling back.
+        try:
+            parsed = json.loads(text.replace("{{", "{").replace("}}", "}"))
+        except json.JSONDecodeError:
+            parsed = None
+    if parsed is None:
         logger.warning(f"JSON parse failed, raw={text[:200]}")
         parsed = {"risk_level": "unknown", "target_protocols": [],
                   "rationale": raw[:500]}
@@ -944,13 +951,18 @@ def run_pipeline(
     consistency_runs: int = CONSISTENCY_RUNS,
     resume: bool = False,
     run_judge: bool = True,
+    export_prompts_only: bool = False,
 ) -> dict[str, list[WeekResult]]:
     """Run LLM evaluation pipeline locally.
 
     Connects to FM API via SSH tunnel, calls Claude API for decisions.
+    With export_prompts_only=True, no LLM is called: the assembled prompts
+    plus ground truth are dumped to prompts_<method>.json for later replay
+    (used for the crisis-window backtest, where evidence is generated on
+    the GPU box and the LLM decision layer is replayed locally).
     """
-    # Verify API key
-    if not LLM_API_KEY:
+    # Verify API key (not needed when only exporting prompts)
+    if not LLM_API_KEY and not export_prompts_only:
         logger.error("No LLM API key set. Export OPENROUTER_API_KEY or ANTHROPIC_API_KEY.")
         sys.exit(1)
 
@@ -1045,6 +1057,20 @@ def run_pipeline(
 
             system, user = build_prompt(
                 method, date_str, horizon, forecast, snap_current, metrics, scenarios)
+
+            if export_prompts_only:
+                raw_logs[method].append({
+                    "date": date_str, "method": method, "horizon": horizon,
+                    "future_date": future_date,
+                    "system_prompt": system, "user_prompt": user,
+                    "truly_stressed": sorted(truly_stressed),
+                    "actual_losses": actual_losses,
+                })
+                with open(run_dir / f"prompts_{method}.json", "w") as f:
+                    json.dump(raw_logs[method], f, indent=1)
+                logger.info(f"[{wi+1}/{len(test_dates)}] {date_str}: prompt exported "
+                            f"({len(truly_stressed)} stressed)")
+                continue
 
             # Run LLM (multiple times for consistency)
             run_outputs = []
@@ -1228,6 +1254,9 @@ if __name__ == "__main__":
     parser.add_argument("--consistency-runs", type=int, default=CONSISTENCY_RUNS)
     parser.add_argument("--resume", action="store_true",
                         help="Resume from last checkpoint")
+    parser.add_argument("--export-prompts-only", action="store_true",
+                        help="Assemble and dump prompts + ground truth without "
+                             "calling any LLM (for crisis-window replay)")
     parser.add_argument("--no-judge", action="store_true",
                         help="Skip LLM-as-Judge evaluation")
     parser.add_argument("--model", default=None,
@@ -1250,4 +1279,5 @@ if __name__ == "__main__":
         consistency_runs=args.consistency_runs,
         resume=args.resume,
         run_judge=not args.no_judge,
+        export_prompts_only=args.export_prompts_only,
     )

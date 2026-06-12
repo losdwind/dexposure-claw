@@ -1,0 +1,132 @@
+{
+  "summary": {
+    "method": "m6_fm_llm",
+    "decision_model": "claude-sonnet-4.6",
+    "judge_model": "claude-opus-4.8",
+    "n_weeks": 10,
+    "mean_quality": 1.7,
+    "total_judge_cost_usd": 0.0697
+  },
+  "entries": [
+    {
+      "date": "2022-10-03",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 1 of 10 predicted targets (P1139) matches the ground truth top-5% set, indicating poor identification of systemically relevant protocols. While the report cites specific metrics and scenario losses, those figures cannot be verified against the empty input data (0 nodes, 0 edges), suggesting possible fabrication.",
+      "precision": 0.2,
+      "completeness": 0.023529411764705882,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2022-10-10",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's targets (P1244, P5916, etc.) match any of the ground-truth top-5% systemic protocols, and the cited metrics (21.09% loss, 963 protocols) appear hallucinated given the empty network data provided.",
+      "precision": 0.25,
+      "completeness": 0.0392156862745098,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-10-17",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report cites specific metrics and scenario losses with reasonable structure, but its identified target protocols (P1244, P8783, etc.) do not overlap at all with the ground-truth top-5% systemic-risk set (P1031, P1110, etc.), indicating it focused on raw exposure rather than the horizon weight-loss ranking that defines the actual risk.",
+      "precision": 0.5,
+      "completeness": 0.03007518796992481,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-10-24",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "The report's target protocols (P4822, P2818, P3286, etc.) share no overlap with the ground-truth top-5% systemic risk set (P1049, P1133, etc.), and it cites specific metrics ($1.32B, 25.74%) that appear fabricated given the empty input network data (0 nodes, 0 edges).",
+      "precision": 1.0,
+      "completeness": 0.049079754601226995,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-10-31",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 1 of 8 targets (P1244) appears in the ground-truth top-5% set, indicating poor identification of systemically relevant protocols. While the report cites specific metrics and scenarios, these appear fabricated given the input data shows 0 nodes/0 edges, and the overall predictions largely miss the actual high-loss protocols.",
+      "precision": 0.75,
+      "completeness": 0.03571428571428571,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-11-07",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report only identifies 1 of 10 ground-truth systemic protocols (P1244), with the remaining targets being unmatched, and relies on scenario projections and dollar figures that aren't grounded in the provided (empty) network data, suggesting fabricated specificity.",
+      "precision": 1.0,
+      "completeness": 0.03669724770642202,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-11-14",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the 10 predicted targets match any of the ground-truth top-5% systemic-risk protocols, and the report cites metrics (specific dollar exposures, scenario losses) that have no grounding in the provided input data (0 nodes, 0 edges), indicating hallucinated claims.",
+      "precision": 0.2,
+      "completeness": 0.01904761904761905,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2022-11-21",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report cites specific metrics and provides structured reasoning, but only 1 of 8 targets (P1244) overlaps with the ground truth top-5% set, indicating poor identification of the actually systemically-risky protocols.",
+      "precision": 1.0,
+      "completeness": 0.046511627906976744,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2022-11-28",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report cites specific exposure weights and scenario losses, but only correctly identifies 1 of 10 ground-truth systemic-risk protocols (P1244), missing the other 9 high-weight-loss entities. The data grounding is plausible but misaligned with actual outcomes.",
+      "precision": 0.6666666666666666,
+      "completeness": 0.0392156862745098,
+      "false_intervention_rate": 0.0,
+      "n_targets": 9
+    },
+    {
+      "date": "2022-12-05",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 2 of 9 targets (P1244, P1139) match the ground truth top-5% set, and the report's specific metrics appear fabricated given the input data summary shows 0 nodes/edges and no usable network data.",
+      "precision": 0.8888888888888888,
+      "completeness": 0.05970149253731343,
+      "false_intervention_rate": 0.0,
+      "n_targets": 9
+    }
+  ]
+}

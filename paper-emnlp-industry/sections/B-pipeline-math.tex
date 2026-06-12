@@ -30,8 +30,9 @@ N5 & Degree Gini          & $\mathrm{Gini}(\{d_p\}_{p\in V})$ \\
 PageRank uses power iteration with damping $0.85$ and $10$
 iterations. An alert fires when
 $|N^{(j)}_{t,h}\!-\!\mu^{(j)}_t|/\max(\sigma^{(j)}_t,\epsilon)\!>\!z$
-with $z\!=\!2$, $L\!=\!26$ week rolling baseline,
-$\epsilon\!=\!10^{-8}$.
+with $z\!=\!2$, $L\!=\!42$ week rolling baseline,
+$\epsilon\!=\!10^{-8}$. The \texttt{b2\_warning} historical event
+study uses a shorter $26$-week ($\approx$6-month) baseline window.
 
 \subsection{Uncertainty-aware alert confidence}
 With $\mathrm{CV}_{t,h}^{(j)}$ the coefficient of variation of metric

@@ -186,3 +186,6 @@ dev/images
 *.toc
 *.fff
 *.ttt
+
+# SkyPilot upload staging (checkpoints + data copies, >300MB)
+cloud/upload/

@@ -11,7 +11,7 @@ real data feeds, regulator-in-the-loop calibration---are out of
 scope for this paper and remain the most pressing future direction.
 
 \paragraph{Single domain.}
-The bench evaluates a single on-chain risk surface (DeFi
+\benchname{} evaluates a single on-chain risk surface (DeFi
 inter-protocol credit exposure). Generalisation to NFT lending,
 perpetual derivatives, or cross-chain bridge networks is untested
 and will require domain-specific re-calibration of the conformal
@@ -27,10 +27,10 @@ report should be read as ``how early the weekly monitor turns'',
 not as end-to-end alert latency.
 
 \paragraph{Judge thinking-budget is held minimal.}
-The cross-family judge panel (Claude Opus~4.8, Google
-Gemini~2.5~Pro, OpenAI GPT-5.5) is run with reasoning effort set
+The cross-family judge panel (Claude~Opus~4.8, Google
+Gemini~2.5~Pro, OpenAI~GPT-5.5) is run with reasoning effort set
 to \emph{minimal} so the comparison against the
-non-reasoning Anthropic baseline is apples-to-apples on
+non-reasoning Anthropic baseline is a like-for-like comparison of
 intrinsic model capability rather than thinking budget. Default
 reasoning mode on Gemini~2.5~Pro and GPT-5.5 would change the
 reported scores; we treat the reasoning-on configuration as a
@@ -46,5 +46,5 @@ absolute-loss ground truth, which captures supervisory targeting
 priority but not the downstream effect of supervisory action---whether
 the recommended risk reduction would actually have averted
 contagion. A controlled live evaluation with a regulator in the
-loop, which the bench approximates but cannot replace, remains the
-primary direction we plan to extend the harness in.
+loop, which \benchname{} approximates but cannot replace, remains
+the primary direction we plan to extend the harness in.

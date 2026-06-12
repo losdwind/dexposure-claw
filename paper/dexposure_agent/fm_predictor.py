@@ -48,8 +48,12 @@ CHECKPOINT_MAP = {
     12: "dexposure-fm-h8-h12.pt",
 }
 
-# Default checkpoint directory
-DEFAULT_CKPT_DIR = os.path.join(_PROJECT_ROOT, "checkpoints", "dexposure-fm-release")
+# Default checkpoint directory (override with DEXPOSURE_FM_CKPT_DIR, e.g. to
+# point the whole pipeline at the pre-2022 retrained checkpoints)
+DEFAULT_CKPT_DIR = os.environ.get(
+    "DEXPOSURE_FM_CKPT_DIR",
+    os.path.join(_PROJECT_ROOT, "checkpoints", "dexposure-fm-release"),
+)
 
 
 class FMPredictor:
