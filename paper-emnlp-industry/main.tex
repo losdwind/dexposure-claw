@@ -77,35 +77,7 @@ Decision Recommendation on Decentralised Financial Networks}
 
 % =====================================================================
 \begin{abstract}
-Decentralised finance (DeFi) exposes supervisors to fast-moving,
-networked credit risk: shocks propagate across protocols before
-human operators can inspect raw on-chain data. LLM agents are a
-natural response, but they are hard to trust with high-stakes
-interventions---handed weak or stale evidence they can
-\emph{over-read} it, and prior systemic-risk evaluations give no
-regulator-aligned way to measure the resulting false alarms. We
-introduce \sysname{}, a forecast-grounded agentic supervision
-system that routes LLM decisions through structured evidence
-rather than raw transactions. \fmname{}, a graph time-series
-foundation model, forecasts future exposure networks;
-deterministic monitors and stress scenarios convert the forecasts
-into typed alerts and scenario losses; data-health and confidence
-gates decide when intervention-level tickets are admissible; and
-every released ticket carries its evidence bundle, rationale, and
-gate states for audit. On \benchname{}, a six-axis harness with a
-regulator-aligned absolute-loss ground truth, five years of weekly
-DeFi exposure graphs, and eight reference implementations, the
-full stack lifts ticket F1 over a conservative rules baseline from
-$0.0076$ to $0.0233$ ($p\!<\!10^{-4}$), at a visible
-false-intervention cost under an Opus~4.7 decision model
-(FIR~$\approx$~$0.44$). Swapping in a tier-below
-Sonnet~4.6 raises F1 to $0.0288$, eliminates measured false
-interventions, and directionally improves explanation quality at
-$\sim$5$\times$ lower inference cost. These results position
-\sysname{} as an auditable recall--explanation Pareto option for
-human-in-the-loop DeFi supervision, not a replacement for
-conservative rules; we release the evaluation harness and
-ticket-level audit logs from the historical backtest.
+Decentralized finance exposes supervisors to fast-moving, networked credit risks in which shocks can propagate across protocols before human operators can inspect raw on-chain data. We introduce \sysname{}, a forecast-grounded agentic supervision system that routes LLM decisions through structured evidence rather than raw transactions. This addresses a problem in the existing LLM-agent approaches that are poorly suited to this setting because they can over-read weak or stale evidence and recommend high-stakes interventions without a regulator-aligned way to measure false alarms. The system uses \fmname{}, a graph time-series foundation model, to forecast future exposure networks, converts those forecasts into monitor alerts and stress-scenario evidence, and applies data-health and confidence gates before emitting auditable supervisory tickets with rationales. On five years of weekly DeFi exposure graphs, \sysname{} improves ticket F1 over a conservative rules baseline from 0.0076 to 0.0233, while a cheaper Sonnet 4.6 decision model further raises F1 to 0.0288, eliminates measured false interventions, and directionally improves explanation quality, positioning the system as a recall--explanation Pareto option for human-in-the-loop DeFi supervision rather than a replacement for conservative rules.
 \end{abstract}
 
 % =====================================================================

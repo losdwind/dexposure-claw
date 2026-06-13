@@ -1,69 +1,10 @@
 \section{Introduction}
 \label{sec:intro}
 
-Decentralised finance (DeFi) creates fast-moving networks of
-token-mediated credit exposure among lending protocols,
-decentralised exchanges, stablecoins, bridges, and yield
-aggregators. The May~2022 Terra/Luna collapse erased over \$40
-billion in 48~hours, and FTX and SVB/USDC followed within
-months~\citep{VidalTomasEtAl2023FTX}: shocks traverse the network
-faster than supervisors can inspect raw on-chain data, motivating
-decision-support systems that forecast emerging exposure risk and
-recommend timely supervisory responses.
+Decentralized finance (DeFi) creates fast-moving networks of token-mediated credit exposure among lending protocols, decentralized exchanges, stablecoins, bridges, and yield aggregators. Recent crises such as Terra/Luna, FTX, and SVB/USDC show that shocks can propagate across this network before supervisors can manually inspect raw on-chain data. This motivates decision-support systems that can forecast emerging exposure risk, identify affected protocols, and recommend timely supervisory responses.
 
-A straightforward response is an LLM agent over on-chain
-measurements. Our reference implementations (\S\ref{sec:results})
-show the obvious designs fail in two ways. Reading
-raw on-chain snapshots, the LLM is conservative but weak: poorly
-targeted tickets (F1 $0.0183$) and the lowest-scored rationales
-under every judge we test. Fed richer \emph{forecasted} evidence,
-it targets better but \emph{hallucinates severity}: every cited
-number is traceable to the evidence bundle (grounding $1.000$),
-yet $44.8\%$ of its intervention-level tickets point at protocols
-that are never actually stressed. The second failure is far
-costlier in a supervisory setting: every intervention is
-observable and politically expensive.
+A straightforward approach is to build an LLM agent that reasons directly over on-chain measurements. We argue that this is unsafe for high-stakes supervision: general-purpose LLM agents may produce plausible rationales while over-reading incomplete, stale, or weak evidence, thereby triggering unnecessary high-severity interventions. Existing systemic-risk evaluations also often rank protocols by fractional exposure changes, which can overemphasize small protocols and fail to reflect regulator-relevant loss priorities.
 
-We introduce \sysname{} (\S\ref{sec:pipeline}), a
-forecast-grounded agentic system for DeFi risk monitoring and
-decision recommendation that routes LLM decisions through
-structured evidence and \emph{measures} the over-intervention
-cost that richer evidence induces. A graph time-series foundation
-model (\fmname) forecasts future exposure networks; deterministic
-monitors and stress scenarios convert the forecasts into typed
-evidence; an LLM emits ranked supervisory tickets with targets,
-severities, and evidence-linked rationales; and data-health and
-confidence gates restrict intervention-level recommendations.
-Every ticket is released with its evidence bundle, rationale, and
-gate states for auditability.
+We introduce \emph{\sysname{}}, a forecast-grounded agentic system for DeFi risk monitoring and decision recommendation. Rather than asking an LLM to reason over raw transactions, the system routes decisions through structured forecasted evidence. A graph time-series foundation model forecasts future exposure networks; deterministic monitors and stress scenarios convert these forecasts into alerts, attribution information, scenario losses, uncertainty estimates, and data-health scores; an LLM then emits ranked supervisory tickets with targets, severities, and evidence-linked rationales. Data-health and confidence gates restrict intervention-level recommendations, and every ticket is released with its evidence bundle, rationale, and gate states for auditability.
 
-We evaluate with \benchname{} (\S\ref{sec:bench}), a six-axis
-harness over eight reference implementations. Its decision
-axis scores tickets against a regulator-aligned
-\emph{absolute-loss} ground truth (\S\ref{sec:preliminaries})
-rather than the fractional-change ranking of prior systemic-risk
-evaluations~\citep{BERTOMEU2024105321,gonon2025computingsystemicriskmeasures,
-li2025hgmae}, so false interventions are measured directly---a
-cost that finance-specific LLM-agent
-work~\citep{yao2025arbiter,mao2025knowyourintent,luo2025llmcrypto,
-jeon2026blindtrade} has not reported. Across five years of weekly
-DeFi exposure graphs the full stack lifts ticket F1 from $0.0076$
-(conservative persistence-rules baseline) to $0.0233$
-($p\!<\!10^{-4}$), and three frontier judges across model
-families~\citep{Zheng2023LLMJudge} all rank it highest on
-explanation quality---at a visible false-intervention cost under
-the Opus~4.7 decision LLM (FIR $\approx 0.44$). A tier-below
-Sonnet~4.6 decision LLM gives the headline operating point: F1
-$0.0288$, measured false interventions zero, explanation quality
-directionally higher, at $\sim$5$\times$ lower inference cost.
-\sysname{} is thus an auditable recall--explanation Pareto option
-for human-in-the-loop supervision, not a replacement for
-conservative rules.
-
-\noindent
-\textbf{Honest scope.} All results come from a historical
-backtest over $283$ weekly snapshots of real DefiLlama-sourced
-exposure data (2020--2025), not a live deployment---a
-\emph{methods for deployed systems} and \emph{real-world
-insights} contribution rather than a deployment case study; the
-released ticket-level audit logs come from this backtest.
+We evaluate the system with \benchname{}, a six-axis harness covering forecast quality, warning behavior, uncertainty calibration, stress-scenario fidelity, ticket quality, and robustness. Its decision axis uses a regulator-aligned absolute-loss ground truth, allowing false interventions and supervisory relevance to be measured directly. Across five years of weekly DeFi exposure graphs and eight reference implementations, the full \sysname{} stack improves ticket F1 from 0.0076 for a conservative persistence-rules baseline to 0.0233. Replacing the main Opus 4.7 decision model with Sonnet 4.6 yields the strongest operating point, raising F1 to 0.0288, reducing measured false interventions to zero, and directionally improving explanation quality at lower inference cost. These results position \sysname{} as an auditable recall--explanation Pareto option for human-in-the-loop DeFi supervision, rather than a replacement for conservative rule-based systems.

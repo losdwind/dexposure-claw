@@ -1,0 +1,108 @@
+{
+ "meta": {
+  "purpose": "leakage-controlled (masked) vs original (unmasked) crisis replay",
+  "masking": "dates->relative week; all protocol IDs+token symbols->permuted synthetic IDs; $ rescaled per-window x[0.41,2.25]+3sig-fig; node/edge 2sig-fig; event-word leak sweep",
+  "mask_validation": {
+   "era_id": "2/12",
+   "event_id": "1/12",
+   "reident": "2/60",
+   "note": "all at random-guess level"
+  },
+  "decision_model": "claude-sonnet-4.6 x3",
+  "judge": "claude-opus-4.8",
+  "pooled_precision_drop": 0.0259,
+  "pooled_perm_p": 0.0003
+ },
+ "cells": {
+  "terra|m6_fm_llm": {
+   "n": 17,
+   "prec_unmasked": 0.6436,
+   "prec_masked": 0.6212,
+   "dprec": 0.0224,
+   "perm_p": 0.12,
+   "recall_unmasked": 0.0458,
+   "recall_masked": 0.0424,
+   "f1_unmasked": 0.0855,
+   "f1_masked": 0.0795,
+   "judge_unmasked": 2.882,
+   "judge_masked": 1.176,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  },
+  "terra|m7_fm_llm_gated": {
+   "n": 17,
+   "prec_unmasked": 0.6365,
+   "prec_masked": 0.6234,
+   "dprec": 0.0131,
+   "perm_p": 0.4521,
+   "recall_unmasked": 0.0451,
+   "recall_masked": 0.0429,
+   "f1_unmasked": 0.0842,
+   "f1_masked": 0.0804,
+   "judge_unmasked": 2.706,
+   "judge_masked": 1.235,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  },
+  "ftx|m6_fm_llm": {
+   "n": 18,
+   "prec_unmasked": 0.5662,
+   "prec_masked": 0.56,
+   "dprec": 0.0061,
+   "perm_p": 0.7784,
+   "recall_unmasked": 0.0354,
+   "recall_masked": 0.0344,
+   "f1_unmasked": 0.0666,
+   "f1_masked": 0.0647,
+   "judge_unmasked": 2.833,
+   "judge_masked": 1.667,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  },
+  "ftx|m7_fm_llm_gated": {
+   "n": 18,
+   "prec_unmasked": 0.5918,
+   "prec_masked": 0.5465,
+   "dprec": 0.0453,
+   "perm_p": 0.0034,
+   "recall_unmasked": 0.0371,
+   "recall_masked": 0.0343,
+   "f1_unmasked": 0.0698,
+   "f1_masked": 0.0646,
+   "judge_unmasked": 2.833,
+   "judge_masked": 1.556,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  },
+  "svb|m6_fm_llm": {
+   "n": 22,
+   "prec_unmasked": 0.6318,
+   "prec_masked": 0.6039,
+   "dprec": 0.0279,
+   "perm_p": 0.2302,
+   "recall_unmasked": 0.0312,
+   "recall_masked": 0.0335,
+   "f1_unmasked": 0.0595,
+   "f1_masked": 0.0634,
+   "judge_unmasked": 2.227,
+   "judge_masked": 1.636,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  },
+  "svb|m7_fm_llm_gated": {
+   "n": 22,
+   "prec_unmasked": 0.6349,
+   "prec_masked": 0.5984,
+   "dprec": 0.0366,
+   "perm_p": 0.0347,
+   "recall_unmasked": 0.033,
+   "recall_masked": 0.0322,
+   "f1_unmasked": 0.0628,
+   "f1_masked": 0.061,
+   "judge_unmasked": 2.545,
+   "judge_masked": 1.455,
+   "fir_unmasked": 0.0,
+   "fir_masked": 0.0
+  }
+ }
+}

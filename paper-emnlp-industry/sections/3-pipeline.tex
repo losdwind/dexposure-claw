@@ -3,85 +3,110 @@
 
 \begin{figure*}[t]
 \centering
-\resizebox{0.80\textwidth}{!}{\input{figures/fig1_system_overview}}
-\caption{\sysname{}: a four-layer pipeline. The agent ingests the
-weekly exposure graph $G_t$, runs \fmname{} prediction (Layer~1),
-monitor and scenario engines (Layer~2), an LLM decision layer
-(Layer~3), and a safety gate (Layer~4) emitting either a
-supervisory ticket $\tau^{\star}$ or a safe-mode notice; bottom
-annotations give per-layer F1 / judge lifts (\S\ref{sec:results}).}
+\resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview}}
+\caption{\sysname{}: a four-layer supervisory pipeline. Given a weekly
+exposure graph $G_t$, the system first forecasts future exposure networks
+with a foundation model (Layer~1), converts those forecasts into monitor
+alerts and stress-scenario evidence (Layer~2), asks an LLM to produce
+supervisory tickets from the typed evidence bundle (Layer~3), and applies
+safety gates before releasing either a ticket $\tau^{\star}$ or a safe-mode
+notice (Layer~4). Bottom annotations report the per-layer F1 and judge-score
+lifts from Section~\ref{sec:results}.}
 \label{fig:system}
 \end{figure*}
 
-\sysname{} is a four-layer pipeline (Figure~\ref{fig:system}):
-forecast (\fmname), evidence (monitors, scenarios), LLM decision,
-and safety gates. It runs at weekly cadence on a single
-RTX~4090; a decision epoch takes under a minute of GPU time and
-well under a dollar of LLM API spend (\S\ref{sec:bench}).
+\sysname{} is a four-layer pipeline for forecast-grounded DeFi supervision
+(Figure~\ref{fig:system}). Layer~1 uses \fmname{} to forecast near-future
+credit-exposure graphs. Layer~2 converts the forecast distribution into a
+typed evidence bundle containing monitor alerts, uncertainty estimates, and
+stress-scenario losses. Layer~3 passes this bundle to an LLM, which emits
+ranked supervisory tickets with targets, severities, and rationales. Layer~4
+applies data-health and confidence gates to determine whether
+intervention-level actions are admissible. The pipeline runs at weekly
+cadence on a single RTX~4090, with approximately \$10 of LLM API spend per
+run.
 
 \subsection{Forecaster interface}
 \label{ssec:forecaster}
-At each decision epoch $t$ the agent observes the credit-exposure
-snapshot $G_t$ and node covariates $X_t$
-(\S\ref{sec:preliminaries}). It
-queries \fmname{} for a forecast distribution
-$\mathcal{P}_{t,h}\!\leftarrow\!\text{\fmname.Forecast}(G_t,X_t,h)$
-at horizons $\mathcal{H}\!=\!\{1,4,8,12\}$ weeks, constructs an
-expected-weight predicted graph $\widehat{G}_{t+h}$ by thresholding
-edge-existence probabilities at $\pi_{\min}\!=\!0.2$, and draws $M\!=\!50$
-Monte Carlo samples for uncertainty. Full predicted-graph
-construction equations are in \S\ref{app:fm-notation}.
+
+At each decision epoch $t$, the agent observes a credit-exposure snapshot
+$G_t=(V_t,E_t,W_t)$, an inter-protocol token-mediated exposure graph defined
+in Appendix~\ref{app:fm-notation}, together with node covariates $X_t$. For
+each forecast horizon $h\in\mathcal{H}=\{1,4,8,12\}$ weeks, it queries
+\fmname{} for a predictive distribution
+\begin{equation}
+\mathcal{P}_{t,h}
+\leftarrow
+\operatorname{ForecastFM}(G_t,X_t,h).
+\end{equation}
+From this distribution, the agent constructs an expected-weight predicted
+graph $\widehat{G}_{t+h}$ by thresholding edge-existence probabilities at
+$\pi_{\min}=0.2$. It also draws $M=50$ Monte Carlo samples to quantify
+predictive uncertainty. Full predicted-graph construction equations are
+given in Appendix~\ref{app:fm-notation}.
 
 \subsection{Structured evidence}
 \label{ssec:evidence}
-Layer~2 turns $\widehat{G}_{t+h}$ and the MC samples into a typed
-evidence bundle. Five \emph{monitor functionals} score concentration,
-fragility, and instability of the predicted graph: top-1 PageRank
-\citep{BrinPage1998PageRank}, HHI concentration
-\citep{Rhoades1993HHI}, network density, PageRank Gini, and degree
-Gini. An alert fires when a monitor metric departs from its
-$L\!=\!42$ week rolling baseline by more than $z\!=\!2$ standard
-deviations; each alert is attached to (i) an attribution top-$K$
-($K\!=\!5$) of contributing edges by marginal contribution, and
-(ii) an uncertainty-aware confidence score $C_t(a)\!\in\![0,1]$
-that decays with low data-health, wide MC dispersion, and longer
-horizons.
 
-In parallel, a \emph{scenario engine} applies five standardised
-stress shocks---single protocol failure, bridge cluster failure,
-stablecoin de-peg, sector lending shock, correlated top-$10$
-stress---to both $\widehat{G}_{t+h}$ and each MC sample, and
-aggregates the worst-half losses as
-$\mathrm{CVaR}_{0.5}(s,h)$. Full
-monitor and scenario definitions are in \S\ref{app:pipeline-math}.
+Layer~2 converts $\widehat{G}_{t+h}$ and its Monte Carlo samples into a typed
+evidence bundle. Five \emph{monitor functionals} summarize concentration,
+fragility, and instability in the predicted graph: top-1 PageRank
+\citep{BrinPage1998PageRank}, HHI concentration
+\citep{Rhoades1993HHI}, network density, PageRank Gini, and degree Gini. An
+alert fires when a monitor statistic deviates from its $L=42$ week rolling
+baseline by more than $z=2$ standard deviations. Each alert includes two
+additional fields: (i) an attribution top-$K$ list of contributing edges,
+ranked by marginal contribution, and (ii) an uncertainty-aware confidence
+score $C_t(a)\in[0,1]$ that decreases with lower data health, wider Monte
+Carlo dispersion, and longer forecast horizons.
+
+In parallel, a \emph{scenario engine} applies five standardized stress
+shocks to both $\widehat{G}_{t+h}$ and each Monte Carlo sample: single
+protocol failure, bridge cluster failure, stablecoin de-peg, sector lending
+shock, and correlated top-$10$ stress. For each scenario $s$ and horizon
+$h$, the engine aggregates the worst-half sampled losses as
+$\operatorname{CVaR}_{0.5}(s,h)$. Full monitor and scenario definitions are
+provided in Appendix~\ref{app:pipeline-math}.
 
 \subsection{LLM decision layer}
 \label{ssec:llm-decision}
-Layer~3 receives the evidence bundle as a typed JSON payload---alerts
-with attribution top-$K$, scenario CVaR table, MC dispersion, and the
-scalar data-health score $DH_t$---and is asked to emit a ranked list
-of supervisory tickets. Each ticket carries (a) a severity level
-drawn from a fixed four-action playbook
+
+Layer~3 receives the evidence bundle as a typed JSON payload containing
+alerts with attribution top-$K$, a scenario-CVaR table, Monte Carlo
+dispersion summaries, and the scalar data-health score $\operatorname{DH}_t$.
+The LLM is prompted to emit a ranked list of supervisory tickets. Each ticket
+contains (a) a severity level from a fixed four-action playbook
 (\texttt{Monitor}, \texttt{Investigate}, \texttt{Recommend-Reduce}, and
-\texttt{Contingency}),
-(b) a target set of protocols, and (c) a free-form rationale that
-cites specific evidence fields by name. Self-consistency is probed
-with three repeated calls at temperature~$0$ (Jaccard overlap on
-targets and severities).
+\texttt{Contingency}), (b) a target set of protocols, and (c) a free-form
+rationale that cites specific evidence fields by name. To measure
+self-consistency, we repeat the decision call three times at temperature~$0$
+and report the Jaccard overlap of ticket targets and severities.
 
 \subsection{Safety gates}
 \label{ssec:gates}
-Two gates determine the feasibility of intervention-level
-actions (\S\ref{sec:preliminaries}). The \emph{data-health gate}
-$DH_t\!<\!\tau_{\mathrm{data}}\!=\!0.7$
-triggers safe mode, in which only \texttt{Monitor} and
-\texttt{Investigate} tickets are emitted, regardless of LLM
-recommendation. The \emph{confidence gate}
-$\bar{C}_t\!<\!\tau_{\mathrm{conf}}\!=\!0.6$ blocks
-intervention-level tickets even when data is healthy. Every
-emitted ticket carries the full evidence bundle, rationale, and
-gate states (\S\ref{sec:lessons}).
+
+Layer~4 determines whether intervention-level recommendations are feasible.
+The \emph{data-health gate} computes
+\begin{equation}
+\operatorname{DH}_t
+=
+\operatorname{mean}
+\left(
+\operatorname{fresh}_t,
+\operatorname{miss}_t,
+\operatorname{topo}_t,
+\operatorname{disc}_t
+\right).
+\end{equation}
+If $\operatorname{DH}_t<\tau_{\mathrm{data}}=0.7$, the system enters safe
+mode and emits only \texttt{Monitor} or \texttt{Investigate} tickets,
+regardless of the LLM's recommended severity. The \emph{confidence gate}
+blocks intervention-level tickets whenever the mean alert confidence
+satisfies $\bar{C}_t<\tau_{\mathrm{conf}}=0.6$, even if the data-health gate
+passes. Every emitted ticket carries the full evidence bundle, the LLM
+rationale, and the gate states that produced it. The resulting audit log is
+the unit of release (Section~\ref{sec:lessons}).
 
 \noindent
-The end-to-end algorithm is in
-\S\ref{app:pipeline-math} (Algorithm~\ref{alg:agent_loop}).
+The end-to-end procedure is given in Appendix~\ref{app:pipeline-math}
+(Algorithm~\ref{alg:agent_loop}).

@@ -3,9 +3,9 @@
     "method": "m6_fm_llm",
     "decision_model": "claude-sonnet-4.6",
     "judge_model": "claude-opus-4.8",
-    "n_weeks": 12,
-    "mean_quality": 1.667,
-    "total_judge_cost_usd": 0.0825
+    "n_weeks": 22,
+    "mean_quality": 1.636,
+    "total_judge_cost_usd": 0.1529
   },
   "entries": [
     {
@@ -149,6 +149,126 @@
       "reasoning": "Only 1 of 10 targets (P1382) matches the ground-truth top-5% set, indicating poor predictive accuracy, though the report does cite specific scenario metrics and concentration risk reasoning that lend it some grounding.",
       "precision": 0.4,
       "completeness": 0.034482758620689655,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-03-27",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's named targets (P6815, P1382, etc.) match any of the ground-truth top-5% protocols, and the detailed metrics ($6.42B exposure, scenario losses, affected counts) are unsupported by the empty input data, indicating hallucinated specifics.",
+      "precision": 0.625,
+      "completeness": 0.029411764705882353,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2023-04-03",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's target protocols match any of the ground-truth top-5% systemic risk protocols, and the cited metrics (stress scenarios, specific dollar weights) appear fabricated given the empty input network with 0 nodes and 0 edges.",
+      "precision": 0.5,
+      "completeness": 0.027972027972027972,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2023-04-10",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 1 of 9 targets (P1382) matches the ground truth top-5% set, and while the report cites specific metrics like concentration weight and scenario losses, these figures are unverifiable against the empty input data and most identified targets miss the actual systemic-risk protocols.",
+      "precision": 1.0,
+      "completeness": 0.05113636363636364,
+      "false_intervention_rate": 0.0,
+      "n_targets": 9
+    },
+    {
+      "date": "2023-04-17",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report provides detailed scenario analysis with specific dollar figures and protocol IDs, but only 1 of 8 targets (P1382) matches the ground truth top-5% set, indicating poor predictive accuracy despite the appearance of rigor.",
+      "precision": 1.0,
+      "completeness": 0.03361344537815126,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2023-04-24",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report only correctly identifies P1382 from the ground-truth top-5% set (1 of 10 targets match), while the remaining nine targets (P9240, P6815, P8985, etc.) are not in the systemic-risk set, indicating poor predictive accuracy. Although it cites detailed scenario metrics and is well-articulated, the core target list largely misses the regulator-relevant protocols.",
+      "precision": 0.6,
+      "completeness": 0.03260869565217391,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-05-01",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 1 of 10 named targets (P1382) matches the ground-truth top-5% systemic risk set, yielding very low precision; while the report cites specific scenario metrics and exposure figures that add analytical detail, it largely misses the correct high-risk protocols.",
+      "precision": 0.5,
+      "completeness": 0.02631578947368421,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-05-08",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's named targets (P6815, P1382, etc.) match any ground-truth systemic protocols (P1105, P1246, etc.), and the cited metrics ($18.0B, 21.22% loss, specific scenario numbers) appear fabricated given the input data shows an empty network with no metrics.",
+      "precision": 0.7777777777777778,
+      "completeness": 0.05511811023622047,
+      "false_intervention_rate": 0.0,
+      "n_targets": 9
+    },
+    {
+      "date": "2023-05-15",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report cites specific metrics and scenario analyses (exposure weights, loss percentages, affected protocol counts) and offers actionable supervisory recommendations, but its target protocols do not match any of the ground-truth top-5% systemic-risk protocols, indicating poor identification of the actual highest-loss entities.",
+      "precision": 0.4,
+      "completeness": 0.021621621621621623,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-05-22",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only P1505 from the report's target list matches the ground truth top-5% set (1 of 9 targets), and while the report cites specific exposure metrics and scenario losses, most named protocols (P8985, P6815, P3553, etc.) do not appear in the regulator-relevant systemic risk set, indicating poor alignment with actual outcomes.",
+      "precision": 0.4444444444444444,
+      "completeness": 0.029197080291970802,
+      "false_intervention_rate": 0.0,
+      "n_targets": 9
+    },
+    {
+      "date": "2023-05-29",
+      "method": "m6_fm_llm",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's 10 named targets (P1382, P3553, P9240, etc.) match any protocol in the ground-truth top-5% systemic risk set (P1025, P1026, P1030, etc.), and the detailed scenario metrics appear fabricated with no grounding in the empty input data.",
+      "precision": 0.8,
+      "completeness": 0.04020100502512563,
       "false_intervention_rate": 0.0,
       "n_targets": 10
     }
