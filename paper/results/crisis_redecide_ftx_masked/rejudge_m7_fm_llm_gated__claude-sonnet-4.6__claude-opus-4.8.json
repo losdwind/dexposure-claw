@@ -3,9 +3,9 @@
     "method": "m7_fm_llm_gated",
     "decision_model": "claude-sonnet-4.6",
     "judge_model": "claude-opus-4.8",
-    "n_weeks": 14,
-    "mean_quality": 1.5,
-    "total_judge_cost_usd": 0.0973
+    "n_weeks": 18,
+    "mean_quality": 1.556,
+    "total_judge_cost_usd": 0.1256
   },
   "entries": [
     {
@@ -175,6 +175,54 @@
       "completeness": 0.023622047244094488,
       "false_intervention_rate": 0.0,
       "n_targets": 9
+    },
+    {
+      "date": "2023-01-09",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 1,
+      "reasoning": "None of the report's identified target protocols match any of the 10 ground-truth systemic-risk protocols, and the input data shows an empty network (0 nodes/edges), indicating the specific metrics and scenarios cited are likely hallucinated and ungrounded.",
+      "precision": 1.0,
+      "completeness": 0.0446927374301676,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
+    },
+    {
+      "date": "2023-01-16",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "Only 2 of 10 targets (P1139, P1244) match the ground truth top-5% set, and the detailed scenario metrics ($1.2B exposure, specific loss percentages) appear fabricated given the input data shows 0 nodes and no metrics. The report reads confidently but is largely ungrounded with low predictive accuracy.",
+      "precision": 0.2,
+      "completeness": 0.0196078431372549,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-01-23",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report cites specific scenario metrics and exposure figures, but only 1 of 10 predicted targets (P1139) matches the ground truth set, indicating poor alignment with actual systemic risk while presenting plausible-sounding but largely unverifiable claims.",
+      "precision": 0.5,
+      "completeness": 0.04310344827586207,
+      "false_intervention_rate": 0.0,
+      "n_targets": 10
+    },
+    {
+      "date": "2023-01-30",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "quality_score": 2,
+      "reasoning": "The report only correctly identified 1 of 10 ground-truth systemic protocols (P1139), missing the rest, and its detailed scenario metrics lack grounding given the input data shows an empty network (0 nodes/edges). While the writing is specific and structured, the core target predictions largely miss the actual high-risk set.",
+      "precision": 0.25,
+      "completeness": 0.016666666666666666,
+      "false_intervention_rate": 0.0,
+      "n_targets": 8
     }
   ]
 }

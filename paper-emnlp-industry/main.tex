@@ -46,13 +46,23 @@
 % hyperref is pre-loaded by acl.sty; do not re-load.
 \hypersetup{hidelinks}
 
-% --- Anonymised system / artefact names for submission ---
-% Real names are restored in camera-ready by editing these four
-% macros (mapping documented in README.md, outside the source).
-\newcommand{\sysname}{Sentinel}
-\newcommand{\fmname}{Forecast-FM}
-\newcommand{\benchname}{Decision-Bench}
-\newcommand{\corpusname}{Exposure-Corpus}
+% --- System / artefact names: single anonymisation switch ---
+%   \anonfalse = real names   (working copy, e.g. shared Overleaf with advisor)
+%   \anontrue  = placeholders  (EMNLP double-blind submission)
+% Flip the ONE line below; the whole paper follows via the four macros.
+\newif\ifanon
+\anonfalse
+\ifanon
+  \newcommand{\sysname}{Sentinel}
+  \newcommand{\fmname}{Forecast-FM}
+  \newcommand{\benchname}{Decision-Bench}
+  \newcommand{\corpusname}{Exposure-Corpus}
+\else
+  \newcommand{\sysname}{DeXposure-Claw}
+  \newcommand{\fmname}{DeXposure-FM}
+  \newcommand{\benchname}{DeXposure-Bench}
+  \newcommand{\corpusname}{DeXposure}
+\fi
 
 % =====================================================================
 \title{\sysname{}: An Agentic System for Risk Monitoring and

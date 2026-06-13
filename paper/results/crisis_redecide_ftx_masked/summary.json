@@ -1,0 +1,32 @@
+{
+  "cells": [
+    {
+      "method": "m6_fm_llm",
+      "decision": "claude-sonnet-4.6",
+      "judge": "claude-opus-4.8",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 18,
+      "mean_quality": 1.667,
+      "mean_precision": 0.56,
+      "mean_completeness": 0.0344,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 0.6118,
+      "judge_cost_usd": 0.0541
+    },
+    {
+      "method": "m7_fm_llm_gated",
+      "decision": "claude-sonnet-4.6",
+      "judge": "claude-opus-4.8",
+      "decision_model": "claude-sonnet-4.6",
+      "judge_model": "claude-opus-4.8",
+      "n_weeks": 18,
+      "mean_quality": 1.556,
+      "mean_precision": 0.5465,
+      "mean_completeness": 0.0343,
+      "mean_fir": 0.0,
+      "decision_cost_usd": 1.3738,
+      "judge_cost_usd": 0.1256
+    }
+  ]
+}

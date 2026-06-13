@@ -2,8 +2,8 @@
   "summary": {
     "method": "m7_fm_llm_gated",
     "decision_model": "claude-sonnet-4.6",
-    "n_weeks": 14,
-    "total_decision_cost_usd": 1.0685
+    "n_weeks": 18,
+    "total_decision_cost_usd": 1.3738
   },
   "entries": [
     {
@@ -3036,6 +3036,894 @@
       },
       "consistency": 0.7962962962962963,
       "truly_stressed_count": 127
+    },
+    {
+      "date": "2023-01-09",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "llm_outputs": [
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the dominant loss driver in S1 (Top protocol failure), generating a 29.96% system-wide loss affecting 47 protocols with a direct loss of $2.89B. It also contributes $579M in the correlated stress scenario S5 (15.25% loss). As a CEX, it represents a single point of failure with opaque off-chain risk, making it the most systemically dangerous node in the predicted graph."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.78,
+              "action": "Investigate",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a significant loss contributor across three stress scenarios: $408M in S5 (correlated stress), $91.8M in S3 (stablecoin de-peg), and $62.1M in S4 (lending sector shock). Its unknown classification compounds supervisory concern, as its risk profile, counterparty relationships, and collateral structure cannot be assessed from available data."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $574M, nearly matching the bridge P6733's $573M loss, suggesting deep entanglement with bridge infrastructure. With a predicted exposure weight of $715M (7th overall), its unknown classification and bridge-cluster concentration create contagion risk: S2 distresses 156 protocols and affects 448, the broadest distress count of any scenario."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.7,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) carries a predicted exposure weight of $573M and is the named bridge node in S2, contributing $573M in losses when the bridge cluster fails. Bridge protocols are structurally vulnerable to exploits and liquidity mismatches; S2 triggers distress in 156 protocols and affects 448, indicating P6733 is a critical cross-chain contagion vector over the 4-week horizon."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) has the third-highest predicted exposure weight at $1.44B and appears in both S1 ($710M loss) and S5 ($289M loss). As a chain-layer protocol, distress would propagate to all protocols deployed on it, amplifying second-order effects beyond the direct loss figures. Its dual appearance in the two highest-loss scenarios warrants close supervisory attention."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.55,
+              "action": "Monitor",
+              "reason": "P8783 (Unknown) holds a predicted exposure weight of $1.02B (4th overall) and contributes $63.6M in losses under S4 (lending sector shock, 3.89% system loss). Its unknown classification and top-tier exposure weight suggest potential hidden leverage or undisclosed counterparty links that could amplify lending-sector contagion."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (stablecoin de-peg) at $162M, which affects 1,508 protocols \u2014 the largest affected count of any scenario. CDP protocols are inherently exposed to collateral price volatility and de-peg spirals; a 2.78% system-wide loss with zero distressed protocols suggests contained but broad contagion risk that warrants ongoing monitoring."
+            },
+            {
+              "protocol": "P2818",
+              "risk_score": 0.42,
+              "action": "Monitor",
+              "reason": "P2818 (Liquid Staking) has the fifth-highest predicted exposure weight at $783M. While it does not appear as a top loss contributor in any single stress scenario, liquid staking protocols carry correlated slashing and liquidity risk, and their large exposure weight means adverse conditions in S5 (correlated stress, 15.25% loss, 1,686 affected) could materially impact it as part of the top-10 cohort."
+            }
+          ],
+          "rationale": "The predicted network exhibits concentrated systemic risk anchored by P6280 (CEX, $2.89B exposure), whose failure alone drives a 29.96% system loss distressing 24 protocols \u2014 the most severe single-entity scenario observed. The bridge cluster (P9886, P6733) represents a secondary contagion vector, with S2 producing the widest distress footprint at 156 distressed and 448 affected protocols. Overall risk is assessed as elevated rather than critical because the correlated stress scenario S5 (15.25% loss) shows no distressed protocols, suggesting the network retains some shock-absorption capacity, but the opacity of multiple high-exposure 'Unknown' classified nodes (P4822 at $2.04B, P8783 at $1.02B, P9886 at $715M) materially limits supervisory visibility and warrants prioritized investigation.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the dominant loss driver in S1 (Top protocol failure), generating a 29.96% system-wide loss affecting 47 protocols with a direct loss of $2.89B. It also contributes $579M in the correlated stress scenario S5 (15.25% loss). As a CEX, it represents a single point of failure with opaque off-chain risk, making it the most systemically dangerous node in the predicted graph.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.78,\n      \"action\": \"Investigate\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a significant loss contributor across three stress scenarios: $408M in S5 (correlated stress), $91.8M in S3 (stablecoin de-peg), and $62.1M in S4 (lending sector shock). Its unknown classification compounds supervisory concern, as its risk profile, counterparty relationships, and collateral structure cannot be assessed from available data.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $574M, nearly matching the bridge P6733's $573M loss, suggesting deep entanglement with bridge infrastructure. With a predicted exposure weight of $715M (7th overall), its unknown classification and bridge-cluster concentration create contagion risk: S2 distresses 156 protocols and affects 448, the broadest distress count of any scenario.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.70,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) carries a predicted exposure weight of $573M and is the named bridge node in S2, contributing $573M in losses when the bridge cluster fails. Bridge protocols are structurally vulnerable to exploits and liquidity mismatches; S2 triggers distress in 156 protocols and affects 448, indicating P6733 is a critical cross-chain contagion vector over the 4-week horizon.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) has the third-highest predicted exposure weight at $1.44B and appears in both S1 ($710M loss) and S5 ($289M loss). As a chain-layer protocol, distress would propagate to all protocols deployed on it, amplifying second-order effects beyond the direct loss figures. Its dual appearance in the two highest-loss scenarios warrants close supervisory attention.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.55,\n      \"action\": \"Monitor\",\n      \"reason\": \"P8783 (Unknown) holds a predicted exposure weight of $1.02B (4th overall) and contributes $63.6M in losses under S4 (lending sector shock, 3.89% system loss). Its unknown classification and top-tier exposure weight suggest potential hidden leverage or undisclosed counterparty links that could amplify lending-sector contagion.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (stablecoin de-peg) at $162M, which affects 1,508 protocols \u2014 the largest affected count of any scenario. CDP protocols are inherently exposed to collateral price volatility and de-peg spirals; a 2.78% system-wide loss with zero distressed protocols suggests contained but broad contagion risk that warrants ongoing monitoring.\"\n    },\n    {\n      \"protocol\": \"P2818\",\n      \"risk_score\": 0.42,\n      \"action\": \"Monitor\",\n      \"reason\": \"P2818 (Liquid Staking) has the fifth-highest predicted exposure weight at $783M. While it does not appear as a top loss contributor in any single stress scenario, liquid staking protocols carry correlated slashing and liquidity risk, and their large exposure weight means adverse conditions in S5 (correlated stress, 15.25% loss, 1,686 affected) could materially impact it as part of the top-10 cohort.\"\n    }\n  ],\n  \"rationale\": \"The predicted network exhibits concentrated systemic risk anchored by P6280 (CEX, $2.89B exposure), whose failure alone drives a 29.96% system loss distressing 24 protocols \u2014 the most severe single-entity scenario observed. The bridge cluster (P9886, P6733) represents a secondary contagion vector, with S2 producing the widest distress footprint at 156 distressed and 448 affected protocols. Overall risk is assessed as elevated rather than critical because the correlated stress scenario S5 (15.25% loss) shows no distressed protocols, suggesting the network retains some shock-absorption capacity, but the opacity of multiple high-exposure 'Unknown' classified nodes (P4822 at $2.04B, P8783 at $1.02B, P9886 at $715M) materially limits supervisory visibility and warrants prioritized investigation.\"\n}\n```",
+          "input_tokens": 1061,
+          "output_tokens": 1370,
+          "latency_ms": 24335.1,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the dominant loss driver in S1 (Top protocol failure), generating a 29.96% system-wide loss affecting 47 protocols with a direct loss of $2.89B. It also contributes $579M in the correlated stress scenario S5 (15.25% loss). As a CEX, it sits outside typical DeFi transparency norms, amplifying opacity risk. The combination of systemic centrality and catastrophic tail-loss potential places it at the top of the risk register. Note: Contingency action would apply at critical overall risk level; current overall risk is elevated, so Investigate is the appropriate action despite the high risk score."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.78,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a significant loss contributor across three distinct stress scenarios: S3 (Stablecoin de-peg, $91.8M loss), S4 (Lending sector shock, $62.1M loss), and S5 (Correlated stress, $408M loss). Its unknown classification prevents transparency assessment, and its cross-scenario vulnerability indicates deep integration across multiple risk vectors. Risk score of 0.78 meets the Recommend-Reduce threshold under elevated overall risk."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.74,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) ranks 7th by predicted exposure weight at $715M and is the top loss contributor in S2 (Bridge cluster failure) at $574M, which distresses 156 protocols and affects 448. Its classification as Unknown compounds the risk, as its actual role and counterparty relationships cannot be assessed. The bridge cluster failure scenario produces a disproportionately wide contagion footprint (448 affected protocols), suggesting P9886 may act as a critical intermediary node."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) carries a predicted exposure weight of $573M and is the second-largest loss contributor in S2 (Bridge cluster failure) at $573M loss, which triggers distress in 156 protocols and affects 448. Bridges are historically high-risk infrastructure components due to cross-chain liquidity concentration and smart contract exploit surface. Its near-identical loss figure to P9886 in S2 suggests these two are tightly coupled, amplifying systemic contagion risk."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) holds the third-highest predicted exposure weight at $1.44B and appears in two major stress scenarios: S1 (Top protocol failure, $710M loss) and S5 (Correlated stress, $289M loss). As a chain-layer protocol, its failure would propagate broadly across all protocols built on or bridged to it, making it a foundational systemic risk node despite not being the primary trigger in any scenario."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) ranks 4th by predicted exposure weight at $1.02B and contributes $63.6M in losses under S4 (Lending sector shock). Its unknown classification and high exposure weight relative to its stress-scenario loss contribution suggest potential hidden leverage or opaque counterparty relationships that warrant supervisory scrutiny."
+            },
+            {
+              "protocol": "P5617",
+              "risk_score": 0.52,
+              "action": "Monitor",
+              "reason": "P5617 (Unknown) ranks 6th by predicted exposure weight at $758M and appears as the second-largest loss contributor in S1 (Top protocol failure) at $718M, closely correlated with P6280's failure. This suggests a direct or near-direct exposure linkage to the highest-risk CEX in the network. Its unknown classification prevents further characterization, warranting ongoing monitoring."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.45,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $162M. CDP protocols are structurally vulnerable to collateral value shocks and de-peg cascades. While S3 produces no distressed protocols (0 distressed), the 1,508 affected protocols indicate broad but shallow contagion, and P5916's leading role in that scenario warrants monitoring given current stablecoin market conditions."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.42,
+              "action": "Monitor",
+              "reason": "P1139 (Algo-Stables) contributes $49.6M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid depegging under stress. While its absolute loss figure is moderate, its category classification makes it a tail-risk candidate that should be tracked closely over the 4-week horizon."
+            }
+          ],
+          "rationale": "The network exhibits elevated systemic risk driven primarily by extreme concentration in P6280 (CEX, $2.89B exposure weight), whose failure alone generates a 29.96% system-wide loss affecting 47 protocols in S1. A secondary cluster risk is evident in the bridge sector, where P9886 and P6733 together account for $1.147B in losses under S2, distressing 156 protocols across 448 nodes. The prevalence of 'Unknown' classification protocols (P4822, P8783, P5617, P9886) among the top-10 exposure nodes \u2014 collectively representing over $4.5B in predicted exposure weight \u2014 significantly limits supervisory visibility and warrants urgent classification and disclosure efforts.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the dominant loss driver in S1 (Top protocol failure), generating a 29.96% system-wide loss affecting 47 protocols with a direct loss of $2.89B. It also contributes $579M in the correlated stress scenario S5 (15.25% loss). As a CEX, it sits outside typical DeFi transparency norms, amplifying opacity risk. The combination of systemic centrality and catastrophic tail-loss potential places it at the top of the risk register. Note: Contingency action would apply at critical overall risk level; current overall risk is elevated, so Investigate is the appropriate action despite the high risk score.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.78,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a significant loss contributor across three distinct stress scenarios: S3 (Stablecoin de-peg, $91.8M loss), S4 (Lending sector shock, $62.1M loss), and S5 (Correlated stress, $408M loss). Its unknown classification prevents transparency assessment, and its cross-scenario vulnerability indicates deep integration across multiple risk vectors. Risk score of 0.78 meets the Recommend-Reduce threshold under elevated overall risk.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.74,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) ranks 7th by predicted exposure weight at $715M and is the top loss contributor in S2 (Bridge cluster failure) at $574M, which distresses 156 protocols and affects 448. Its classification as Unknown compounds the risk, as its actual role and counterparty relationships cannot be assessed. The bridge cluster failure scenario produces a disproportionately wide contagion footprint (448 affected protocols), suggesting P9886 may act as a critical intermediary node.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) carries a predicted exposure weight of $573M and is the second-largest loss contributor in S2 (Bridge cluster failure) at $573M loss, which triggers distress in 156 protocols and affects 448. Bridges are historically high-risk infrastructure components due to cross-chain liquidity concentration and smart contract exploit surface. Its near-identical loss figure to P9886 in S2 suggests these two are tightly coupled, amplifying systemic contagion risk.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) holds the third-highest predicted exposure weight at $1.44B and appears in two major stress scenarios: S1 (Top protocol failure, $710M loss) and S5 (Correlated stress, $289M loss). As a chain-layer protocol, its failure would propagate broadly across all protocols built on or bridged to it, making it a foundational systemic risk node despite not being the primary trigger in any scenario.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) ranks 4th by predicted exposure weight at $1.02B and contributes $63.6M in losses under S4 (Lending sector shock). Its unknown classification and high exposure weight relative to its stress-scenario loss contribution suggest potential hidden leverage or opaque counterparty relationships that warrant supervisory scrutiny.\"\n    },\n    {\n      \"protocol\": \"P5617\",\n      \"risk_score\": 0.52,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5617 (Unknown) ranks 6th by predicted exposure weight at $758M and appears as the second-largest loss contributor in S1 (Top protocol failure) at $718M, closely correlated with P6280's failure. This suggests a direct or near-direct exposure linkage to the highest-risk CEX in the network. Its unknown classification prevents further characterization, warranting ongoing monitoring.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.45,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $162M. CDP protocols are structurally vulnerable to collateral value shocks and de-peg cascades. While S3 produces no distressed protocols (0 distressed), the 1,508 affected protocols indicate broad but shallow contagion, and P5916's leading role in that scenario warrants monitoring given current stablecoin market conditions.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.42,\n      \"action\": \"Monitor\",\n      \"reason\": \"P1139 (Algo-Stables) contributes $49.6M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid depegging under stress. While its absolute loss figure is moderate, its category classification makes it a tail-risk candidate that should be tracked closely over the 4-week horizon.\"\n    }\n  ],\n  \"rationale\": \"The network exhibits elevated systemic risk driven primarily by extreme concentration in P6280 (CEX, $2.89B exposure weight), whose failure alone generates a 29.96% system-wide loss affecting 47 protocols in S1. A secondary cluster risk is evident in the bridge sector, where P9886 and P6733 together account for $1.147B in losses under S2, distressing 156 protocols across 448 nodes. The prevalence of 'Unknown' classification protocols (P4822, P8783, P5617, P9886) among the top-10 exposure nodes \u2014 collectively representing over $4.5B in predicted exposure weight \u2014 significantly limits supervisory visibility and warrants urgent classification and disclosure efforts.\"\n}\n```",
+          "input_tokens": 1061,
+          "output_tokens": 1556,
+          "latency_ms": 29657.9,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the single largest loss driver in S1 (Top protocol failure) at $2.89B loss, triggering 24 distressed protocols and 47 affected \u2014 a 29.96% system loss. It also contributes $579M in the correlated stress scenario S5. Its CEX classification adds opacity risk and potential for sudden liquidity withdrawal. The combination of systemic centrality and outsized tail-loss contribution warrants urgent investigation."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.78,
+              "action": "Investigate",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a top loss contributor across three independent stress scenarios: S3 (stablecoin de-peg, $91.8M), S4 (lending shock, $62.1M), and S5 (correlated stress, $408M). Its 'Unknown' classification prevents proper risk categorization, and its cross-scenario vulnerability suggests deep integration with multiple risk vectors. The lack of protocol transparency compounds supervisory concern."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.74,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) ranks 7th by predicted exposure weight at $715M and is the top loss contributor in S2 (Bridge cluster failure) at $574M, which distresses 156 protocols and affects 448 \u2014 the broadest contagion footprint of any scenario. Its 'Unknown' classification and tight coupling with the bridge cluster (alongside P6733 at $573M) suggest it may be a critical bridge-adjacent liquidity node whose failure would propagate widely."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) holds $573M in predicted exposure weight and is the second-largest loss contributor in S2 (Bridge cluster failure) at $573M. Bridge protocols are historically high-risk due to cross-chain liquidity mismatches and smart contract exploitability. S2 produces 156 distressed protocols and 448 affected entities, indicating P6733 sits at a critical contagion chokepoint in the network topology."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) has the third-highest predicted exposure weight at $1.44B and contributes $710M in losses under S1 and $289M under S5 (correlated stress). As a chain-layer protocol, its distress would impair all protocols built on top of it, creating second-order contagion beyond direct exposure links. Its repeated appearance across high-severity scenarios elevates its systemic importance."
+            },
+            {
+              "protocol": "P5617",
+              "risk_score": 0.6,
+              "action": "Monitor",
+              "reason": "P5617 (Unknown) ranks 6th by predicted exposure weight at $758M and appears as the second-largest loss contributor in S1 at $718M \u2014 nearly matching P6062 despite lower overall weight, suggesting concentrated bilateral exposure to P6280. Its 'Unknown' classification limits risk assessment. Monitoring is warranted pending classification and further data on its counterparty relationships."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.52,
+              "action": "Monitor",
+              "reason": "P8783 (Unknown) holds $1.02B in predicted exposure weight (4th highest) and contributes $63.6M in losses under S4 (Lending sector shock). While its absolute stress loss is moderate, its high network weight and unknown classification suggest it may have undisclosed leverage or lending exposure. Continued monitoring is recommended to detect any deterioration in its counterparty profile."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $162M. CDP protocols are inherently sensitive to collateral price volatility and de-peg events, and a $162M loss in a scenario affecting 1,508 protocols indicates meaningful systemic reach. Supervisory monitoring of collateralization ratios and peg stability mechanisms is advised."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' overall risk, driven primarily by extreme concentration in P6280 (CEX, $2.89B exposure weight), whose single failure produces a 29.96% system loss affecting 71 entities across S1. The bridge cluster (P9886, P6733) presents the broadest contagion pathway with 156 distressed and 448 affected protocols under S2, while multiple 'Unknown'-classified protocols (P4822, P8783, P5617) with combined exposure exceeding $3.8B represent a material transparency gap that prevents accurate risk quantification. The correlated stress scenario S5 generating a 15.25% loss across 1,686 affected protocols confirms that tail risks are not idiosyncratic but structurally interconnected, warranting coordinated supervisory attention over the 4-week forecast horizon.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $2.89B and is the single largest loss driver in S1 (Top protocol failure) at $2.89B loss, triggering 24 distressed protocols and 47 affected \u2014 a 29.96% system loss. It also contributes $579M in the correlated stress scenario S5. Its CEX classification adds opacity risk and potential for sudden liquidity withdrawal. The combination of systemic centrality and outsized tail-loss contribution warrants urgent investigation.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.78,\n      \"action\": \"Investigate\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $2.04B and appears as a top loss contributor across three independent stress scenarios: S3 (stablecoin de-peg, $91.8M), S4 (lending shock, $62.1M), and S5 (correlated stress, $408M). Its 'Unknown' classification prevents proper risk categorization, and its cross-scenario vulnerability suggests deep integration with multiple risk vectors. The lack of protocol transparency compounds supervisory concern.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.74,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) ranks 7th by predicted exposure weight at $715M and is the top loss contributor in S2 (Bridge cluster failure) at $574M, which distresses 156 protocols and affects 448 \u2014 the broadest contagion footprint of any scenario. Its 'Unknown' classification and tight coupling with the bridge cluster (alongside P6733 at $573M) suggest it may be a critical bridge-adjacent liquidity node whose failure would propagate widely.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) holds $573M in predicted exposure weight and is the second-largest loss contributor in S2 (Bridge cluster failure) at $573M. Bridge protocols are historically high-risk due to cross-chain liquidity mismatches and smart contract exploitability. S2 produces 156 distressed protocols and 448 affected entities, indicating P6733 sits at a critical contagion chokepoint in the network topology.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) has the third-highest predicted exposure weight at $1.44B and contributes $710M in losses under S1 and $289M under S5 (correlated stress). As a chain-layer protocol, its distress would impair all protocols built on top of it, creating second-order contagion beyond direct exposure links. Its repeated appearance across high-severity scenarios elevates its systemic importance.\"\n    },\n    {\n      \"protocol\": \"P5617\",\n      \"risk_score\": 0.60,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5617 (Unknown) ranks 6th by predicted exposure weight at $758M and appears as the second-largest loss contributor in S1 at $718M \u2014 nearly matching P6062 despite lower overall weight, suggesting concentrated bilateral exposure to P6280. Its 'Unknown' classification limits risk assessment. Monitoring is warranted pending classification and further data on its counterparty relationships.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.52,\n      \"action\": \"Monitor\",\n      \"reason\": \"P8783 (Unknown) holds $1.02B in predicted exposure weight (4th highest) and contributes $63.6M in losses under S4 (Lending sector shock). While its absolute stress loss is moderate, its high network weight and unknown classification suggest it may have undisclosed leverage or lending exposure. Continued monitoring is recommended to detect any deterioration in its counterparty profile.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $162M. CDP protocols are inherently sensitive to collateral price volatility and de-peg events, and a $162M loss in a scenario affecting 1,508 protocols indicates meaningful systemic reach. Supervisory monitoring of collateralization ratios and peg stability mechanisms is advised.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' overall risk, driven primarily by extreme concentration in P6280 (CEX, $2.89B exposure weight), whose single failure produces a 29.96% system loss affecting 71 entities across S1. The bridge cluster (P9886, P6733) presents the broadest contagion pathway with 156 distressed and 448 affected protocols under S2, while multiple 'Unknown'-classified protocols (P4822, P8783, P5617) with combined exposure exceeding $3.8B represent a material transparency gap that prevents accurate risk quantification. The correlated stress scenario S5 generating a 15.25% loss across 1,686 affected protocols confirms that tail risks are not idiosyncratic but structurally interconnected, warranting coordinated supervisory attention over the 4-week forecast horizon.\"\n}\n```",
+          "input_tokens": 1061,
+          "output_tokens": 1363,
+          "latency_ms": 25669.2,
+          "model": "anthropic/claude-sonnet-4.6"
+        }
+      ],
+      "assessment": {
+        "targets": [
+          "P2818",
+          "P4822",
+          "P5916",
+          "P6062",
+          "P6280",
+          "P6733",
+          "P8783",
+          "P9886"
+        ],
+        "precision": 1.0,
+        "completeness": 0.0446927374301676,
+        "grounding_score": 1.0,
+        "severity_rho": NaN,
+        "false_intervention_rate": 0.0
+      },
+      "consistency": 0.7888888888888889,
+      "truly_stressed_count": 179
+    },
+    {
+      "date": "2023-01-16",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "llm_outputs": [
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure), generating a 21.40% system-wide loss affecting 47 protocols with a direct loss of $1.2B. It also appears as the top contributor in S5 (Correlated stress) with $240M loss. Its CEX classification adds opacity and counterparty risk concerns not present in on-chain protocols. Overall risk level does not yet meet 'critical' threshold required for Contingency action despite score >= 0.90."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.82,
+              "action": "Recommend-Reduce",
+              "reason": "P1139 (Algo-Stables) holds the 6th highest exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg), contributing $293M in losses and affecting 1,110 protocols \u2014 the broadest contagion footprint of any single-protocol scenario. Algo-stablecoin de-pegs have historically triggered rapid, cascading failures (e.g., UST/LUNA), and the wide affected-protocol count signals deep systemic embedding. Risk score >= 0.75 and overall risk level is elevated, satisfying Recommend-Reduce criteria."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.78,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) holds the 2nd highest predicted exposure weight at $897M and contributes $179M in losses under S5 (Correlated stress, top-10). Its 'Unknown' classification prevents standard risk categorization, raising governance and transparency concerns. The combination of near-top systemic exposure and opaque protocol type warrants supervisory intervention. Risk score >= 0.75 and overall risk is elevated, satisfying Recommend-Reduce criteria."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.75,
+              "action": "Recommend-Reduce",
+              "reason": "P1244 (Unknown) ranks 4th by predicted exposure weight at $764M and is the second-largest loss contributor in S3 (Stablecoin de-peg) at $214M, indicating deep entanglement with stablecoin infrastructure. Its 'Unknown' classification compounds risk due to lack of transparency. The dual exposure \u2014 high absolute weight and stablecoin contagion sensitivity \u2014 justifies intervention. Risk score meets the 0.75 threshold under elevated overall risk."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.74,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) ranks 5th by predicted exposure weight at $757M and appears in two distinct stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss, indicating cross-sector vulnerability. Its presence across multiple independent stress scenarios suggests it acts as a structural bridge node. 'Unknown' classification limits supervisory visibility. Score falls just below 0.75, precluding Recommend-Reduce."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) holds the 3rd highest predicted exposure weight at $817M and is the second-largest loss contributor in S1 at $467M, and third in S5 at $163M. As a base-layer chain protocol, its failure would propagate losses to all protocols built upon it, amplifying systemic impact beyond direct exposure figures. The 21.40% system loss in S1 is substantially driven by this protocol's downstream dependencies."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $217M, and S2 triggers distress in 165 protocols affecting 451 \u2014 the highest distressed-protocol count of any scenario. Bridge-adjacent protocols carry elevated contagion risk due to cross-chain liquidity dependencies. The 'Unknown' classification further limits supervisory assessment."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.63,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly identical to P9886's $217M, confirming it is a co-anchor of the bridge cluster risk. Bridge protocols are inherently high-risk due to cross-chain asset custody and smart contract complexity. S2 results in 165 distressed protocols and 451 affected, making this cluster a material systemic concern."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.55,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral value shocks and de-peg events, and their liquidation cascades can amplify stablecoin stress. While the absolute loss is moderate relative to other flagged protocols, the CDP mechanism warrants ongoing monitoring given the elevated risk in the stablecoin sector."
+            },
+            {
+              "protocol": "P7969",
+              "risk_score": 0.52,
+              "action": "Monitor",
+              "reason": "P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, affecting 1,079 protocols. Lending protocols are sensitive to collateral price drops and liquidity crunches, and the broad affected-protocol count in S4 indicates systemic interconnectedness. Monitoring is warranted to detect early signs of liquidity stress or bad debt accumulation."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' systemic risk, driven primarily by P6280's $1.2B exposure concentration which alone triggers a 21.40% system-wide loss in S1 affecting 47 protocols, and the stablecoin cluster anchored by P1139 ($586M weight, $293M de-peg loss) and P1244 ($764M weight, $214M de-peg loss) which collectively affect 1,110 protocols in S3. The prevalence of 'Unknown'-classified protocols among the top exposure nodes (P4822 at $897M, P1244 at $764M, P8783 at $757M) compounds supervisory concern due to limited transparency, while the bridge cluster (P9886 + P6733, ~$433M combined S2 losses, 165 distressed protocols) represents a distinct cross-chain contagion vector. The correlated stress scenario S5 producing a 15.01% loss across 1,673 affected protocols confirms that tail risks are not isolated but structurally linked across the top-10 exposure nodes.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure), generating a 21.40% system-wide loss affecting 47 protocols with a direct loss of $1.2B. It also appears as the top contributor in S5 (Correlated stress) with $240M loss. Its CEX classification adds opacity and counterparty risk concerns not present in on-chain protocols. Overall risk level does not yet meet 'critical' threshold required for Contingency action despite score >= 0.90.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.82,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P1139 (Algo-Stables) holds the 6th highest exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg), contributing $293M in losses and affecting 1,110 protocols \u2014 the broadest contagion footprint of any single-protocol scenario. Algo-stablecoin de-pegs have historically triggered rapid, cascading failures (e.g., UST/LUNA), and the wide affected-protocol count signals deep systemic embedding. Risk score >= 0.75 and overall risk level is elevated, satisfying Recommend-Reduce criteria.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.78,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) holds the 2nd highest predicted exposure weight at $897M and contributes $179M in losses under S5 (Correlated stress, top-10). Its 'Unknown' classification prevents standard risk categorization, raising governance and transparency concerns. The combination of near-top systemic exposure and opaque protocol type warrants supervisory intervention. Risk score >= 0.75 and overall risk is elevated, satisfying Recommend-Reduce criteria.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.75,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P1244 (Unknown) ranks 4th by predicted exposure weight at $764M and is the second-largest loss contributor in S3 (Stablecoin de-peg) at $214M, indicating deep entanglement with stablecoin infrastructure. Its 'Unknown' classification compounds risk due to lack of transparency. The dual exposure \u2014 high absolute weight and stablecoin contagion sensitivity \u2014 justifies intervention. Risk score meets the 0.75 threshold under elevated overall risk.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.74,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) ranks 5th by predicted exposure weight at $757M and appears in two distinct stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss, indicating cross-sector vulnerability. Its presence across multiple independent stress scenarios suggests it acts as a structural bridge node. 'Unknown' classification limits supervisory visibility. Score falls just below 0.75, precluding Recommend-Reduce.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) holds the 3rd highest predicted exposure weight at $817M and is the second-largest loss contributor in S1 at $467M, and third in S5 at $163M. As a base-layer chain protocol, its failure would propagate losses to all protocols built upon it, amplifying systemic impact beyond direct exposure figures. The 21.40% system loss in S1 is substantially driven by this protocol's downstream dependencies.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $217M, and S2 triggers distress in 165 protocols affecting 451 \u2014 the highest distressed-protocol count of any scenario. Bridge-adjacent protocols carry elevated contagion risk due to cross-chain liquidity dependencies. The 'Unknown' classification further limits supervisory assessment.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.63,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly identical to P9886's $217M, confirming it is a co-anchor of the bridge cluster risk. Bridge protocols are inherently high-risk due to cross-chain asset custody and smart contract complexity. S2 results in 165 distressed protocols and 451 affected, making this cluster a material systemic concern.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.55,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral value shocks and de-peg events, and their liquidation cascades can amplify stablecoin stress. While the absolute loss is moderate relative to other flagged protocols, the CDP mechanism warrants ongoing monitoring given the elevated risk in the stablecoin sector.\"\n    },\n    {\n      \"protocol\": \"P7969\",\n      \"risk_score\": 0.52,\n      \"action\": \"Monitor\",\n      \"reason\": \"P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, affecting 1,079 protocols. Lending protocols are sensitive to collateral price drops and liquidity crunches, and the broad affected-protocol count in S4 indicates systemic interconnectedness. Monitoring is warranted to detect early signs of liquidity stress or bad debt accumulation.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' systemic risk, driven primarily by P6280's $1.2B exposure concentration which alone triggers a 21.40% system-wide loss in S1 affecting 47 protocols, and the stablecoin cluster anchored by P1139 ($586M weight, $293M de-peg loss) and P1244 ($764M weight, $214M de-peg loss) which collectively affect 1,110 protocols in S3. The prevalence of 'Unknown'-classified protocols among the top exposure nodes (P4822 at $897M, P1244 at $764M, P8783 at $757M) compounds supervisory concern due to limited transparency, while the bridge cluster (P9886 + P6733, ~$433M combined S2 losses, 165 distressed protocols) represents a distinct cross-chain contagion vector. The correlated stress scenario S5 producing a 15.01% loss across 1,673 affected protocols confirms that tail risks are not isolated but structurally linked across the top-10 exposure nodes.\"\n}\n```",
+          "input_tokens": 1068,
+          "output_tokens": 1795,
+          "latency_ms": 30884.9,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure) at $1.2B loss, triggering 21.40% system-wide loss affecting 47 protocols and distressing 22. It also appears as the top loss contributor in S5 (Correlated stress) at $240M. Its CEX classification adds opacity and counterparty risk concerns. The combination of systemic centrality and catastrophic tail-loss potential places it at the highest individual risk score."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.82,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) holds the 3rd highest predicted exposure weight at $817M and is the 2nd largest loss contributor in S1 at $467M, indicating deep downstream dependency on P6280. It also appears in S5 with $163M loss. As a chain-layer protocol, its failure would propagate broadly across all protocols built on it, amplifying contagion risk significantly."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.8,
+              "action": "Investigate",
+              "reason": "P1139 (Algo-Stables) ranks 6th by exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg) at $293M, contributing to a 6.28% system-wide loss affecting 1,110 protocols. Algorithmic stablecoins have demonstrated historical fragility under market stress, and the breadth of affected protocols (1,110) signals wide systemic contagion potential from a de-peg event."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.75,
+              "action": "Investigate",
+              "reason": "P4822 (Unknown) holds the 2nd highest predicted exposure weight at $897M and is the 2nd largest loss contributor in S5 (Correlated stress) at $179M. Its 'Unknown' classification is a significant concern as it prevents proper risk categorization and supervisory oversight. The combination of high systemic weight and opacity warrants urgent investigation to determine its nature and interconnections."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P1244 (Unknown) ranks 4th by exposure weight at $764M and is the 2nd largest loss contributor in S3 (Stablecoin de-peg) at $214M, suggesting heavy stablecoin exposure or collateral dependency. Its 'Unknown' classification compounds risk as its true risk profile and counterparty linkages cannot be assessed without further investigation."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.68,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) ranks 5th by exposure weight at $757M and appears in two distinct stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss. Its presence across multiple stress scenarios suggests cross-sector exposure concentration, and its 'Unknown' classification prevents adequate risk assessment."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.62,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) ranks 7th by exposure weight at $314M and is the top loss contributor in S2 (Bridge cluster failure) at $217M, which distresses 165 protocols and affects 451. Bridge-adjacent protocols carry elevated smart contract and cross-chain liquidity risk. Its 'Unknown' classification further limits supervisory visibility."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.58,
+              "action": "Monitor",
+              "reason": "P6733 (Bridge) is the 2nd largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly matching P9886. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity mismatches. The S2 scenario distresses 165 protocols, indicating P6733 sits at a critical cross-chain nexus."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral de-peg events, and the 1,110 affected protocols in S3 suggest broad contagion. While its individual loss is moderate, its CDP classification means it could face cascading liquidation spirals under stablecoin stress."
+            },
+            {
+              "protocol": "P7969",
+              "risk_score": 0.44,
+              "action": "Monitor",
+              "reason": "P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, contributing to a 4.45% system-wide loss affecting 1,079 protocols. Lending protocols face elevated risk from collateral value deterioration and liquidity crunches under correlated market stress conditions."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' overall risk driven by extreme concentration in P6280 (CEX, $1.2B exposure weight), whose failure alone triggers a 21.40% system-wide loss distressing 22 protocols \u2014 the most severe single-entity scenario observed. Compounding this, the correlated stress scenario S5 produces a 15.01% loss across 1,673 affected protocols, indicating dangerous interconnectedness among the top-10 nodes. A further structural concern is the prevalence of 'Unknown' classified protocols (P4822 at $897M, P1244 at $764M, P8783 at $757M, P9886 at $314M) among the highest-exposure nodes, representing a significant supervisory blind spot that prevents adequate risk monitoring and intervention planning.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure) at $1.2B loss, triggering 21.40% system-wide loss affecting 47 protocols and distressing 22. It also appears as the top loss contributor in S5 (Correlated stress) at $240M. Its CEX classification adds opacity and counterparty risk concerns. The combination of systemic centrality and catastrophic tail-loss potential places it at the highest individual risk score.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.82,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) holds the 3rd highest predicted exposure weight at $817M and is the 2nd largest loss contributor in S1 at $467M, indicating deep downstream dependency on P6280. It also appears in S5 with $163M loss. As a chain-layer protocol, its failure would propagate broadly across all protocols built on it, amplifying contagion risk significantly.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.80,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1139 (Algo-Stables) ranks 6th by exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg) at $293M, contributing to a 6.28% system-wide loss affecting 1,110 protocols. Algorithmic stablecoins have demonstrated historical fragility under market stress, and the breadth of affected protocols (1,110) signals wide systemic contagion potential from a de-peg event.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.75,\n      \"action\": \"Investigate\",\n      \"reason\": \"P4822 (Unknown) holds the 2nd highest predicted exposure weight at $897M and is the 2nd largest loss contributor in S5 (Correlated stress) at $179M. Its 'Unknown' classification is a significant concern as it prevents proper risk categorization and supervisory oversight. The combination of high systemic weight and opacity warrants urgent investigation to determine its nature and interconnections.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1244 (Unknown) ranks 4th by exposure weight at $764M and is the 2nd largest loss contributor in S3 (Stablecoin de-peg) at $214M, suggesting heavy stablecoin exposure or collateral dependency. Its 'Unknown' classification compounds risk as its true risk profile and counterparty linkages cannot be assessed without further investigation.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.68,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) ranks 5th by exposure weight at $757M and appears in two distinct stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss. Its presence across multiple stress scenarios suggests cross-sector exposure concentration, and its 'Unknown' classification prevents adequate risk assessment.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.62,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) ranks 7th by exposure weight at $314M and is the top loss contributor in S2 (Bridge cluster failure) at $217M, which distresses 165 protocols and affects 451. Bridge-adjacent protocols carry elevated smart contract and cross-chain liquidity risk. Its 'Unknown' classification further limits supervisory visibility.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.58,\n      \"action\": \"Monitor\",\n      \"reason\": \"P6733 (Bridge) is the 2nd largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly matching P9886. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity mismatches. The S2 scenario distresses 165 protocols, indicating P6733 sits at a critical cross-chain nexus.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral de-peg events, and the 1,110 affected protocols in S3 suggest broad contagion. While its individual loss is moderate, its CDP classification means it could face cascading liquidation spirals under stablecoin stress.\"\n    },\n    {\n      \"protocol\": \"P7969\",\n      \"risk_score\": 0.44,\n      \"action\": \"Monitor\",\n      \"reason\": \"P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, contributing to a 4.45% system-wide loss affecting 1,079 protocols. Lending protocols face elevated risk from collateral value deterioration and liquidity crunches under correlated market stress conditions.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' overall risk driven by extreme concentration in P6280 (CEX, $1.2B exposure weight), whose failure alone triggers a 21.40% system-wide loss distressing 22 protocols \u2014 the most severe single-entity scenario observed. Compounding this, the correlated stress scenario S5 produces a 15.01% loss across 1,673 affected protocols, indicating dangerous interconnectedness among the top-10 nodes. A further structural concern is the prevalence of 'Unknown' classified protocols (P4822 at $897M, P1244 at $764M, P8783 at $757M, P9886 at $314M) among the highest-exposure nodes, representing a significant supervisory blind spot that prevents adequate risk monitoring and intervention planning.\"\n}\n```",
+          "input_tokens": 1068,
+          "output_tokens": 1558,
+          "latency_ms": 26800.3,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P6280",
+              "risk_score": 0.93,
+              "action": "Investigate",
+              "reason": "P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure) at $1.2B loss, triggering 21.40% system-wide loss affecting 47 protocols and distressing 22. It also contributes $240M in the correlated stress scenario S5 (15.01% loss). As a CEX, opacity of off-chain liabilities and potential for sudden liquidity crises make this the highest-priority concern. Overall risk level does not meet 'critical' threshold required for Contingency action despite the score."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.82,
+              "action": "Recommend-Reduce",
+              "reason": "P1139 (Algo-Stables) holds the 6th largest predicted exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg) at $293M, contributing to a 6.28% system-wide loss affecting 1,110 protocols. Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid de-pegging cascades. The broad contagion footprint (1,110 affected nodes) despite zero directly distressed protocols suggests deep but diffuse systemic exposure that warrants active reduction of counterparty exposure."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.78,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) is the 2nd largest node by predicted exposure weight at $897M and contributes $179M in losses under S5 correlated stress (15.01% system loss, 1,673 affected). Its 'Unknown' classification prevents standard risk categorization, creating model opacity risk on top of its systemic size. The combination of high weight, unknown type, and correlated stress sensitivity justifies exposure reduction recommendations to counterparties."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.76,
+              "action": "Recommend-Reduce",
+              "reason": "P8783 (Unknown) appears in two independent stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss, indicating cross-sector vulnerability. Its predicted exposure weight of $757M (5th largest) combined with dual-scenario sensitivity and unknown classification makes it a high-priority concern. Supervisors should recommend counterparties reduce direct exposure pending classification."
+            },
+            {
+              "protocol": "P6062",
+              "risk_score": 0.74,
+              "action": "Investigate",
+              "reason": "P6062 (Chain) has the 3rd largest predicted exposure weight at $817M and is the 2nd largest loss contributor in S1 at $467M, and contributes $163M in S5. As a base-layer chain protocol, failure would propagate broadly across all protocols built on it. The risk_score of 0.74 falls below the 0.75 threshold required for Recommend-Reduce, so Investigate is the appropriate action pending deeper analysis of on-chain health metrics."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.7,
+              "action": "Investigate",
+              "reason": "P1244 (Unknown) holds the 4th largest predicted exposure weight at $764M and is the 2nd largest loss contributor in S3 (Stablecoin de-peg) at $214M, suggesting significant stablecoin collateral or liquidity dependency. Its unknown classification and high stablecoin-scenario sensitivity warrant supervisory investigation to determine protocol type and collateral composition."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the primary loss driver in S2 (Bridge cluster failure) at $217M, contributing to 4.69% system-wide loss that distresses 165 protocols and affects 451. Bridge-adjacent protocols carry elevated smart contract and cross-chain liquidity risk. Its 7th-place exposure weight of $314M and leading role in the bridge failure scenario justify supervisory investigation."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.62,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the 2nd largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly identical to P9886, and is explicitly classified as a bridge protocol. Bridge protocols have historically been high-value exploit targets. The S2 scenario distresses 165 protocols and affects 451, indicating significant contagion potential from this node."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.55,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral de-pegging events, and the stablecoin scenario affecting 1,110 protocols suggests broad contagion pathways. While the loss figure is moderate relative to other flagged protocols, the structural linkage to algo-stable risk warrants ongoing monitoring."
+            },
+            {
+              "protocol": "P7969",
+              "risk_score": 0.5,
+              "action": "Monitor",
+              "reason": "P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, contributing to a 4.45% system-wide loss affecting 1,079 protocols. Lending protocols face elevated liquidation cascade risk during correlated market downturns. The broad affected-node count (1,079) despite zero directly distressed protocols suggests latent systemic exposure that warrants monitoring."
+            }
+          ],
+          "rationale": "The network exhibits elevated systemic risk driven primarily by P6280 (CEX, $1.2B exposure weight) whose single failure triggers a 21.40% system-wide loss affecting 47 protocols, and by correlated stress scenario S5 which produces a 15.01% loss across 1,673 affected nodes. The presence of multiple 'Unknown'-classified protocols (P4822 at $897M, P8783 at $757M, P1244 at $764M) among the top exposure nodes introduces significant model opacity risk, as their sector-specific vulnerabilities cannot be fully assessed. The algo-stablecoin exposure via P1139 ($586M weight, $293M de-peg loss affecting 1,110 protocols) and bridge cluster vulnerability via P6733 and P9886 ($216-217M losses, 165 distressed protocols in S2) represent two additional independent contagion pathways that could materialize within the 4-week forecast horizon.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.93,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6280 (CEX) carries the highest predicted exposure weight at $1.2B and is the single largest loss driver in S1 (Top protocol failure) at $1.2B loss, triggering 21.40% system-wide loss affecting 47 protocols and distressing 22. It also contributes $240M in the correlated stress scenario S5 (15.01% loss). As a CEX, opacity of off-chain liabilities and potential for sudden liquidity crises make this the highest-priority concern. Overall risk level does not meet 'critical' threshold required for Contingency action despite the score.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.82,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P1139 (Algo-Stables) holds the 6th largest predicted exposure weight at $586M and is the primary loss driver in S3 (Stablecoin de-peg) at $293M, contributing to a 6.28% system-wide loss affecting 1,110 protocols. Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid de-pegging cascades. The broad contagion footprint (1,110 affected nodes) despite zero directly distressed protocols suggests deep but diffuse systemic exposure that warrants active reduction of counterparty exposure.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.78,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) is the 2nd largest node by predicted exposure weight at $897M and contributes $179M in losses under S5 correlated stress (15.01% system loss, 1,673 affected). Its 'Unknown' classification prevents standard risk categorization, creating model opacity risk on top of its systemic size. The combination of high weight, unknown type, and correlated stress sensitivity justifies exposure reduction recommendations to counterparties.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.76,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P8783 (Unknown) appears in two independent stress scenarios: S1 (Top protocol failure) with $224M loss and S4 (Lending sector shock) with $63.9M loss, indicating cross-sector vulnerability. Its predicted exposure weight of $757M (5th largest) combined with dual-scenario sensitivity and unknown classification makes it a high-priority concern. Supervisors should recommend counterparties reduce direct exposure pending classification.\"\n    },\n    {\n      \"protocol\": \"P6062\",\n      \"risk_score\": 0.74,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6062 (Chain) has the 3rd largest predicted exposure weight at $817M and is the 2nd largest loss contributor in S1 at $467M, and contributes $163M in S5. As a base-layer chain protocol, failure would propagate broadly across all protocols built on it. The risk_score of 0.74 falls below the 0.75 threshold required for Recommend-Reduce, so Investigate is the appropriate action pending deeper analysis of on-chain health metrics.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.70,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1244 (Unknown) holds the 4th largest predicted exposure weight at $764M and is the 2nd largest loss contributor in S3 (Stablecoin de-peg) at $214M, suggesting significant stablecoin collateral or liquidity dependency. Its unknown classification and high stablecoin-scenario sensitivity warrant supervisory investigation to determine protocol type and collateral composition.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the primary loss driver in S2 (Bridge cluster failure) at $217M, contributing to 4.69% system-wide loss that distresses 165 protocols and affects 451. Bridge-adjacent protocols carry elevated smart contract and cross-chain liquidity risk. Its 7th-place exposure weight of $314M and leading role in the bridge failure scenario justify supervisory investigation.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.62,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the 2nd largest loss contributor in S2 (Bridge cluster failure) at $216M, nearly identical to P9886, and is explicitly classified as a bridge protocol. Bridge protocols have historically been high-value exploit targets. The S2 scenario distresses 165 protocols and affects 451, indicating significant contagion potential from this node.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.55,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) appears in S3 (Stablecoin de-peg) with $67.4M in losses. CDP protocols are structurally exposed to collateral de-pegging events, and the stablecoin scenario affecting 1,110 protocols suggests broad contagion pathways. While the loss figure is moderate relative to other flagged protocols, the structural linkage to algo-stable risk warrants ongoing monitoring.\"\n    },\n    {\n      \"protocol\": \"P7969\",\n      \"risk_score\": 0.50,\n      \"action\": \"Monitor\",\n      \"reason\": \"P7969 (Lending) is the top loss contributor in S4 (Lending sector shock) at $64.4M, contributing to a 4.45% system-wide loss affecting 1,079 protocols. Lending protocols face elevated liquidation cascade risk during correlated market downturns. The broad affected-node count (1,079) despite zero directly distressed protocols suggests latent systemic exposure that warrants monitoring.\"\n    }\n  ],\n  \"rationale\": \"The network exhibits elevated systemic risk driven primarily by P6280 (CEX, $1.2B exposure weight) whose single failure triggers a 21.40% system-wide loss affecting 47 protocols, and by correlated stress scenario S5 which produces a 15.01% loss across 1,673 affected nodes. The presence of multiple 'Unknown'-classified protocols (P4822 at $897M, P8783 at $757M, P1244 at $764M) among the top exposure nodes introduces significant model opacity risk, as their sector-specific vulnerabilities cannot be fully assessed. The algo-stablecoin exposure via P1139 ($586M weight, $293M de-peg loss affecting 1,110 protocols) and bridge cluster vulnerability via P6733 and P9886 ($216-217M losses, 165 distressed protocols in S2) represent two additional independent contagion pathways that could materialize within the 4-week forecast horizon.\"\n}\n```",
+          "input_tokens": 1068,
+          "output_tokens": 1730,
+          "latency_ms": 31616.1,
+          "model": "anthropic/claude-sonnet-4.6"
+        }
+      ],
+      "assessment": {
+        "targets": [
+          "P1139",
+          "P1244",
+          "P4822",
+          "P5916",
+          "P6062",
+          "P6280",
+          "P6733",
+          "P7969",
+          "P8783",
+          "P9886"
+        ],
+        "precision": 0.2,
+        "completeness": 0.0196078431372549,
+        "grounding_score": 1.0,
+        "severity_rho": NaN,
+        "false_intervention_rate": 0.0
+      },
+      "consistency": 1.0,
+      "truly_stressed_count": 102
+    },
+    {
+      "date": "2023-01-23",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "llm_outputs": [
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P4897",
+              "risk_score": 0.92,
+              "action": "Recommend-Reduce",
+              "reason": "P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also contributes $161M in the correlated stress scenario S5 (14.09% total loss). Its systemic centrality makes it the primary contagion vector in the network."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.82,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $743M. It appears as a major loss contributor in both S1 ($333M loss) and S5 ($149M loss). Its 'Unknown' classification adds opacity risk, making it difficult to assess underlying collateral quality or counterparty exposure, compounding systemic concern."
+            },
+            {
+              "protocol": "P4994",
+              "risk_score": 0.75,
+              "action": "Recommend-Reduce",
+              "reason": "P4994 (Chain) ranks third by predicted exposure weight at $658M and contributes $132M in losses under the correlated stress scenario S5. As a chain-layer protocol, failures here could propagate broadly across dependent protocols, amplifying network-wide distress beyond the direct loss figures."
+            },
+            {
+              "protocol": "P2811",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P2811 (Services) appears in two distinct stress scenarios: S1 with $393M loss and S2 (Bridge cluster failure) with $12.3M loss, indicating cross-scenario vulnerability. Its predicted exposure weight of $455M (rank 6) and multi-scenario presence suggest it serves as a critical intermediary node whose distress could propagate across both DEX and bridge clusters."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) has a predicted exposure weight of $509M (rank 5) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' classification combined with high exposure and lending-sector sensitivity warrants investigation into its actual protocol type, collateralization ratios, and counterparty linkages."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.58,
+              "action": "Investigate",
+              "reason": "P5916 (CDP) is the largest single loss contributor in S3 (Stablecoin de-peg) at $105M, which itself causes 1,132 affected protocols. CDP protocols are structurally exposed to collateral price volatility and de-peg cascades; a stablecoin stress event could rapidly erode its collateral buffers and trigger liquidation spirals."
+            },
+            {
+              "protocol": "P3564",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P3564 (Lending) appears in both S3 (Stablecoin de-peg, $30.8M loss) and S4 (Lending sector shock, $34M loss), making it one of only two protocols with cross-scenario exposure across both stablecoin and lending stress events. This dual vulnerability suggests concentrated risk to macro credit conditions."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.5,
+              "action": "Monitor",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with 167 distressed protocols and 466 affected. While the absolute loss is lower than other scenarios, the high distressed-protocol count relative to loss size suggests significant contagion efficiency if this node fails."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 at $23.6M. Bridge protocols are historically high-risk due to cross-chain liquidity mismatches and smart contract complexity. Its co-appearance with P9886 in S2 suggests these two form a correlated failure cluster requiring joint monitoring."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.45,
+              "action": "Monitor",
+              "reason": "P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins have demonstrated historical fragility under market stress; its presence as the second-largest loser in the de-peg scenario warrants ongoing monitoring of peg stability metrics and reserve adequacy."
+            }
+          ],
+          "rationale": "The network exhibits elevated systemic risk concentrated in a small number of high-exposure nodes: P4897 alone could trigger 17.73% total network loss and 70 distressed protocols under S1, while the correlated stress scenario S5 produces 14.09% loss across 1,789 affected protocols involving the top-10 exposure holders. The combination of high exposure concentration (top-3 protocols holding $2.208B in predicted exposure weight), multi-scenario vulnerability in key intermediaries like P2811 and P3564, and opacity from multiple 'Unknown'-classified high-weight protocols (P4822, P8783, P1244) creates conditions for rapid contagion if any primary node experiences distress within the 4-week horizon.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P4897\",\n      \"risk_score\": 0.92,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also contributes $161M in the correlated stress scenario S5 (14.09% total loss). Its systemic centrality makes it the primary contagion vector in the network.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.82,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $743M. It appears as a major loss contributor in both S1 ($333M loss) and S5 ($149M loss). Its 'Unknown' classification adds opacity risk, making it difficult to assess underlying collateral quality or counterparty exposure, compounding systemic concern.\"\n    },\n    {\n      \"protocol\": \"P4994\",\n      \"risk_score\": 0.75,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4994 (Chain) ranks third by predicted exposure weight at $658M and contributes $132M in losses under the correlated stress scenario S5. As a chain-layer protocol, failures here could propagate broadly across dependent protocols, amplifying network-wide distress beyond the direct loss figures.\"\n    },\n    {\n      \"protocol\": \"P2811\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P2811 (Services) appears in two distinct stress scenarios: S1 with $393M loss and S2 (Bridge cluster failure) with $12.3M loss, indicating cross-scenario vulnerability. Its predicted exposure weight of $455M (rank 6) and multi-scenario presence suggest it serves as a critical intermediary node whose distress could propagate across both DEX and bridge clusters.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) has a predicted exposure weight of $509M (rank 5) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' classification combined with high exposure and lending-sector sensitivity warrants investigation into its actual protocol type, collateralization ratios, and counterparty linkages.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.58,\n      \"action\": \"Investigate\",\n      \"reason\": \"P5916 (CDP) is the largest single loss contributor in S3 (Stablecoin de-peg) at $105M, which itself causes 1,132 affected protocols. CDP protocols are structurally exposed to collateral price volatility and de-peg cascades; a stablecoin stress event could rapidly erode its collateral buffers and trigger liquidation spirals.\"\n    },\n    {\n      \"protocol\": \"P3564\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P3564 (Lending) appears in both S3 (Stablecoin de-peg, $30.8M loss) and S4 (Lending sector shock, $34M loss), making it one of only two protocols with cross-scenario exposure across both stablecoin and lending stress events. This dual vulnerability suggests concentrated risk to macro credit conditions.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.50,\n      \"action\": \"Monitor\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with 167 distressed protocols and 466 affected. While the absolute loss is lower than other scenarios, the high distressed-protocol count relative to loss size suggests significant contagion efficiency if this node fails.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 at $23.6M. Bridge protocols are historically high-risk due to cross-chain liquidity mismatches and smart contract complexity. Its co-appearance with P9886 in S2 suggests these two form a correlated failure cluster requiring joint monitoring.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.45,\n      \"action\": \"Monitor\",\n      \"reason\": \"P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins have demonstrated historical fragility under market stress; its presence as the second-largest loser in the de-peg scenario warrants ongoing monitoring of peg stability metrics and reserve adequacy.\"\n    }\n  ],\n  \"rationale\": \"The network exhibits elevated systemic risk concentrated in a small number of high-exposure nodes: P4897 alone could trigger 17.73% total network loss and 70 distressed protocols under S1, while the correlated stress scenario S5 produces 14.09% loss across 1,789 affected protocols involving the top-10 exposure holders. The combination of high exposure concentration (top-3 protocols holding $2.208B in predicted exposure weight), multi-scenario vulnerability in key intermediaries like P2811 and P3564, and opacity from multiple 'Unknown'-classified high-weight protocols (P4822, P8783, P1244) creates conditions for rapid contagion if any primary node experiences distress within the 4-week horizon.\"\n}\n```",
+          "input_tokens": 1065,
+          "output_tokens": 1440,
+          "latency_ms": 27026.3,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P4897",
+              "risk_score": 0.93,
+              "action": "Recommend-Reduce",
+              "reason": "P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also appears as the top loss contributor in S5 (Correlated stress) at $161M. Its systemic centrality across two major stress scenarios indicates it is a critical single point of failure in the predicted network."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.82,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $743M and appears as a significant loss contributor in both S1 ($333M loss) and S5 ($149M loss). Its 'Unknown' category classification adds opacity risk, making it harder to assess underlying collateral quality or counterparty exposure, compounding systemic concern."
+            },
+            {
+              "protocol": "P2811",
+              "risk_score": 0.78,
+              "action": "Recommend-Reduce",
+              "reason": "P2811 (Services) appears in two distinct stress scenarios: S1 with a $393M loss (second largest in that scenario) and S2 (Bridge cluster failure) with a $12.3M loss. With a predicted exposure weight of $455M (6th overall), its cross-scenario vulnerability suggests it acts as a contagion conduit between the DEX and bridge subsectors."
+            },
+            {
+              "protocol": "P4994",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P4994 (Chain) has the third-highest predicted exposure weight at $658M and is the third-largest loss contributor in S5 (Correlated stress) at $132M. As a chain-layer protocol, distress here could propagate broadly across all protocols settled on it, warranting close supervisory scrutiny."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) has a predicted exposure weight of $509M (5th overall) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' classification combined with significant lending-sector exposure and high network weight raises concerns about hidden leverage or undisclosed counterparty risk."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.6,
+              "action": "Investigate",
+              "reason": "P5916 (CDP) is the largest loss contributor in S3 (Stablecoin de-peg) at $105M, which itself affects 1,132 protocols. CDP protocols are structurally vulnerable to de-peg events given their collateral-to-stablecoin mechanics, and a $105M loss in this scenario signals meaningful systemic exposure to stablecoin stability."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with that scenario distressing 167 protocols and affecting 466. Bridge-adjacent protocols with unknown classification present elevated opacity and cross-chain contagion risk that warrants supervisory investigation."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.52,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $23.6M. Bridge protocols are historically high-risk vectors for exploits and cross-chain contagion; its direct appearance in the bridge cluster failure scenario confirms elevated structural vulnerability."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.5,
+              "action": "Investigate",
+              "reason": "P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg), the second-largest in that scenario. Algorithmic stablecoins have demonstrated historical fragility under market stress, and this exposure level in a de-peg scenario warrants proactive supervisory monitoring."
+            }
+          ],
+          "rationale": "The predicted network exhibits elevated systemic risk concentrated in a small number of high-exposure nodes. S1 (Top protocol failure) is the most severe scenario with a 17.73% network loss, 70 distressed protocols, and 203 affected, driven almost entirely by P4897 ($807M) and P2811 ($393M). S5 (Correlated stress across top-10) compounds this with a 14.09% loss affecting 1,789 protocols, confirming that the top exposure nodes are highly interconnected and mutually reinforcing. The prevalence of 'Unknown' category protocols (P4822 at $743M, P8783 at $509M, P9886) among the highest-risk nodes introduces additional opacity that limits supervisory visibility and warrants urgent classification and disclosure requirements.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P4897\",\n      \"risk_score\": 0.93,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also appears as the top loss contributor in S5 (Correlated stress) at $161M. Its systemic centrality across two major stress scenarios indicates it is a critical single point of failure in the predicted network.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.82,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $743M and appears as a significant loss contributor in both S1 ($333M loss) and S5 ($149M loss). Its 'Unknown' category classification adds opacity risk, making it harder to assess underlying collateral quality or counterparty exposure, compounding systemic concern.\"\n    },\n    {\n      \"protocol\": \"P2811\",\n      \"risk_score\": 0.78,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P2811 (Services) appears in two distinct stress scenarios: S1 with a $393M loss (second largest in that scenario) and S2 (Bridge cluster failure) with a $12.3M loss. With a predicted exposure weight of $455M (6th overall), its cross-scenario vulnerability suggests it acts as a contagion conduit between the DEX and bridge subsectors.\"\n    },\n    {\n      \"protocol\": \"P4994\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P4994 (Chain) has the third-highest predicted exposure weight at $658M and is the third-largest loss contributor in S5 (Correlated stress) at $132M. As a chain-layer protocol, distress here could propagate broadly across all protocols settled on it, warranting close supervisory scrutiny.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) has a predicted exposure weight of $509M (5th overall) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' classification combined with significant lending-sector exposure and high network weight raises concerns about hidden leverage or undisclosed counterparty risk.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.60,\n      \"action\": \"Investigate\",\n      \"reason\": \"P5916 (CDP) is the largest loss contributor in S3 (Stablecoin de-peg) at $105M, which itself affects 1,132 protocols. CDP protocols are structurally vulnerable to de-peg events given their collateral-to-stablecoin mechanics, and a $105M loss in this scenario signals meaningful systemic exposure to stablecoin stability.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with that scenario distressing 167 protocols and affecting 466. Bridge-adjacent protocols with unknown classification present elevated opacity and cross-chain contagion risk that warrants supervisory investigation.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.52,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $23.6M. Bridge protocols are historically high-risk vectors for exploits and cross-chain contagion; its direct appearance in the bridge cluster failure scenario confirms elevated structural vulnerability.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.50,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg), the second-largest in that scenario. Algorithmic stablecoins have demonstrated historical fragility under market stress, and this exposure level in a de-peg scenario warrants proactive supervisory monitoring.\"\n    }\n  ],\n  \"rationale\": \"The predicted network exhibits elevated systemic risk concentrated in a small number of high-exposure nodes. S1 (Top protocol failure) is the most severe scenario with a 17.73% network loss, 70 distressed protocols, and 203 affected, driven almost entirely by P4897 ($807M) and P2811 ($393M). S5 (Correlated stress across top-10) compounds this with a 14.09% loss affecting 1,789 protocols, confirming that the top exposure nodes are highly interconnected and mutually reinforcing. The prevalence of 'Unknown' category protocols (P4822 at $743M, P8783 at $509M, P9886) among the highest-risk nodes introduces additional opacity that limits supervisory visibility and warrants urgent classification and disclosure requirements.\"\n}\n```",
+          "input_tokens": 1065,
+          "output_tokens": 1322,
+          "latency_ms": 22064.2,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P4897",
+              "risk_score": 0.93,
+              "action": "Recommend-Reduce",
+              "reason": "P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also appears as the top loss contributor in S5 (Correlated stress) at $161M. Its systemic centrality makes it a critical single point of failure; a failure here alone accounts for 17.73% network loss."
+            },
+            {
+              "protocol": "P4822",
+              "risk_score": 0.82,
+              "action": "Recommend-Reduce",
+              "reason": "P4822 (Unknown) holds the second-highest predicted exposure weight at $743M. In S1 it generates $333M in losses, and in S5 it contributes $149M. Its 'Unknown' category classification adds opacity risk, making it difficult to assess underlying collateral quality or counterparty exposure, compounding the quantitative risk signals."
+            },
+            {
+              "protocol": "P2811",
+              "risk_score": 0.78,
+              "action": "Recommend-Reduce",
+              "reason": "P2811 (Services) appears as a significant loss contributor across two independent stress scenarios: $393M in S1 and $12.3M in S2 (Bridge cluster failure). With a predicted exposure weight of $455M (6th overall), its cross-scenario vulnerability indicates deep network embeddedness and contagion amplification potential."
+            },
+            {
+              "protocol": "P4994",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P4994 (Chain) has the third-highest predicted exposure weight at $658M and contributes $132M in losses under S5 (Correlated stress, top-10). As a chain-layer protocol, distress here could propagate broadly across all protocols dependent on it, warranting close supervisory scrutiny of its liquidity buffers and validator/operator concentration."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.65,
+              "action": "Investigate",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $105M, affecting 1,132 protocols. CDP protocols are structurally vulnerable to collateral price shocks and de-peg cascades; the scale of affected protocols (1,132) under S3 indicates P5916 sits at a critical node in the stablecoin dependency graph."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.61,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) holds a predicted exposure weight of $509M (5th overall) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' category classification combined with high exposure weight and lending-sector sensitivity raises concerns about undisclosed leverage or collateral mismatches."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with S2 distressing 167 protocols and affecting 466. Bridge-adjacent unknown protocols present elevated opacity and cross-chain contagion risk, particularly given the relatively high distressed-protocol count (167) relative to the scenario's 1.62% total loss."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.52,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $23.6M. Bridge protocols are historically high-risk vectors for exploits and liquidity crises; its direct role in the bridge cluster failure scenario and proximity to P9886 suggest correlated exposure that warrants supervisory review of its security audits and liquidity reserves."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins carry structural fragility under market stress; while S3 shows zero distressed protocols, the $52.7M loss and 1,132 affected protocols indicate meaningful contagion potential if a de-peg event materializes."
+            },
+            {
+              "protocol": "P3564",
+              "risk_score": 0.44,
+              "action": "Monitor",
+              "reason": "P3564 (Lending) appears in both S3 (Stablecoin de-peg, $30.8M loss) and S4 (Lending sector shock, $34M loss), making it the only protocol with material exposure across two distinct sector-level stress scenarios. This cross-scenario presence suggests diversified but persistent vulnerability to both collateral and liquidity shocks."
+            }
+          ],
+          "rationale": "The network is assessed at elevated risk driven primarily by extreme concentration in P4897 ($807M exposure weight), whose single failure produces a 17.73% network loss affecting 203 protocols and distressing 70. The top-10 correlated stress scenario (S5) generates a 14.09% loss, confirming that systemic risk is not idiosyncratic but structurally embedded across the highest-weight nodes. The prevalence of 'Unknown' category protocols (P4822 at $743M, P8783 at $509M, P9886) among top risk contributors introduces significant opacity that limits supervisory visibility and warrants immediate investigative action alongside exposure reduction recommendations for the three highest-scoring protocols.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P4897\",\n      \"risk_score\": 0.93,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4897 (Dexes) carries the highest predicted exposure weight at $807M and is the single largest loss driver in S1 (Top protocol failure) at $807M loss, triggering 70 distressed protocols and affecting 203. It also appears as the top loss contributor in S5 (Correlated stress) at $161M. Its systemic centrality makes it a critical single point of failure; a failure here alone accounts for 17.73% network loss.\"\n    },\n    {\n      \"protocol\": \"P4822\",\n      \"risk_score\": 0.82,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P4822 (Unknown) holds the second-highest predicted exposure weight at $743M. In S1 it generates $333M in losses, and in S5 it contributes $149M. Its 'Unknown' category classification adds opacity risk, making it difficult to assess underlying collateral quality or counterparty exposure, compounding the quantitative risk signals.\"\n    },\n    {\n      \"protocol\": \"P2811\",\n      \"risk_score\": 0.78,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P2811 (Services) appears as a significant loss contributor across two independent stress scenarios: $393M in S1 and $12.3M in S2 (Bridge cluster failure). With a predicted exposure weight of $455M (6th overall), its cross-scenario vulnerability indicates deep network embeddedness and contagion amplification potential.\"\n    },\n    {\n      \"protocol\": \"P4994\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P4994 (Chain) has the third-highest predicted exposure weight at $658M and contributes $132M in losses under S5 (Correlated stress, top-10). As a chain-layer protocol, distress here could propagate broadly across all protocols dependent on it, warranting close supervisory scrutiny of its liquidity buffers and validator/operator concentration.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.65,\n      \"action\": \"Investigate\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $105M, affecting 1,132 protocols. CDP protocols are structurally vulnerable to collateral price shocks and de-peg cascades; the scale of affected protocols (1,132) under S3 indicates P5916 sits at a critical node in the stablecoin dependency graph.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.61,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) holds a predicted exposure weight of $509M (5th overall) and is the top loss contributor in S4 (Lending sector shock) at $39M. Its 'Unknown' category classification combined with high exposure weight and lending-sector sensitivity raises concerns about undisclosed leverage or collateral mismatches.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $23.7M, with S2 distressing 167 protocols and affecting 466. Bridge-adjacent unknown protocols present elevated opacity and cross-chain contagion risk, particularly given the relatively high distressed-protocol count (167) relative to the scenario's 1.62% total loss.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.52,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $23.6M. Bridge protocols are historically high-risk vectors for exploits and liquidity crises; its direct role in the bridge cluster failure scenario and proximity to P9886 suggest correlated exposure that warrants supervisory review of its security audits and liquidity reserves.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P1139 (Algo-Stables) contributes $52.7M in losses under S3 (Stablecoin de-peg). Algorithmic stablecoins carry structural fragility under market stress; while S3 shows zero distressed protocols, the $52.7M loss and 1,132 affected protocols indicate meaningful contagion potential if a de-peg event materializes.\"\n    },\n    {\n      \"protocol\": \"P3564\",\n      \"risk_score\": 0.44,\n      \"action\": \"Monitor\",\n      \"reason\": \"P3564 (Lending) appears in both S3 (Stablecoin de-peg, $30.8M loss) and S4 (Lending sector shock, $34M loss), making it the only protocol with material exposure across two distinct sector-level stress scenarios. This cross-scenario presence suggests diversified but persistent vulnerability to both collateral and liquidity shocks.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at elevated risk driven primarily by extreme concentration in P4897 ($807M exposure weight), whose single failure produces a 17.73% network loss affecting 203 protocols and distressing 70. The top-10 correlated stress scenario (S5) generates a 14.09% loss, confirming that systemic risk is not idiosyncratic but structurally embedded across the highest-weight nodes. The prevalence of 'Unknown' category protocols (P4822 at $743M, P8783 at $509M, P9886) among top risk contributors introduces significant opacity that limits supervisory visibility and warrants immediate investigative action alongside exposure reduction recommendations for the three highest-scoring protocols.\"\n}\n```",
+          "input_tokens": 1065,
+          "output_tokens": 1484,
+          "latency_ms": 25948.7,
+          "model": "anthropic/claude-sonnet-4.6"
+        }
+      ],
+      "assessment": {
+        "targets": [
+          "P1139",
+          "P2811",
+          "P3564",
+          "P4822",
+          "P4897",
+          "P4994",
+          "P5916",
+          "P6733",
+          "P8783",
+          "P9886"
+        ],
+        "precision": 0.5,
+        "completeness": 0.04310344827586207,
+        "grounding_score": 1.0,
+        "severity_rho": NaN,
+        "false_intervention_rate": 0.0
+      },
+      "consistency": 0.9333333333333332,
+      "truly_stressed_count": 116
+    },
+    {
+      "date": "2023-01-30",
+      "method": "m7_fm_llm_gated",
+      "decision_model": "claude-sonnet-4.6",
+      "llm_outputs": [
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P3286",
+              "risk_score": 0.93,
+              "action": "Recommend-Reduce",
+              "reason": "P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest systemic node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss affecting 23 protocols, with P3286 accounting for the full $1.32B loss. Under S5 (Correlated stress), it again leads losses at $265M. Its concentration as a single point of failure with no peer close in magnitude makes it the most critical risk node in the forecast graph."
+            },
+            {
+              "protocol": "P6280",
+              "risk_score": 0.81,
+              "action": "Recommend-Reduce",
+              "reason": "P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B. Under S5 (Correlated stress top-10), it contributes $227M in losses, the second largest contributor. CEX entities carry unique operational and counterparty risks (custody, regulatory, liquidity mismatches) that amplify contagion potential. Its scale relative to the network and CEX-specific tail risks justify a high risk score."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P1244 (Unknown) ranks third in predicted exposure weight at $535M and appears in two stress scenarios: S4 (Lending sector shock) with $23.8M loss and S5 (Correlated stress) with $107M loss. Its 'Unknown' classification prevents full risk characterization, which itself is a supervisory concern given its systemic footprint. The combination of high exposure and opacity warrants immediate investigation."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.68,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) holds $513M in predicted exposure weight (4th overall) and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification at this exposure level is a significant transparency gap. The lending sector shock scenario affecting 1,497 protocols with P8783 as the lead loss driver indicates meaningful interconnectedness."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.58,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, within a scenario that distresses 160 protocols and affects 456. Bridge cluster failures historically propagate rapidly across chains. Its 'Unknown' classification combined with leading exposure in a cross-chain contagion scenario warrants supervisory investigation."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) contributes $61.7M in losses under S2 (Bridge cluster failure), nearly matching P9886 and confirming it as a core node in the bridge cluster. Bridge protocols are structurally vulnerable to exploit-driven failures and cross-chain liquidity crises. Its proximity to the top of the S2 loss distribution in a 160-protocol distress event justifies supervisory scrutiny."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.5,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) leads S3 (Stablecoin de-peg) losses at $56.6M within a scenario affecting 970 protocols. CDP protocols are inherently exposed to collateral volatility and de-peg cascades. While S3 shows zero directly distressed protocols, the broad 970-protocol impact and P5916's leading loss position warrant ongoing monitoring."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.48,
+              "action": "Monitor",
+              "reason": "P1139 (Algo-Stables) is the second-largest loss contributor in S3 (Stablecoin de-peg) at $53.4M. Algorithmic stablecoins carry well-documented reflexivity and death-spiral risks. Its near-parity with P5916 in the de-peg scenario and its category classification make it a priority monitoring target for stablecoin stability indicators over the 4-week horizon."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' overall risk driven primarily by extreme concentration in P3286 ($1.32B exposure weight), whose single-protocol failure scenario produces a 14.04% system-wide loss affecting 23 protocols \u2014 the largest stress outcome across all five scenarios. A secondary risk cluster exists in the bridge/cross-chain segment (S2: 160 distressed, 456 affected, $62M+ top losses) and the stablecoin/CDP segment (S3: 970 affected, $56.6M top loss), while the lending sector shock (S4: 1,497 affected) is amplified by two high-exposure 'Unknown' protocols (P8783, P1244) whose opacity prevents full risk assessment. The prevalence of 'Unknown' classifications among top-exposure nodes ($535M, $513M, $265M, $196M) represents a structural transparency deficit that independently elevates systemic risk.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P3286\",\n      \"risk_score\": 0.93,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest systemic node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss affecting 23 protocols, with P3286 accounting for the full $1.32B loss. Under S5 (Correlated stress), it again leads losses at $265M. Its concentration as a single point of failure with no peer close in magnitude makes it the most critical risk node in the forecast graph.\"\n    },\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.81,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B. Under S5 (Correlated stress top-10), it contributes $227M in losses, the second largest contributor. CEX entities carry unique operational and counterparty risks (custody, regulatory, liquidity mismatches) that amplify contagion potential. Its scale relative to the network and CEX-specific tail risks justify a high risk score.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1244 (Unknown) ranks third in predicted exposure weight at $535M and appears in two stress scenarios: S4 (Lending sector shock) with $23.8M loss and S5 (Correlated stress) with $107M loss. Its 'Unknown' classification prevents full risk characterization, which itself is a supervisory concern given its systemic footprint. The combination of high exposure and opacity warrants immediate investigation.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.68,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) holds $513M in predicted exposure weight (4th overall) and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification at this exposure level is a significant transparency gap. The lending sector shock scenario affecting 1,497 protocols with P8783 as the lead loss driver indicates meaningful interconnectedness.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.58,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, within a scenario that distresses 160 protocols and affects 456. Bridge cluster failures historically propagate rapidly across chains. Its 'Unknown' classification combined with leading exposure in a cross-chain contagion scenario warrants supervisory investigation.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) contributes $61.7M in losses under S2 (Bridge cluster failure), nearly matching P9886 and confirming it as a core node in the bridge cluster. Bridge protocols are structurally vulnerable to exploit-driven failures and cross-chain liquidity crises. Its proximity to the top of the S2 loss distribution in a 160-protocol distress event justifies supervisory scrutiny.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.50,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) leads S3 (Stablecoin de-peg) losses at $56.6M within a scenario affecting 970 protocols. CDP protocols are inherently exposed to collateral volatility and de-peg cascades. While S3 shows zero directly distressed protocols, the broad 970-protocol impact and P5916's leading loss position warrant ongoing monitoring.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.48,\n      \"action\": \"Monitor\",\n      \"reason\": \"P1139 (Algo-Stables) is the second-largest loss contributor in S3 (Stablecoin de-peg) at $53.4M. Algorithmic stablecoins carry well-documented reflexivity and death-spiral risks. Its near-parity with P5916 in the de-peg scenario and its category classification make it a priority monitoring target for stablecoin stability indicators over the 4-week horizon.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' overall risk driven primarily by extreme concentration in P3286 ($1.32B exposure weight), whose single-protocol failure scenario produces a 14.04% system-wide loss affecting 23 protocols \u2014 the largest stress outcome across all five scenarios. A secondary risk cluster exists in the bridge/cross-chain segment (S2: 160 distressed, 456 affected, $62M+ top losses) and the stablecoin/CDP segment (S3: 970 affected, $56.6M top loss), while the lending sector shock (S4: 1,497 affected) is amplified by two high-exposure 'Unknown' protocols (P8783, P1244) whose opacity prevents full risk assessment. The prevalence of 'Unknown' classifications among top-exposure nodes ($535M, $513M, $265M, $196M) represents a structural transparency deficit that independently elevates systemic risk.\"\n}\n```",
+          "input_tokens": 1063,
+          "output_tokens": 1363,
+          "latency_ms": 23812.4,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P3286",
+              "risk_score": 0.93,
+              "action": "Recommend-Reduce",
+              "reason": "P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest systemic node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss of $1.32B affecting 23 protocols. Under S5 (Correlated stress), it contributes $265M in losses. Its concentration as a yield protocol with no diversification buffer and its outsized weight relative to all other nodes makes it the primary systemic risk vector."
+            },
+            {
+              "protocol": "P6280",
+              "risk_score": 0.81,
+              "action": "Recommend-Reduce",
+              "reason": "P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B and contributes $227M in losses under S5 (Correlated stress top-10). CEX entities carry unique operational and counterparty risks (custody, regulatory, liquidity mismatches) that are difficult to model fully. Its weight is nearly 86% of P3286's, making it a near-systemic node in its own right, and correlated stress scenarios show it amplifies contagion significantly."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P1244 (Unknown) ranks 3rd by predicted exposure weight at $535M and appears in both S4 (Lending sector shock, $23.8M loss) and S5 (Correlated stress, $107M loss). Its classification as 'Unknown' prevents full risk characterization, which itself is a supervisory concern. The combination of high exposure weight and multi-scenario vulnerability warrants urgent investigation to determine protocol type, counterparty linkages, and governance structure."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.68,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) holds the 4th-highest predicted exposure weight at $513M and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification combined with its leading role in the lending shock scenario suggests potential undisclosed lending or leverage activity. Supervisory investigation is needed to identify its actual function and exposure profile."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.58,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, with the overall scenario causing 2.19% system loss across 160 distressed and 456 affected protocols. Its 'Unknown' classification in a bridge-cluster context suggests it may be a cross-chain liquidity hub or bridge aggregator with opaque risk linkages. The breadth of contagion in S2 (456 affected protocols) warrants investigation."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $61.7M, nearly identical to P9886's $62M, confirming it is a core node in the bridge cluster. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity fragility. Its direct classification as a Bridge protocol and its near-top loss contribution in S2 justify supervisory scrutiny."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.52,
+              "action": "Investigate",
+              "reason": "P1139 (Algo-Stables) is the second-largest loss contributor in S3 (Stablecoin de-peg) at $53.4M, behind only P5916's $56.6M. Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid collapse under de-peg conditions. The S3 scenario affects 970 protocols, indicating broad contagion potential, and P1139's role as a primary loss node in this scenario warrants monitoring and investigation."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.5,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $56.6M. CDP protocols are directly exposed to collateral liquidation cascades during de-peg events. While the S3 scenario shows 0 distressed protocols (suggesting contained primary distress), the 970 affected protocols and P5916's leading loss position indicate meaningful second-order risk that warrants ongoing monitoring."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' risk driven primarily by extreme concentration in P3286 (Yield, $1.32B exposure weight) and P6280 (CEX, $1.14B), whose combined failure under S5 accounts for $492M of the $13.06% correlated stress loss across 1,689 affected protocols. The S1 single-protocol failure scenario producing a 14.04% system loss from P3286 alone is the most acute near-term risk. Compounding concerns include multiple 'Unknown'-classified high-exposure nodes (P1244 at $535M, P8783 at $513M) that cannot be fully assessed, and a bridge cluster (S2: 160 distressed, 456 affected) and stablecoin de-peg scenario (S3: 970 affected) that represent credible secondary contagion pathways within the 4-week horizon.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P3286\",\n      \"risk_score\": 0.93,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest systemic node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss of $1.32B affecting 23 protocols. Under S5 (Correlated stress), it contributes $265M in losses. Its concentration as a yield protocol with no diversification buffer and its outsized weight relative to all other nodes makes it the primary systemic risk vector.\"\n    },\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.81,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B and contributes $227M in losses under S5 (Correlated stress top-10). CEX entities carry unique operational and counterparty risks (custody, regulatory, liquidity mismatches) that are difficult to model fully. Its weight is nearly 86% of P3286's, making it a near-systemic node in its own right, and correlated stress scenarios show it amplifies contagion significantly.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1244 (Unknown) ranks 3rd by predicted exposure weight at $535M and appears in both S4 (Lending sector shock, $23.8M loss) and S5 (Correlated stress, $107M loss). Its classification as 'Unknown' prevents full risk characterization, which itself is a supervisory concern. The combination of high exposure weight and multi-scenario vulnerability warrants urgent investigation to determine protocol type, counterparty linkages, and governance structure.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.68,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) holds the 4th-highest predicted exposure weight at $513M and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification combined with its leading role in the lending shock scenario suggests potential undisclosed lending or leverage activity. Supervisory investigation is needed to identify its actual function and exposure profile.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.58,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, with the overall scenario causing 2.19% system loss across 160 distressed and 456 affected protocols. Its 'Unknown' classification in a bridge-cluster context suggests it may be a cross-chain liquidity hub or bridge aggregator with opaque risk linkages. The breadth of contagion in S2 (456 affected protocols) warrants investigation.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $61.7M, nearly identical to P9886's $62M, confirming it is a core node in the bridge cluster. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity fragility. Its direct classification as a Bridge protocol and its near-top loss contribution in S2 justify supervisory scrutiny.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.52,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1139 (Algo-Stables) is the second-largest loss contributor in S3 (Stablecoin de-peg) at $53.4M, behind only P5916's $56.6M. Algorithmic stablecoins carry inherent reflexivity risk and historical precedent of rapid collapse under de-peg conditions. The S3 scenario affects 970 protocols, indicating broad contagion potential, and P1139's role as a primary loss node in this scenario warrants monitoring and investigation.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.50,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $56.6M. CDP protocols are directly exposed to collateral liquidation cascades during de-peg events. While the S3 scenario shows 0 distressed protocols (suggesting contained primary distress), the 970 affected protocols and P5916's leading loss position indicate meaningful second-order risk that warrants ongoing monitoring.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' risk driven primarily by extreme concentration in P3286 (Yield, $1.32B exposure weight) and P6280 (CEX, $1.14B), whose combined failure under S5 accounts for $492M of the $13.06% correlated stress loss across 1,689 affected protocols. The S1 single-protocol failure scenario producing a 14.04% system loss from P3286 alone is the most acute near-term risk. Compounding concerns include multiple 'Unknown'-classified high-exposure nodes (P1244 at $535M, P8783 at $513M) that cannot be fully assessed, and a bridge cluster (S2: 160 distressed, 456 affected) and stablecoin de-peg scenario (S3: 970 affected) that represent credible secondary contagion pathways within the 4-week horizon.\"\n}\n```",
+          "input_tokens": 1063,
+          "output_tokens": 1442,
+          "latency_ms": 25264.8,
+          "model": "anthropic/claude-sonnet-4.6"
+        },
+        {
+          "risk_level": "elevated",
+          "target_protocols": [
+            {
+              "protocol": "P3286",
+              "risk_score": 0.93,
+              "action": "Recommend-Reduce",
+              "reason": "P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss of $1.32B affecting 23 protocols. Under S5 (Correlated stress), it contributes $265M in losses. Its dominance as a single point of failure with no diversification buffer makes it the most systemically dangerous protocol in the forecast horizon."
+            },
+            {
+              "protocol": "P6280",
+              "risk_score": 0.81,
+              "action": "Recommend-Reduce",
+              "reason": "P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B. Under S5 (Correlated stress top-10), it contributes $227M in losses. As a CEX, it carries inherent opacity and counterparty risk not present in on-chain protocols, and its scale means any operational or liquidity failure would propagate broadly across the ~26,000 exposure links in the predicted graph."
+            },
+            {
+              "protocol": "P1244",
+              "risk_score": 0.72,
+              "action": "Investigate",
+              "reason": "P1244 (Unknown) has the third-highest predicted exposure weight at $535M. It appears in both S4 (Lending sector shock) with $23.8M in losses and S5 (Correlated stress) with $107M in losses. Its 'Unknown' classification adds opacity risk, as supervisors cannot assess its collateral quality, leverage, or governance structure, warranting immediate investigation to determine its protocol type and risk profile."
+            },
+            {
+              "protocol": "P8783",
+              "risk_score": 0.68,
+              "action": "Investigate",
+              "reason": "P8783 (Unknown) holds the fourth-highest predicted exposure weight at $513M and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification combined with its top-4 network centrality and leading role in the lending shock scenario suggests it may be an unregistered or opaque lending entity requiring supervisory identification and disclosure review."
+            },
+            {
+              "protocol": "P9886",
+              "risk_score": 0.58,
+              "action": "Investigate",
+              "reason": "P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, with the scenario affecting 160 distressed protocols and 456 total. Its 'Unknown' classification in a bridge-adjacent cluster with $62M exposure suggests it may be a liquidity hub or bridge wrapper that lacks regulatory visibility, posing contagion risk across cross-chain infrastructure."
+            },
+            {
+              "protocol": "P6733",
+              "risk_score": 0.55,
+              "action": "Investigate",
+              "reason": "P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $61.7M, nearly matching P9886. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity mismatches. With 160 distressed protocols in S2 and $61.7M direct exposure, P6733 represents a critical cross-chain contagion vector over the 4-week forecast horizon."
+            },
+            {
+              "protocol": "P1139",
+              "risk_score": 0.52,
+              "action": "Investigate",
+              "reason": "P1139 (Algo-Stables) contributes $53.4M in losses under S3 (Stablecoin de-peg), the second-largest loss in that scenario affecting 970 protocols. Algorithmic stablecoins carry structural de-peg risk with potential for reflexive collapse, and the breadth of 970 affected protocols in S3 indicates significant systemic contagion potential if a de-peg event materializes within the forecast window."
+            },
+            {
+              "protocol": "P5916",
+              "risk_score": 0.5,
+              "action": "Monitor",
+              "reason": "P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $56.6M across 970 affected protocols. CDP protocols are directly exposed to collateral liquidation cascades during de-peg events. While its risk score does not yet warrant intervention, its leading role in the stablecoin stress scenario and broad network reach justify active monitoring over the 4-week horizon."
+            }
+          ],
+          "rationale": "The network is assessed at 'elevated' risk driven primarily by extreme concentration in P3286 (Yield, $1.32B exposure weight) and P6280 (CEX, $1.14B), whose combined failure under S5 accounts for $492M in correlated losses affecting 1,689 protocols. The S1 single-protocol failure scenario produces the largest loss magnitude at 14.04% of system value, entirely attributable to P3286, while S4 (Lending sector shock) and S2 (Bridge cluster failure) reveal secondary contagion channels through multiple 'Unknown'-classified protocols (P1244, P8783, P9886) totaling over $1B in combined exposure weight with insufficient supervisory visibility. The prevalence of 'Unknown' protocol classifications among top-exposure nodes is a structural supervisory gap that amplifies uncertainty in all stress scenarios.",
+          "raw_response": "```json\n{\n  \"risk_level\": \"elevated\",\n  \"target_protocols\": [\n    {\n      \"protocol\": \"P3286\",\n      \"risk_score\": 0.93,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P3286 (Yield) carries the highest predicted exposure weight at $1.32B, representing the single largest node in the network. Under S1 (Top protocol failure), its failure alone triggers a 14.04% system-wide loss of $1.32B affecting 23 protocols. Under S5 (Correlated stress), it contributes $265M in losses. Its dominance as a single point of failure with no diversification buffer makes it the most systemically dangerous protocol in the forecast horizon.\"\n    },\n    {\n      \"protocol\": \"P6280\",\n      \"risk_score\": 0.81,\n      \"action\": \"Recommend-Reduce\",\n      \"reason\": \"P6280 (CEX) holds the second-highest predicted exposure weight at $1.14B. Under S5 (Correlated stress top-10), it contributes $227M in losses. As a CEX, it carries inherent opacity and counterparty risk not present in on-chain protocols, and its scale means any operational or liquidity failure would propagate broadly across the ~26,000 exposure links in the predicted graph.\"\n    },\n    {\n      \"protocol\": \"P1244\",\n      \"risk_score\": 0.72,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1244 (Unknown) has the third-highest predicted exposure weight at $535M. It appears in both S4 (Lending sector shock) with $23.8M in losses and S5 (Correlated stress) with $107M in losses. Its 'Unknown' classification adds opacity risk, as supervisors cannot assess its collateral quality, leverage, or governance structure, warranting immediate investigation to determine its protocol type and risk profile.\"\n    },\n    {\n      \"protocol\": \"P8783\",\n      \"risk_score\": 0.68,\n      \"action\": \"Investigate\",\n      \"reason\": \"P8783 (Unknown) holds the fourth-highest predicted exposure weight at $513M and is the top loss contributor in S4 (Lending sector shock) at $44.1M, exceeding named lending protocols. Its 'Unknown' classification combined with its top-4 network centrality and leading role in the lending shock scenario suggests it may be an unregistered or opaque lending entity requiring supervisory identification and disclosure review.\"\n    },\n    {\n      \"protocol\": \"P9886\",\n      \"risk_score\": 0.58,\n      \"action\": \"Investigate\",\n      \"reason\": \"P9886 (Unknown) is the top loss contributor in S2 (Bridge cluster failure) at $62M, with the scenario affecting 160 distressed protocols and 456 total. Its 'Unknown' classification in a bridge-adjacent cluster with $62M exposure suggests it may be a liquidity hub or bridge wrapper that lacks regulatory visibility, posing contagion risk across cross-chain infrastructure.\"\n    },\n    {\n      \"protocol\": \"P6733\",\n      \"risk_score\": 0.55,\n      \"action\": \"Investigate\",\n      \"reason\": \"P6733 (Bridge) is the second-largest loss contributor in S2 (Bridge cluster failure) at $61.7M, nearly matching P9886. Bridge protocols are historically high-risk due to smart contract exploits and cross-chain liquidity mismatches. With 160 distressed protocols in S2 and $61.7M direct exposure, P6733 represents a critical cross-chain contagion vector over the 4-week forecast horizon.\"\n    },\n    {\n      \"protocol\": \"P1139\",\n      \"risk_score\": 0.52,\n      \"action\": \"Investigate\",\n      \"reason\": \"P1139 (Algo-Stables) contributes $53.4M in losses under S3 (Stablecoin de-peg), the second-largest loss in that scenario affecting 970 protocols. Algorithmic stablecoins carry structural de-peg risk with potential for reflexive collapse, and the breadth of 970 affected protocols in S3 indicates significant systemic contagion potential if a de-peg event materializes within the forecast window.\"\n    },\n    {\n      \"protocol\": \"P5916\",\n      \"risk_score\": 0.50,\n      \"action\": \"Monitor\",\n      \"reason\": \"P5916 (CDP) is the top loss contributor in S3 (Stablecoin de-peg) at $56.6M across 970 affected protocols. CDP protocols are directly exposed to collateral liquidation cascades during de-peg events. While its risk score does not yet warrant intervention, its leading role in the stablecoin stress scenario and broad network reach justify active monitoring over the 4-week horizon.\"\n    }\n  ],\n  \"rationale\": \"The network is assessed at 'elevated' risk driven primarily by extreme concentration in P3286 (Yield, $1.32B exposure weight) and P6280 (CEX, $1.14B), whose combined failure under S5 accounts for $492M in correlated losses affecting 1,689 protocols. The S1 single-protocol failure scenario produces the largest loss magnitude at 14.04% of system value, entirely attributable to P3286, while S4 (Lending sector shock) and S2 (Bridge cluster failure) reveal secondary contagion channels through multiple 'Unknown'-classified protocols (P1244, P8783, P9886) totaling over $1B in combined exposure weight with insufficient supervisory visibility. The prevalence of 'Unknown' protocol classifications among top-exposure nodes is a structural supervisory gap that amplifies uncertainty in all stress scenarios.\"\n}\n```",
+          "input_tokens": 1063,
+          "output_tokens": 1371,
+          "latency_ms": 23700.8,
+          "model": "anthropic/claude-sonnet-4.6"
+        }
+      ],
+      "assessment": {
+        "targets": [
+          "P1139",
+          "P1244",
+          "P3286",
+          "P5916",
+          "P6280",
+          "P6733",
+          "P8783",
+          "P9886"
+        ],
+        "precision": 0.25,
+        "completeness": 0.016666666666666666,
+        "grounding_score": 1.0,
+        "severity_rho": NaN,
+        "false_intervention_rate": 0.0
+      },
+      "consistency": 1.0,
+      "truly_stressed_count": 120
     }
   ]
 }

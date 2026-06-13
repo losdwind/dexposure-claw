@@ -161,14 +161,23 @@ Honest constraints ((b) deployment status):
 
 ## Anonymisation macros
 
-Declared in `main.tex`. Flip in camera-ready by editing those four lines:
+One switch in `main.tex` drives the whole paper. Flip the single line:
 
-| Submission name | Real name (camera-ready) |
-|-----------------|--------------------------|
-| `\sysname`      | DeXposure-Claw           |
-| `\fmname`       | DeXposure-FM             |
-| `\benchname`    | DeXposure-Bench          |
-| `\corpusname`   | DeXposure dataset        |
+- `\anonfalse` — real names (working copy, e.g. the shared Overleaf with the advisor)
+- `\anontrue`  — placeholders (EMNLP double-blind submission)
+
+| Macro         | `\anontrue` (submission) | `\anonfalse` (real)   |
+|---------------|--------------------------|-----------------------|
+| `\sysname`    | Sentinel                 | DeXposure-Claw        |
+| `\fmname`     | Forecast-FM              | DeXposure-FM          |
+| `\benchname`  | Decision-Bench           | DeXposure-Bench       |
+| `\corpusname` | Exposure-Corpus          | DeXposure             |
+
+Before submitting, set `\anontrue` and confirm content still ends on
+page 6 (real names are longer and spill onto page 7; the placeholders
+fit). Every name in the body goes through these macros — no literal
+real name remains except the third-party dataset citation
+(Wu et al. 2025), which is a legitimate reference and stays.
 
 2026-06-10 revision: `\sysname` placeholder renamed from `Claw-System`
 to `Sentinel` — the old placeholder contained the distinctive word
