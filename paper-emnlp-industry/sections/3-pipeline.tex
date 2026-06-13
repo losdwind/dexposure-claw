@@ -23,8 +23,9 @@ stress-scenario losses. Layer~3 passes this bundle to an LLM, which emits
 ranked supervisory tickets with targets, severities, and rationales. Layer~4
 applies data-health and confidence gates to determine whether
 intervention-level actions are admissible. The pipeline runs at weekly
-cadence on a single RTX~4090, with approximately \$10 of LLM API spend per
-run.
+cadence on a single RTX~4090, with well under a dollar of LLM API spend
+per weekly decision (a full \benchname{} leaderboard run is
+approximately \$10).
 
 \subsection{Forecaster interface}
 \label{ssec:forecaster}

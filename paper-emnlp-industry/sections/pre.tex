@@ -1,62 +1,190 @@
 \section{Preliminaries}
 \label{sec:preliminaries}
 
-\paragraph{Exposure networks.}
-We model DeFi credit exposure as a temporal weighted directed
-graph. At week $t$ the exposure network is $G_t=(V_t,E_t,W_t)$,
-where $V_t$ is the active protocol set, $E_t\subseteq V_t\times
-V_t$ the directed exposure set, and $W_t[p,q]=w_{pq,t}\geq 0$ the
-USD exposure of protocol $p$ to protocol $q$ (token-mediated
-construction in \S\ref{app:fm-notation}). The incident exposure
-mass of protocol $v$ is
-$w_t(v)=\sum_{u}w_{uv,t}+\sum_{u}w_{vu,t}$; the observed history
-$\mathcal{G}_{1:T}=\{G_1,\ldots,G_T\}$ carries node covariates
-$X_t$.
+We model decentralized-finance credit exposure as a temporal weighted directed graph. Let $\mathcal{P}$ be the universe of protocols and $\mathcal{X}$ the universe of tokens. At time $t$, protocol $p$ holds tokens $X_p(t)\subseteq\mathcal{X}$, while protocol $q$ issues or is economically linked to tokens $X_G(q)\subseteq\mathcal{X}$. Protocol $p$ is exposed to $q$ if
+\begin{equation}
+X_p(t)\cap X_G(q)\neq\emptyset .
+\end{equation}
+The exposure network is
+\begin{equation}
+G_t=(V_t,E_t,W_t),
+\end{equation}
+where $V_t\subseteq\mathcal{P}$ is the active protocol set, $E_t\subseteq V_t\times V_t$ is the directed exposure set, and $W_t[p,q]=w_{pq,t}\geq 0$ is the USD exposure from $p$ to $q$. For protocol $v$, define its incident exposure mass as
+\begin{equation}
+w_t(v)=\sum_{u\in V_t}w_{uv,t}+\sum_{u\in V_t}w_{vu,t}.
+\end{equation}
+The observed history is a sequence of snapshots $\mathcal{G}_{1:T}=\{G_1,\ldots,G_T\}$, optionally with covariates $X_t$.
 
-\paragraph{Monitors and stress scenarios.}
-At decision epoch $t$, a probabilistic temporal-graph forecaster
-outputs $\mathcal{P}_{t,h}=P(G_{t+h}\mid G_{\leq t},X_{\leq t})$
-for horizons $h\in\mathcal{H}$, summarised by a representative
-predicted graph $\widehat{G}_{t+h}$ and Monte Carlo samples
-$\widetilde{G}_{t+h}^{(m)}\sim\mathcal{P}_{t,h}$
-(\S\ref{ssec:forecaster}, \S\ref{app:fm-notation}). A monitor is
-a functional $\Phi_j:\mathcal{G}\to\mathbb{R}$ of a graph (e.g.\
-top-1 PageRank, HHI concentration, density); an alert fires when
-the forecasted statistic $\Phi_j(\widehat{G}_{t+h})$ deviates
-from the mean $\mu_{j,t}$ of an $L$-week rolling baseline by
-more than $z$ baseline standard deviations $\sigma_{j,t}$. A stress scenario is a graph perturbation
-$s:\mathcal{G}\to\mathcal{G}$ with relative loss
-$L(s;G)=1-\operatorname{Mass}(G^s)/\operatorname{Mass}(G)$,
-$\operatorname{Mass}(G)=\sum_{e\in E(G)}w_e$; tail risk over the
-Monte Carlo samples is the worst-$\lambda$-fraction mean
-$\operatorname{CVaR}_{\lambda}(s,h)$
-(\S\ref{app:pipeline-math}).
+At decision epoch $t$, the forecasting problem is to estimate $G_{t+h}$ for horizons $h\in\mathcal{H}$. A probabilistic temporal-graph forecaster outputs
+\begin{equation}
+P_{t,h}=P(G_{t+h}\mid G_{\leq t},X_{\leq t}).
+\end{equation}
+For each ordered pair $(p,q)$, let
+\begin{equation}
+\pi_{pq,t+h}=\Pr(e_{pq,t+h}=1\mid G_{\leq t},X_{\leq t}),
+\end{equation}
+and
+\begin{equation}
+\mu_{pq,t+h}
+=
+\mathbb{E}\!\left[
+w_{pq,t+h}
+\mid
+e_{pq,t+h}=1,G_{\leq t},X_{\leq t}
+\right].
+\end{equation}
+A representative predicted graph $\widehat{G}_{t+h}$ is constructed by
+\begin{gather*}
+\widehat{E}_{t+h}
+=
+\{(p,q):\pi_{pq,t+h}>\pi_{\min}\},\\
+%\qquad
+\widehat{w}_{pq,t+h}
+=
+\pi_{pq,t+h}\mu_{pq,t+h}.
+\end{gather*}
+Uncertainty is represented by Monte Carlo samples
+\begin{equation}
+\widetilde{G}_{t+h}^{(1)},\ldots,\widetilde{G}_{t+h}^{(M)}
+\sim P_{t,h}.
+\end{equation}
 
-\paragraph{Supervisory tickets and ground truth.}
-Each week the system emits ranked tickets $\tau=(u,Y,r)$: an
-action $u$ from the four-action playbook
-$\mathcal{U}=\{$\textsc{Monitor}, \textsc{Investigate},
-\textsc{RecommendReduce}, \textsc{Contingency}$\}$, a target set
-$Y\subseteq V_t$, and a rationale $r$. Ground truth is
-regulator-aligned \emph{absolute} loss: with
-$\Delta_t^h(v)=w_t(v)-w_{t+h}(v)$, the stressed set
-$\mathcal{S}_t^h$ holds the top-$\pi$ fraction of protocols
-ranked by $\Delta_t^h(v)$ among
-$\{v:w_t(v)>0,\;\Delta_t^h(v)>0\}$. Ticket precision, recall,
-and F1 score the union of ticket targets $\widehat{S}_t$ against
-$\mathcal{S}_t^h$. With $\widehat{S}^{\mathrm{int}}_t$ the
-targets of \emph{intervention-level} actions
-(\textsc{RecommendReduce}, \textsc{Contingency}), the
-false-intervention rate
-$\mathrm{FIR}=\bigl|\widehat{S}^{\mathrm{int}}_t\setminus
-\mathcal{S}_t^h\bigr|/\bigl|\widehat{S}^{\mathrm{int}}_t\bigr|$
-is the fraction of intervention targets that are never actually
-stressed.
+A monitor maps graphs to scalar risk statistics $\Phi_j:\mathcal{G}\to\mathbb{R}$, such as maximum PageRank, HHI concentration, density, PageRank Gini, or degree Gini. Given a rolling window of length $L$, define
+\begin{gather*}
+\mu_{j,t}
+=
+\frac{1}{L}
+\sum_{\ell=1}^{L}
+\Phi_j(G_{t-\ell}),\\
+\sigma_{j,t}
+=
+\sqrt{
+\frac{1}{L-1}
+\sum_{\ell=1}^{L}
+\left(\Phi_j(G_{t-\ell})-\mu_{j,t}\right)^2
+}.
+\end{gather*}
+An alert fires when
+\begin{equation}
+A_{j,t,h}
+=
+\mathbf{1}
+\left\{
+\frac{
+\left|\Phi_j(\widehat{G}_{t+h})-\mu_{j,t}\right|
+}{
+\max(\sigma_{j,t},\epsilon)
+}
+>z
+\right\}.
+\end{equation}
 
-\paragraph{Gates.}
-A data-health score $DH_t\in[0,1]$ averages four data-quality
-sub-scores; each alert carries a confidence $C_t(a)\in[0,1]$
-that decays with low data health, wide Monte Carlo dispersion,
-and longer horizons. Intervention-level actions require
-$DH_t\geq\tau_{\mathrm{data}}$ and mean active-alert confidence
-$\bar{C}_t\geq\tau_{\mathrm{conf}}$ (\S\ref{app:pipeline-math}).
+A stress scenario is a graph perturbation $s:\mathcal{G}\to\mathcal{G}$. Let $G^s$ be the shocked graph and define
+\begin{gather*}
+\operatorname{Mass}(G)=\sum_{e\in E(G)}w_e,\\
+L(s;G)
+=
+\frac{
+\operatorname{Mass}(G)-\operatorname{Mass}(G^s)
+}{
+\operatorname{Mass}(G)
+}.
+\end{gather*}
+For sampled graphs, let $\ell_m(s,h)=L(s;\widetilde{G}_{t+h}^{(m)})$. If $\ell_{(1)}\geq\cdots\geq\ell_{(M)}$ are sorted losses, then
+\begin{equation}
+\operatorname{CVaR}_{\lambda}(s,h)
+=
+\frac{1}{\lceil\lambda M\rceil}
+\sum_{m=1}^{\lceil\lambda M\rceil}
+\ell_{(m)}.
+\end{equation}
+
+For evaluation, we define regulator-aligned ground truth by absolute exposure loss. For protocol $v$ and horizon $h$,
+\begin{equation}
+\Delta_t^h(v)=w_t(v)-w_{t+h}(v).
+\end{equation}
+Given percentile $\pi\in(0,1)$, the stressed set is
+\begin{equation}
+S_t^h
+=
+\operatorname{top}_{\pi}
+\left\{
+v:
+w_t(v)>0,\,
+\Delta_t^h(v)>0
+\right\},
+\end{equation}
+where protocols are ranked by $\Delta_t^h(v)$.
+
+A supervisory system emits tickets
+\begin{equation}
+D_t=\{\tau_{t,1},\ldots,\tau_{t,K_t}\},
+\qquad
+\tau_{t,k}=(u_{t,k},Y_{t,k},r_{t,k}),
+\end{equation}
+where $u_{t,k}$ is an action, $Y_{t,k}\subseteq V_t$ is a target set, and $r_{t,k}$ is a rationale. The action space is
+\begin{align*}
+\mathcal{U}
+=
+\{&
+\textsc{Monitor},
+\textsc{Investigate},\\
+&\textsc{RecommendReduce},
+\textsc{Contingency}
+\}.
+\end{align*}
+For predicted targets $\widehat{S}_t$, ticket quality is
+\begin{gather*}
+\operatorname{Precision}
+=
+\frac{|\widehat{S}_t\cap S_t^h|}{|\widehat{S}_t|},\\
+\operatorname{Recall}
+=
+\frac{|\widehat{S}_t\cap S_t^h|}{|S_t^h|},\\
+\operatorname{F1}
+=
+\frac{
+2\,\operatorname{Precision}\,\operatorname{Recall}
+}{
+\operatorname{Precision}+\operatorname{Recall}
+}.
+\end{gather*}
+Let $\widehat{S}^{\mathrm{int}}_t$ be targets of intervention-level actions in $\{\textsc{RecommendReduce},\textsc{Contingency}\}$. The false-intervention rate is
+\begin{equation}
+\operatorname{FIR}
+=
+\frac{
+|\widehat{S}^{\mathrm{int}}_t\setminus S_t^h|
+}{
+|\widehat{S}^{\mathrm{int}}_t|
+}.
+\end{equation}
+
+Finally, define the data-health score
+\begin{equation}
+\operatorname{DH}_t
+=
+\frac{1}{4}
+\left(
+\operatorname{fresh}_t+
+\operatorname{miss}_t+
+\operatorname{topo}_t+
+\operatorname{disc}_t
+\right).
+\end{equation}
+For alert $a$ at horizon $h$, with Monte Carlo coefficient of variation $\operatorname{CV}_{t,h}(a)$, define
+\begin{equation}
+C_t(a)
+=
+\operatorname{DH}_t
+\cdot
+\frac{1}{1+\operatorname{CV}_{t,h}(a)}
+\cdot
+\frac{1}{1+\log(1+h)}.
+\end{equation}
+If $\bar{C}_t$ is the mean active-alert confidence, intervention-level actions are feasible only when
+\begin{equation}
+\operatorname{DH}_t\geq\tau_{\mathrm{data}}
+\qquad\text{and}\qquad
+\bar{C}_t\geq\tau_{\mathrm{conf}}.
+\end{equation}
