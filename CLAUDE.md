@@ -6,3 +6,11 @@ Always set up comprehensive logging.
 Make sure there is a mechanism for saving model weights and checkpoints.
 
 When replying to me, if you use model or method identifiers such as M1, M2, B1, B2, C1, or C2, always include their abbreviated names or another understandable label to reduce cognitive load.
+
+## Overleaf sync (EMNLP paper)
+
+The EMNLP paper `paper-emnlp-industry/` mirrors an Overleaf project the advisor also edits.
+- Overleaf project: https://www.overleaf.com/project/6a21893fcad07ee92afa84d5
+- Overleaf git remote: https://git.overleaf.com/6a21893fcad07ee92afa84d5 (default branch `main`).
+- A dedicated local clone lives at `../overleaf-dexposure-emnlp` (sibling of this repo, NOT tracked here). The git token is stored only in `~/.netrc` (chmod 600) and that clone's local `.git/config` -- it is NEVER written into any tracked file. This repo is public on GitHub, so do not put the Overleaf token (or any secret) in CLAUDE.md or any committed file.
+- Overleaf has its own structure with the `.tex`/`figures` at the repo root (no `paper-emnlp-industry/` prefix), and the advisor may have edits there. Before pushing, `git pull` the clone and `diff` against `paper-emnlp-industry/` to confirm you are only changing your own edits -- never blind-overwrite. Sync = copy the changed source files + figures into the clone, commit, `git push origin main`.
