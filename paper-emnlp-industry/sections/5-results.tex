@@ -25,9 +25,10 @@ full per-horizon and per-regime audits are in
 \paragraph{Headline decision-quality result.}
 Table~\ref{tab:headline} consolidates the central
 \texttt{b5\_decision} comparison. The persistence$+$rules baseline
-(\texttt{m1}) achieves the highest single-axis precision ($0.720$)
-and a false-intervention rate of $0$ by virtue of raising few
-tickets. Against this baseline, the full
+(\texttt{m1}) achieves the highest single-axis precision
+($0.720$); like \texttt{m2}/\texttt{m5} it never escalates beyond
+\texttt{Investigate}, so its FIR is undefined, not a safety
+guarantee. Against this baseline, the full
 \fmname$+$LLM$+$gate stack (\texttt{m7}) lifts ticket F1 from
 $0.0076$ to $0.0233$ ($+207\%$; $p\!<\!10^{-4}$). Against the comparable pure-LLM
 baseline that consumes raw snapshots without the forecaster
@@ -37,10 +38,11 @@ scale ($+9.4\%$) under a tier-above Claude~Opus~4.8 judge
 \citep{Zheng2023LLMJudge}; the lift is significant under GPT-5.5
 ($p\!<\!0.001$) but not Opus~4.8 ($p\!=\!0.23$;
 \S\ref{app:stats})---directional rather than confirmed. The
-cost surfaces sharply once \texttt{m2} is in the table: adding the
-FM signal to the LLM (\texttt{m2}$\!\to\!$\texttt{m6}) raises the
-false-intervention rate from $0.000$ to $0.448$
-($p\!<\!10^{-4}$). The safety gate
+cost surfaces sharply once \texttt{m2} is in the table: the
+raw-snapshot LLM issues \emph{no} interventions, but adding the FM
+signal (\texttt{m2}$\!\to\!$\texttt{m6}) makes it escalate---and
+$44.8\%$ of those interventions misfire
+($\mathrm{FIR}~0\!\to\!0.448$; $p\!<\!10^{-4}$). The safety gate
 (\texttt{m6}$\!\to\!$\texttt{m7}) reduces FIR only marginally
 ($0.448\!\to\!0.437$), and its effects on F1 and judge score are
 within noise (\S\ref{app:stats}). Both LLM variants
@@ -55,14 +57,12 @@ weekly-snapshot training budget.}
 \paragraph{Judge robustness across model families.}
 We re-judge \texttt{m2}/\texttt{m6}/\texttt{m7} with a
 cross-family panel (Table~\ref{tab:judge-panel}). All three
-frontier judges rank \texttt{m7} highest, and its mean score
-varies by at most $0.45$ across the three. The largest disagreement is that
-Gemini~2.5~Pro scores \texttt{m2} slightly above \texttt{m6}
-($2.69$ vs $2.55$), still keeping \texttt{m7} on top; Gemini is
-also ${\sim}3\times$ noisier per week (std $1.3$--$1.5$ vs
-$0.3$--$0.6$), so the inversion sits within judge noise.
-Cross-family agreement on the top system closes the
-judge-family confound.
+frontier judges rank \texttt{m7} highest (mean score varying by
+$\leq\!0.45$). The one disagreement---Gemini~2.5~Pro scores
+\texttt{m2} above \texttt{m6} ($2.69$ vs $2.55$), still below
+\texttt{m7}---sits within Gemini's ${\sim}3\times$ higher weekly
+noise (std $1.3$--$1.5$ vs $0.3$--$0.6$). Cross-family agreement
+on the top system closes the judge-family confound.
 
 \begin{table*}[t]
 \centering
@@ -72,9 +72,9 @@ judge-family confound.
 \toprule
 ID & Pred. & Decision        & Prec.$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ & Judge$\uparrow$ & FIR$\downarrow$ & Ground.$\uparrow$ & Stabil.$\uparrow$ \\
 \midrule
-\texttt{m1} & persist.   & rules               & \textbf{0.720} & 0.004 & 0.0076          & ---            & \textbf{0.000} & ---   & 0.514 \\
-\texttt{m2} & ---        & LLM (no FM)         & 0.575          & 0.009 & 0.0183          & 2.24           & \textbf{0.000} & 1.000 & 0.532 \\
-\texttt{m5} & \fmname{}  & rules               & 0.600          & 0.010 & 0.0190          & ---            & \textbf{0.000} & ---   & 0.257 \\
+\texttt{m1} & persist.   & rules               & \textbf{0.720} & 0.004 & 0.0076          & ---            & ---            & ---   & 0.514 \\
+\texttt{m2} & ---        & LLM (no FM)         & 0.575          & 0.009 & 0.0183          & 2.24           & ---            & 1.000 & 0.532 \\
+\texttt{m5} & \fmname{}  & rules               & 0.600          & 0.010 & 0.0190          & ---            & ---            & ---   & 0.257 \\
 \texttt{m6} & \fmname{}  & LLM                 & 0.570          & 0.012 & \textbf{0.0241} & 2.41           & 0.448          & 1.000 & 0.488 \\
 \texttt{m7} & \fmname{}  & LLM + safety gate   & 0.580          & 0.012 & 0.0233          & \textbf{2.45}  & 0.437          & 1.000 & 0.435 \\
 \bottomrule
@@ -87,7 +87,9 @@ baseline (no forecaster); \texttt{m6}/\texttt{m7} are the
 FM-grounded LLM variants. Judge scores (1--5 scale) are from a
 Claude~Opus~4.8 judge, strictly tier-above the Claude~Opus~4.7
 decision LLM; cross-family agreement is in
-Table~\ref{tab:judge-panel}.}
+Table~\ref{tab:judge-panel}. \,---\, in FIR: undefined---
+\texttt{m1}/\texttt{m2}/\texttt{m5} emit no intervention-level
+ticket that could misfire.}
 \label{tab:headline}
 \end{table*}
 
@@ -119,11 +121,13 @@ cheaper) and Google Gemini~2.5~Pro (cross-family)---and re-score
 with the same Opus~4.8 judge (Table~\ref{tab:decision-panel}).
 On both architectures Sonnet~4.6 is a Pareto improvement over
 Opus~4.7: F1 rises ($+15\%$/$+24\%$; $p\!<\!0.001$ on
-\texttt{m7}), FIR collapses from $0.437$--$0.448$ to $0.000$, and
-judge quality is directionally higher ($+0.11$/$+0.20$; n.s.). The cross-family
-Gemini~2.5~Pro decision is more conservative still (lower F1,
-FIR~=~$0.000$), indicating that over-intervention is a property of
-the decision model rather than of LLM decision layers per se. The
+\texttt{m7}), judge quality is directionally higher
+($+0.11$/$+0.20$; n.s.), and FIR collapses from $0.437$--$0.448$
+to $0.000$---genuinely: Sonnet~4.6 still issues interventions at
+Opus-comparable volume ($\sim$190 vs $252$), all on truly-stressed
+targets. Gemini~2.5~Pro is more conservative still (lower F1,
+FIR~$0$), so over-intervention is a property of the decision model,
+not of LLM decision layers per se. The
 operating point a practitioner would now deploy is \texttt{m7}
 with Sonnet~4.6 (F1 $0.0288$, FIR $0.000$, judge $2.65$).
 
@@ -160,9 +164,9 @@ fixed at \fmname{} and swapping rules for the LLM lifts F1 by
 another $27\%$ ($0.0190\!\to\!0.0241$). The two layers therefore
 make additive, non-substitutable contributions
 (Figure~\ref{fig:layerwise} in \S\ref{app:full-tables}). Adding
-the safety gate trades $3\%$ F1 for judge-quality changes within
-noise; its value is operational---every intervention-level ticket
-clears two pre-defined gates with auditable logs.
+the safety gate trades $3\%$ F1 for judge changes within noise;
+its value is operational---every intervention clears two gates
+with auditable logs.
 
 \paragraph{Matched-budget view.}
 F1 conflates target quality with volume:
@@ -176,8 +180,7 @@ become statistically indistinguishable. The FM's contribution is
 thus not a sharper top of the ranking but support for a
 \emph{larger} target set at undiminished precision; under
 Opus~4.7 the expanded tail is where over-intervention
-concentrates, while Sonnet~4.6 expands it without escalating
-severity.
+concentrates.
 
 \paragraph{Ablation: load-bearing vs reserve components.}
 Under clean 2025 data the confidence gate is load-bearing: removing
