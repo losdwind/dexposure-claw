@@ -122,14 +122,14 @@ with the same Opus~4.8 judge (Table~\ref{tab:decision-panel}).
 On both architectures Sonnet~4.6 is a Pareto improvement over
 Opus~4.7: F1 rises ($+15\%$/$+24\%$; $p\!<\!0.001$ on
 \texttt{m7}), judge quality is directionally higher
-($+0.11$/$+0.20$; n.s.), and FIR collapses from $0.437$--$0.448$
+($+0.11$/$+0.21$; n.s.), and FIR collapses from $0.437$--$0.448$
 to $0.000$---genuinely: Sonnet~4.6 still issues interventions at
 Opus-comparable volume ($\sim$190 vs $252$), all on truly-stressed
 targets. Gemini~2.5~Pro is more conservative still (lower F1,
 FIR~$0$), so over-intervention is a property of the decision model,
 not of LLM decision layers per se. The
 operating point a practitioner would now deploy is \texttt{m7}
-with Sonnet~4.6 (F1 $0.0288$, FIR $0.000$, judge $2.65$).
+with Sonnet~4.6 (F1 $0.0288$, FIR $0.000$, judge $2.66$).
 
 \begin{table}[t]
 \centering\small
@@ -143,7 +143,7 @@ Method & Decision LLM & F1$\uparrow$ & FIR$\downarrow$ & Judge$\uparrow$ \\
 \texttt{m6} & Gemini~2.5~Pro   & 0.0129 & 0.000 & 2.21 \\
 \midrule
 \texttt{m7} & Opus~4.7 (main)  & 0.0233 & 0.437 & 2.45 \\
-\texttt{m7} & Sonnet~4.6       & \textbf{0.0288} & \textbf{0.000} & \textbf{2.65} \\
+\texttt{m7} & Sonnet~4.6       & \textbf{0.0288} & \textbf{0.000} & \textbf{2.66} \\
 \texttt{m7} & Gemini~2.5~Pro   & 0.0139 & 0.000 & 2.38 \\
 \bottomrule
 \end{tabular}

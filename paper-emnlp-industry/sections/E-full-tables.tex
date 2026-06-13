@@ -13,7 +13,10 @@ FM signal to a snapshot LLM improves ticket F1 and explanation
 quality; swapping the FM-fed rule engine for the LLM improves
 recall-oriented F1 further; the same LLM variants incur a
 substantial false-intervention rate, partially mitigated by the
-safety gate.}
+safety gate. FIR is marked \emph{n/a} for \texttt{m1}/\texttt{m5}/\texttt{m2}
+(as ``---'' in Table~\ref{tab:headline}): these methods emit no
+intervention-level ticket, so FIR is undefined ($0/0$) rather than a
+genuine zero.}
 \label{fig:layerwise}
 \end{figure}
 

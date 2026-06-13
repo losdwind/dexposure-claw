@@ -127,6 +127,7 @@
   "judge: m7 vs m6 (opus4.8)": 1.0,
   "judge: m7+sonnet vs m7+opus": 0.21288935553222338,
   "judge: m6 vs m2 (gemini)": 0.7731113444327784,
-  "judge: m6 vs m2 (gpt5.5)": 0.00024998750062496874
+  "judge: m6 vs m2 (gpt5.5)": 0.00024998750062496874,
+  "f1: m7 vs m1 (full stack)": 4.999750012499375e-05
  }
 }

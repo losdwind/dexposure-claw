@@ -82,10 +82,13 @@ def load_m1_weekly() -> dict[str, np.ndarray] | None:
     rec = np.array([w["recall_at_k"] if w["recall_at_k"] is not None else np.nan
                     for w in weeks], float)
     hits = [w["precision_hits"] for w in weeks]
+    # Per-week precision scalar (mean over that week's ticket hits); weeks with
+    # no tickets are NaN so they drop out of the paired permutation test below.
+    prec = np.array([float(np.mean(h)) if h else np.nan for h in hits], float)
     fir = np.array([float(np.mean(w["false_interventions"])) if w["false_interventions"]
                     else 0.0 for w in weeks], float)
     return {"date": np.array([w["date"] for w in weeks]),
-            "recall": rec, "precision_hits": hits, "fir": fir}
+            "precision": prec, "recall": rec, "precision_hits": hits, "fir": fir}
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +261,19 @@ def main() -> None:
                               float(np.percentile(boots, 97.5))]
         print(f"\nm1_persistence_rules     F1 {f1_point:.4f} "
               f"[{out['ci']['m1/f1'][1]:.4f},{out['ci']['m1/f1'][2]:.4f}]")
+
+        # Full-stack headline: paired F1 permutation test, m7 vs m1. m1 is the
+        # local re-run (see Table CI note); its weeks align 1:1 by date with the
+        # GPU m7 decisions, and no-ticket weeks enter as NaN so they drop out.
+        # Computed last so it does not perturb the RNG draws of the CIs above.
+        m7 = m["m7_fm_llm_gated"]
+        common = sorted(set(m7["date"]) & set(m1["date"]))
+        i7 = [list(m7["date"]).index(c) for c in common]
+        i1 = [list(m1["date"]).index(c) for c in common]
+        p_fs = paired_perm_f1(m7["precision"][i7], m7["recall"][i7],
+                              m1["precision"][i1], m1["recall"][i1])
+        out["tests"]["f1: m7 vs m1 (full stack)"] = p_fs
+        print(f"perm  f1: m7 vs m1 (full stack)        p = {p_fs:.5f}")
     else:
         print("\n(m1 weekly dump not present yet — skipped)")
 

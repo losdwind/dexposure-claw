@@ -199,23 +199,35 @@ def build_figure(data: dict, out_paths: list[Path]) -> None:
     add_note(ax, f"+FM {fm_jdelta:+.2f}; +Gate {gate_jdelta:+.2f}", colors["m6"])
 
     # Panel C: false intervention rate.
+    # FIR is defined ONLY for methods that emit intervention-level tickets
+    # (m6/m7). m1/m5/m2 never escalate beyond Investigate, so their FIR is
+    # 0/0 = *undefined* (Table 1 shows "---"), NOT a genuine zero -- drawing a
+    # 0 bar would misread as a safety win. Render those as "n/a", no bar.
+    fir_defined = {"m6", "m7"}
     ax = axes[2]
     y = np.arange(len(f1_order))
+    bar_vals = [data[m]["fir"] if m in fir_defined else 0.0 for m in f1_order]
     ax.barh(
-        y, fir_values, height=0.58,
-        color=[colors[m] for m in f1_order],
-        edgecolor="white", linewidth=0.6,
+        y, bar_vals, height=0.58,
+        color=[colors[m] if m in fir_defined else "none" for m in f1_order],
+        edgecolor=["white" if m in fir_defined else "none" for m in f1_order],
+        linewidth=0.6,
     )
     ax.set_yticks(y, [labels[m] for m in f1_order])
     ax.invert_yaxis()
-    ax.set_xlim(0.0, max(0.52, float(fir_values.max()) * 1.16))
+    defined_max = max(data[m]["fir"] for m in fir_defined)
+    ax.set_xlim(0.0, max(0.52, float(defined_max) * 1.16))
     ax.set_title("Intervention Cost", loc="left", fontweight="bold", color=ink, pad=5)
     style_axis(ax, "FIR (lower better)")
-    for yi, value in zip(y, fir_values):
-        label = "0" if value == 0 else f"{value:.3f}"
-        x_text = value + ax.get_xlim()[1] * 0.025
-        ax.text(x_text, yi, label, va="center", ha="left",
-                fontsize=6.9, color=muted if value == 0 else ink)
+    for yi, m in zip(y, f1_order):
+        if m in fir_defined:
+            value = data[m]["fir"]
+            ax.text(value + ax.get_xlim()[1] * 0.025, yi, f"{value:.3f}",
+                    va="center", ha="left", fontsize=6.9, color=ink)
+        else:
+            ax.text(ax.get_xlim()[1] * 0.025, yi, "n/a (no interventions)",
+                    va="center", ha="left", fontsize=6.3, color=muted,
+                    style="italic")
 
     for p in out_paths:
         p.parent.mkdir(parents=True, exist_ok=True)
