@@ -1,0 +1,120 @@
+\section{Additional Algorithm Details}
+\label{app:pipeline-math}
+
+Section~\ref{sec:preliminaries} defines the exposure graph, forecast
+distribution, predicted graph, monitor alert rule, scenario loss, ticket
+metrics, and gate feasibility conditions used throughout the paper. This
+appendix records only the concrete instantiation used by \sysname{}.
+
+\subsection{Forecast instantiation}
+\label{app:fm-notation}
+
+At each decision epoch $t$, \sysname{} queries \fmname{} once for each
+horizon $h\in\{1,4,8,12\}$ and constructs $\widehat{G}_{t+h}$ with the
+expected-weight operator from Section~\ref{sec:preliminaries}. We set the
+edge-existence threshold to $\pi_{\min}=0.2$, tuned on the validation split.
+Uncertainty summaries use $M=50$ Monte Carlo graph samples. Each sample first
+draws edge indicators from the predicted edge probabilities, then perturbs
+positive edge weights with the forecaster's predictive regression spread. For
+existing edges, residual predictions are folded into the conditional mean
+$\mu_{pq,t+h}$ before applying the expected-weight construction; candidate
+new edges enter only when their predicted existence probability exceeds
+$\pi_{\min}$.
+
+\subsection{Monitor instantiation}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+ID & Metric                & Definition \\
+\midrule
+N1 & Systemic Importance  & $\max_{p\in V}\mathrm{PageRank}(\widehat{G}_{t+h})_p$ \\
+N2 & HHI Concentration    & $\sum_p (d_p / \sum_q d_q)^2$, $d_p=\sum_q\widehat{w}_{pq,t+h}$ \\
+N3 & Network Density      & $|\widehat{E}_{t+h}| / |V|(|V|-1)$ \\
+N4 & PageRank Gini        & $\mathrm{Gini}(\{\mathrm{PageRank}_p\}_{p\in V})$ \\
+N5 & Degree Gini          & $\mathrm{Gini}(\{d_p\}_{p\in V})$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All monitors use the rolling alert rule from
+Section~\ref{sec:preliminaries} with a $42$-week baseline, $z=2$, and
+$\epsilon=10^{-8}$. PageRank uses damping $0.85$ and $10$ power iterations.
+Gini coefficients are computed over active nodes in the predicted graph.
+
+\subsection{Scenario instantiation}
+
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+ID & Scenario               & Target                 & Shock \\
+\midrule
+S1 & Single protocol fail   & Highest-weight node    & 100\% \\
+S2 & Bridge cluster fail    & All bridge nodes       & 100\% \\
+S3 & Stablecoin de-peg      & All stablecoin nodes   & 50\%  \\
+S4 & Sector lending shock   & All lending nodes      & 30\%  \\
+S5 & Correlated stress      & Top-10 by weight       & 20\%  \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Scenario targets use protocol-sector metadata from \corpusname{}. For each
+scenario and horizon, \sysname{} reports the deterministic loss on
+$\widehat{G}_{t+h}$ and the sampled $\mathrm{CVaR}_{0.5}$ defined in
+Section~\ref{sec:preliminaries}.
+
+\subsection{Gate instantiation and ticket scoring}
+
+The data-health gate uses the four checks in Section~\ref{sec:preliminaries}
+with $\tau_{\mathrm{data}}=0.7$. Safe mode still releases monitor alerts and
+scenario summaries, but suppresses intervention-level tickets
+(\textsc{RecommendReduce} and \textsc{Contingency}). The confidence gate uses
+$\tau_{\mathrm{conf}}=0.6$ and clamps each Monte Carlo coefficient of
+variation to $[0,1]$ before computing alert confidence.
+
+Feasible tickets are ranked by
+\begin{equation}
+\mathrm{Score}_t(u)
+=
+w_u\cdot \bar{C}_t\cdot \mathrm{Imp}_t,
+\end{equation}
+where $w_u\in\{0.25,0.50,0.75,1.00\}$ is the playbook severity weight for
+the four ordered actions and $\mathrm{Imp}_t$ is the mean scenario CVaR
+(default $1.0$ when no scenario summary is available).
+
+\subsection{End-to-end procedure}
+
+\begin{algorithm}[h]
+\caption{\sysname{}: one decision epoch.}
+\label{alg:agent_loop}
+\small
+\begin{algorithmic}[1]
+\Require $(G_t,X_t)$; horizons $\mathcal{H}$; scenarios
+$\mathcal{S}_0$; thresholds
+$(\tau_{\mathrm{data}},\tau_{\mathrm{conf}},z,\pi_{\min})$; MC count $M$
+\Ensure Alerts $\mathcal{A}_t$; scenario summary $\mathcal{R}_t$;
+tickets $\mathcal{D}_t$
+\State $\operatorname{DH}_t\gets\mathrm{DataHealth}(G_t,X_t)$
+\State $\mathrm{SAFE\_MODE}_t\gets
+       \mathbb{I}\{\operatorname{DH}_t<\tau_{\mathrm{data}}\}$
+\ForAll{$h\in\mathcal{H}$}
+  \State $P_{t,h}\gets\text{\fmname.Forecast}(G_t,X_t,h)$
+  \State $\widehat{G}_{t+h}\gets
+         \mathrm{BuildPredGraph}(P_{t,h};\pi_{\min})$
+  \State $\{\widetilde{G}^{(m)}_{t+h}\}_{m=1}^M\gets
+         \mathrm{MCSample}(P_{t,h})$
+  \State Compute monitor statistics on $\widehat{G}_{t+h}$, attach rolling
+         baselines, and derive alerts $\mathcal{A}_{t,h}$
+  \State Compute alert confidences $C_t(\cdot)$ from sampled monitor
+         dispersion
+  \ForAll{$s\in\mathcal{S}_0$}
+    \State Compute deterministic loss $L(s;\widehat{G}_{t+h})$ and sampled
+           $\mathrm{CVaR}_{0.5}(s,h)$
+  \EndFor
+\EndFor
+\State $\mathcal{D}_t\gets
+       \mathrm{PlaybookDecision}(\mathcal{A}_t,\mathcal{R}_t,
+       \operatorname{DH}_t,\mathrm{SAFE\_MODE}_t,\tau_{\mathrm{conf}})$
+\State \Return $(\mathcal{A}_t,\mathcal{R}_t,\mathcal{D}_t)$
+\end{algorithmic}
+\end{algorithm}

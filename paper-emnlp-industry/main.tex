@@ -65,8 +65,7 @@
 \fi
 
 % =====================================================================
-\title{\sysname{}: An Agentic System for Risk Monitoring and
-Decision Recommendation on Decentralised Financial Networks}
+\title{\sysname{}: An Agentic System for DeFi Risk Monitoring and Decision Recommendation}
 
 % Anonymous author block for submission.
 \author{Anonymous Submission \\
@@ -83,18 +82,16 @@ Decentralized finance exposes supervisors to fast-moving, networked credit risks
 % =====================================================================
 \input{sections/1-intro}
 \input{sections/2-related}
-\input{sections/pre}
-\input{sections/3-pipeline}
-\input{sections/4-bench}
-\input{sections/5-results}
-\input{sections/6-lessons}
-% \input{sections/7-conclusion} -- removed: content duplicated the abstract
-% and pushed Limitations onto page 8; §6 Deployment Lessons is the industry-
-% style closing for this paper.
+\input{sections/3-pre}
+\input{sections/4-pipeline}
+\input{sections/5-bench}
+\input{sections/6-results}
+\input{sections/7-lessons}
+\input{sections/8-conclusion}
 
 % --- Required by EMNLP / ARR; does NOT count toward 6-page budget ---
-\input{sections/8-limitations}
-\input{sections/9-ethics}
+\input{sections/9-limitations}
+\input{sections/10-ethics}
 
 % =====================================================================
 % Bibliography style is set by acl.sty.
@@ -104,11 +101,16 @@ Decentralized finance exposes supervisors to fast-moving, networked credit risks
 \clearpage
 \onecolumn
 \appendix
-\input{sections/A-fm-notation}
-\input{sections/B-pipeline-math}
-\input{sections/C-bench-details}
-\input{sections/D-reference-methods}
-\input{sections/E-full-tables}
-\input{sections/F-statistics}
+\makeatletter
+\@addtoreset{algorithm}{section}
+\@addtoreset{figure}{section}
+\@addtoreset{table}{section}
+\makeatother
+\renewcommand{\thealgorithm}{\thesection.\arabic{algorithm}}
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+\renewcommand{\thetable}{\thesection.\arabic{table}}
+\input{sections/AppA-algorithm-details}
+\input{sections/AppB-implementation-details}
+\input{sections/AppC-experimental-results}
 
 \end{document}

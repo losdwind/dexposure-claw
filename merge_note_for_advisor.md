@@ -1,44 +1,39 @@
-# Overleaf 同步说明（合并了实验部分 + 您的修订）
+# Overleaf 同步说明（您的修订 + 完整实验部分）
 
-老师好，我把含完整实验部分的版本合并进了 Overleaf。下面逐节说明**每一节用了谁的版本、为什么**，方便您核对。
+老师好，Overleaf 上已是合并后的版本。下面逐节说明**每节用了谁的文字、做了哪些改动**，方便您核对。
 
-**重要兜底**：您同步前的原版完整保存在 Overleaf 的 git 历史 commit `97c134b`，一字未动。任何一处合并决定您若不认同，都能从那里 diff 出来、单独取回。
+**兜底**：您同步前的原版完整保存在 git 历史 commit `97c134b`，一字未动；任何改动您若不认同都能从那里取回。
 
 ## 逐节对照
 
-| 章节 | 采用 | 说明 |
-|------|------|------|
-| Title | **您的版本** | 直接用您改的标题（经匿名宏 `\sysname` 渲染）。 |
-| Abstract | **您的版本为骨架** | 保留您的叙事结构；按新的显著性检验把 explanation quality 的措辞降级为 “directionally improves”（见下）。 |
-| 1 Introduction | **您的版本为骨架** | 采用您五段式叙事；补回了三处（见下）。 |
-| Preliminaries | **您新增的章节** | 保留，但压缩了篇幅（见下）。 |
-| 3 Pipeline | **学生版本** | 您的重写与学生版结构一致，但带了过时参数与 LaTeX 损坏，故保留学生版（见下）。 |
-| 4–6 / 附录 / 统计 | **学生版本** | 实验、bench、lessons、附录，外加新增的统计显著性附录。 |
+| 章节 | 文字来源 | 改动 |
+|------|----------|------|
+| Title | **您的原文** | 仅经匿名宏 `\sysname` 渲染 |
+| Abstract | **您的原文（逐字）** | 仅匿名宏 + 一处显著性措辞（见下） |
+| 1 Introduction | **您的原文（逐字）** | 匿名宏 + 一处排版修复 + 同一处显著性措辞 + 补 2 处引用 |
+| Preliminaries | **您的原文（逐字）** | 仅修复 zip 带来的 LaTeX 渲染损坏 |
+| 3 Pipeline | **您的原文（逐字）** | 修复 LaTeX 损坏 + L=42 + 成本表述澄清（见下） |
+| 4–6 / 附录 / 统计 | 学生更新版 | 实验、bench、lessons、附录，外加新增统计显著性附录 |
 
-## 三处需要您特别留意的改动
+> 说明：您当时是从较早的基线分出来改的前言部分；实验各节（results / bench / lessons / 附录）是学生后续更新的版本，比您手上那份新，所以这几节相对您的原版改动较大——都是实验侧的正常更新。
 
-**1. Introduction 补回了三块内容（相对您的重写）**
-- 失败模式的双框架：raw-snapshot LLM「保守但弱」(FIR 未定义) vs 喂入预测证据后「over-intervention」(FIR 0.448)。这与表 1 的数据方向一致——over-intervention 只在加入 FM 证据后出现，不在 raw-data agent 上。
-- 补回了 5 处文献引用（您的重写版 intro 未含引用）。
-- 补回了结尾 “Honest scope / track fit” 段（backtest-only 定位、EMNLP Industry 类目）。
+## 三处需要您留意的实质改动
 
-**2. Abstract / Results 按显著性检验做了 hedging**
-- 新增 bootstrap 置信区间 + permutation 检验（附录 F）后：Sonnet 4.6 的 judge 提升不显著，故 explanation quality 改为 “directionally improves”，只硬声明显著的 F1 与 FIR。
-- 表 1 的 FIR：m1/m2/m5 改为 “—”（未定义），因为它们不发 intervention-level ticket（m2 全程 0/431），原来的 0.000 是分母为零的退化值，并非安全成绩；Sonnet/Gemini 的 0.000 是真零（发了干预且全部命中），予以保留。
+**1. 显著性措辞（abstract + intro + results）**
+新增 bootstrap 置信区间 + permutation 检验（附录 F）后，Sonnet 4.6 在 explanation quality 上的提升**不显著**，故全文统一改为 “directionally improves / improving”；F1 与 FIR 的提升显著，照常硬声明。
 
-**3. Preliminaries 压缩了篇幅（189 → 62 行）**
-- 为满足正文 6 页上限做的精简。所有定义（exposure graph、forecaster、monitors、CVaR、FIR、gates）均保留，完整推导也在附录 A/B。
-- 这是唯一一处我实质删减了您的文字。若您希望保留完整长度，我可以从 `97c134b` 取回您的原版放回（代价是正文会超 6 页，投稿前再压）。
+**2. 表 1 的 FIR 列**
+m1/m2/m5 由 `0.000` 改为 “—”（未定义）：这三者不发 intervention-level ticket（m2 全程 0/431），原 `0.000` 是分母为零的退化值，并非安全成绩；Sonnet/Gemini 的 `0.000` 是真零（发了干预且全部命中），予以保留。
 
-## 为什么 Pipeline 这节保留学生版
+**3. Pipeline 的两个数值**
+- 滚动基线窗口统一为 **L=42 周**（与您的附录 B 及实验配置一致）。
+- 成本表述澄清：单周决策 < \$1；约 \$10 指的是**整个 leaderboard 跑一遍**（原文 “\$10 per run” 易被读成每周）。
 
-您的 pipeline 重写与学生版**结构完全相同**（四层、五个 monitor、scenario engine 一致），差别只有：
-- 参数过时：您版 L=26 周、每次约 \$10；学生版是修正后的 L=42、真实成本。
-- zip 在格式转换中出现 LaTeX 损坏：部分下标与 `$` 丢失；`top-1 PageRank` 的引用被错配成 HHI 的 `\citep{Rhoades1993HHI}`，且五个 monitor 被压成四个。
+## 关于 Preliminaries 与 Pipeline 的“损坏修复”
 
-采用重写版会把这些过时数字与引用错误带回正文，故保留了学生版（内容无损失）。
+您的 pre 与 pipeline 原文内容**未改一字**，只修复了 zip 在格式转换中产生的 LaTeX 渲染损坏：丢失的下标 `_`、集合花括号 `\{\}`、`\,`/`\!` 间距、以及个别丢失的 `$`。这些不修会导致公式显示错误，与文字内容无关。
 
 ## 其它
 
-- 匿名：main.tex 用单一开关 `\anonfalse`(真名) / `\anontrue`(双盲占位名) 控制全文；**当前是真名**，方便您审阅。投稿前会切回 `\anontrue` 并确认回到 6 页。
+- 匿名：main.tex 用单一开关 `\anonfalse`(真名) / `\anontrue`(双盲占位名) 控制全文；**当前是真名**，方便您审阅。投稿前切回 `\anontrue` 并确认回到 6 页。
 - 您的备份文件 `1-intro.1.tex`、`3-pipeline.1.tex`、`ABSTRACT.md`、`OUTLINE.md` 原样保留，未删。

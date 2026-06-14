@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeXposure Recovery Brief</title>
+<style>
+:root{
+  --bg:#ffffff;
+  --ink:#172126;
+  --muted:#5f6d73;
+  --faint:#eef2f3;
+  --line:#d8e0e2;
+  --panel:#fbfcfc;
+  --teal:#264653;
+  --green:#2a9d8f;
+  --gold:#e9c46a;
+  --orange:#f4a261;
+  --coral:#e76f51;
+  --red:#c7432f;
+  --blue:#2f6f9f;
+  --shadow:0 12px 36px rgba(38,70,83,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--ink);
+  background:
+    linear-gradient(90deg, rgba(38,70,83,.045) 1px, transparent 1px) 0 0/64px 64px,
+    linear-gradient(180deg, rgba(38,70,83,.035) 1px, transparent 1px) 0 0/64px 64px,
+    var(--bg);
+  font:15px/1.62 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+button{font:inherit}
+.page{max-width:1220px;margin:0 auto;padding:28px 28px 72px}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding-bottom:18px;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.01em;color:var(--teal)}
+.mark{
+  width:32px;height:32px;border:2px solid var(--green);border-radius:8px;
+  position:relative;transform:rotate(45deg);
+}
+.mark:before,.mark:after{content:"";position:absolute;border:2px solid var(--teal);border-radius:6px}
+.mark:before{inset:5px 10px 10px 5px;border-right:0;border-bottom:0}
+.mark:after{inset:10px 5px 5px 10px;border-left:0;border-top:0}
+.brand span{font-size:20px}
+.meta{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end;color:var(--muted);font-size:12px}
+.meta b{color:var(--ink)}
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:34px;align-items:end;padding:46px 0 32px}
+.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--green);margin-bottom:14px}
+h1{
+  margin:0 0 18px;
+  font-family:Georgia, "Times New Roman", "Noto Serif SC", serif;
+  font-size:clamp(42px,7vw,82px);
+  line-height:.95;
+  letter-spacing:0;
+}
+.subtitle{font-size:19px;line-height:1.58;color:#334248;max-width:760px}
+.subtitle b{color:var(--teal)}
+.thesis{
+  margin-top:22px;padding:16px 18px;border-left:4px solid var(--coral);
+  background:linear-gradient(90deg, rgba(231,111,81,.08), rgba(255,255,255,.72));
+  color:#2a363b;border-radius:0 8px 8px 0;
+}
+.hero-aside{
+  border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.84);
+  box-shadow:var(--shadow);padding:18px;
+}
+.aside-title{font-size:13px;font-weight:800;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+.triplet{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kpi{
+  min-height:122px;border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  padding:14px 13px;display:flex;flex-direction:column;justify-content:space-between;
+}
+.kpi strong{display:block;font-size:28px;line-height:1;color:var(--teal);letter-spacing:0;font-variant-numeric:tabular-nums}
+.kpi:nth-child(2) strong{color:var(--green)}
+.kpi:nth-child(3) strong{color:var(--coral)}
+.kpi .label{font-weight:750;font-size:13px}
+.kpi .note{font-size:11.5px;color:var(--muted);line-height:1.4}
+.nav{
+  display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:10;
+  margin:8px -8px 42px;padding:8px;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav a{
+  text-decoration:none;color:var(--muted);font-size:12px;font-weight:750;
+  padding:7px 10px;border-radius:6px;border:1px solid transparent;
+}
+.nav a:hover{color:var(--teal);border-color:var(--line);background:var(--panel)}
+section{margin:0 0 72px;scroll-margin-top:86px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:22px;margin-bottom:20px}
+.section-head h2{
+  margin:0;font-family:Georgia, "Times New Roman", "Noto Serif SC", serif;
+  font-size:32px;line-height:1.15;letter-spacing:0;
+}
+.section-head p{margin:0;max-width:620px;color:var(--muted)}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.card{
+  border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.88);
+  padding:18px;box-shadow:0 1px 0 rgba(38,70,83,.04);
+}
+.card h3{margin:0 0 8px;font-size:18px;line-height:1.25;color:var(--teal)}
+.card p{margin:0;color:#35454b}
+.tag{font-size:11px;font-weight:850;letter-spacing:.11em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:14px}
+.fact{border-top:1px solid var(--line);padding-top:9px}
+.fact b{display:block;font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums}
+.fact span{display:block;font-size:11px;color:var(--muted)}
+.pipeline{
+  display:grid;grid-template-columns:1fr 32px 1.05fr 32px 1.15fr 32px 1.05fr 32px .95fr;
+  align-items:stretch;gap:0;margin-top:8px;
+}
+.stage{
+  border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:16px 14px;
+  min-height:168px;position:relative;overflow:hidden;
+}
+.stage:before{
+  content:attr(data-n);display:inline-grid;place-items:center;width:25px;height:25px;
+  border-radius:50%;background:var(--teal);color:white;font-weight:850;font-size:12px;margin-bottom:12px;
+}
+.stage h3{margin:0 0 8px;font-size:16px;color:var(--ink)}
+.stage p{margin:0;color:var(--muted);font-size:13px;line-height:1.48}
+.stage .out{margin-top:12px;color:var(--teal);font-size:12px;font-weight:800}
+.arrow{display:grid;place-items:center;color:var(--teal)}
+.arrow:before{content:"";width:24px;height:2px;background:currentColor;display:block}
+.arrow:after{content:"";border-left:7px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:-4px}
+.stage.fm{border-top:4px solid var(--green)}
+.stage.evidence{border-top:4px solid var(--gold)}
+.stage.llm{border-top:4px solid var(--blue)}
+.stage.gate{border-top:4px solid var(--coral);border-style:solid dashed solid solid}
+.axis-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.axis{
+  border:1px solid var(--line);border-radius:8px;background:#fff;padding:15px 12px;min-height:172px;
+}
+.axis .bid{font:800 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:var(--coral);margin-bottom:8px}
+.axis h3{font-size:15px;margin:0 0 8px;line-height:1.28}
+.axis p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.48}
+.timeline{margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:18px;background:var(--panel)}
+.track{display:grid;grid-template-columns:3.6fr .42fr .56fr;gap:4px;align-items:center}
+.segment{height:18px;border-radius:5px;display:flex;align-items:center;padding:0 9px;color:white;font-size:11px;font-weight:750;min-width:0}
+.train{background:var(--teal)}.val{background:var(--green)}.test{background:var(--coral)}
+.timeline .caption{margin-top:9px;color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid var(--line);padding:10px 9px;text-align:right;vertical-align:middle}
+th:first-child,td:first-child{text-align:left}
+th{
+  color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:850;
+  background:#f7faf9;
+}
+td{font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#fbf7f0}
+.method{font-weight:800;color:var(--ink)}
+.sub{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
+.best{color:var(--green);font-weight:900}
+.risk{color:var(--coral);font-weight:900}
+.na{color:#9aa5a9}
+.chart-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:16px;min-width:0}
+.chart-card h3{margin:0 0 8px;font-size:16px;color:var(--teal)}
+.chart-card .small{margin:0 0 12px;color:var(--muted);font-size:12px}
+.bars{display:grid;gap:9px}
+.bar-row{display:grid;grid-template-columns:132px 1fr 62px;gap:10px;align-items:center}
+.bar-label{font-size:12px;color:#253239;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:12px;background:var(--faint);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;background:var(--green);width:0}
+.bar-value{text-align:right;font:12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:var(--muted);font-size:12px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.scatter-wrap{height:320px}
+svg{max-width:100%;height:auto;display:block}
+.callout{
+  display:grid;grid-template-columns:170px 1fr;gap:18px;align-items:center;
+  border:1px solid rgba(231,111,81,.34);background:linear-gradient(90deg, rgba(231,111,81,.08), rgba(255,255,255,.92));
+  border-radius:8px;padding:18px;margin-top:18px;
+}
+.callout .big{font-size:34px;font-weight:900;color:var(--coral);line-height:1;font-variant-numeric:tabular-nums}
+.callout p{margin:0;color:#2c3a40}
+.pill-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 9px;background:#fff;color:var(--muted);font-size:12px}
+.contract-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}
+.status-list{display:grid;gap:10px}
+.status-row{
+  display:grid;grid-template-columns:126px 1fr;gap:12px;align-items:start;
+  border-top:1px solid var(--line);padding-top:10px;
+}
+.status-row:first-child{border-top:0;padding-top:0}
+.status-row b{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+.status-row span{color:#334248}
+.contract-note{
+  margin-top:14px;border-left:4px solid var(--green);background:rgba(42,157,143,.07);
+  border-radius:0 8px 8px 0;padding:12px 14px;color:#27363b;
+}
+.drift-list{display:grid;gap:10px;margin-top:12px}
+.drift{
+  border:1px solid var(--line);border-left-width:4px;border-radius:8px;background:#fff;
+  padding:12px 13px;
+}
+.drift.warn{border-left-color:var(--orange)}
+.drift.risk{border-left-color:var(--coral)}
+.drift.ok{border-left-color:var(--green)}
+.drift b{display:block;margin-bottom:4px;color:var(--ink)}
+.drift p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.method-chip{
+  display:inline-block;min-width:58px;border-radius:5px;padding:3px 7px;
+  background:var(--faint);color:var(--teal);font:800 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.source-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.source-grid a{
+  display:block;text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;color:var(--teal);
+  font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.note{color:var(--muted);font-size:12px;line-height:1.55}
+.footer{margin-top:60px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:12px}
+@media (max-width:1020px){
+  .hero,.grid-3,.grid-2{grid-template-columns:1fr}
+  .contract-grid{grid-template-columns:1fr}
+  .axis-grid{grid-template-columns:repeat(3,1fr)}
+  .pipeline{grid-template-columns:1fr;gap:10px}
+  .arrow{height:18px;transform:rotate(90deg)}
+}
+@media (max-width:680px){
+  .page{padding:20px 16px 52px}
+  .topbar{align-items:flex-start;flex-direction:column}
+  .triplet,.axis-grid,.facts,.source-grid{grid-template-columns:1fr}
+  .section-head{align-items:flex-start;flex-direction:column}
+  .track{grid-template-columns:1fr}
+  .segment{height:28px}
+  .bar-row{grid-template-columns:88px 1fr 52px}
+  .callout{grid-template-columns:1fr}
+  th,td{padding:8px 6px;font-size:12px}
+}
+@media print{
+  .nav{position:static}
+  body{background:#fff}
+  .page{max-width:none}
+  section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <div class="brand"><div class="mark" aria-hidden="true"></div><span>DeXposure</span></div>
+    <div class="meta">
+      <span><b>Recovery Brief</b> / benchmark + agent pipeline</span>
+      <span>updated from local paper artifacts</span>
+      <span>2026-06-14</span>
+    </div>
+  </header>
+
+  <section class="hero" id="top">
+    <div>
+      <div class="eyebrow">DeFi exposure graph benchmark and LLM agent pipeline</div>
+      <h1>DeXposure Recovery Brief</h1>
+      <p class="subtitle">
+        这份页面把项目重新压缩成一句话：<b>DeXposure 不是单个预测模型，而是一套 forecast-measure-decide-gate 框架</b>。
+        DeXposure-FM 预测未来暴露图，DeXposure-Bench 衡量六个能力轴，DeXposure-Claw 把结构化证据交给 LLM 或规则引擎产出可审计监管 ticket。
+      </p>
+      <div class="thesis">
+        主结论：FM 不在每个静态误差指标上赢 persistence，但它提供趋势、校准和鲁棒性信号；LLM 在结构化证据上能提升召回和解释质量，同时必须显式报告 false-intervention cost。
+      </div>
+    </div>
+    <aside class="hero-aside">
+      <div class="aside-title">headline numbers</div>
+      <div class="triplet">
+        <div class="kpi">
+          <div class="label">Ticket F1 lift</div>
+          <strong>+207%</strong>
+          <div class="note">m1 0.0076 -> m7 0.0233, rounded in README as +208%</div>
+        </div>
+        <div class="kpi">
+          <div class="label">PI coverage</div>
+          <strong>0.913</strong>
+          <div class="note">target 0.90, ECE 0.013, CRPS 0.0149</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Deployable FIR</div>
+          <strong>0.000</strong>
+          <div class="note">m7 + Sonnet 4.6: F1 0.0288, judge 2.66</div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <nav class="nav" aria-label="Page navigation">
+    <a href="#framework">框架</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#qa-handoff">测试核验</a>
+    <a href="#benchmark">Benchmark</a>
+    <a href="#results">结果</a>
+    <a href="#decision">LLM 面板</a>
+    <a href="#diagnostics">诊断</a>
+    <a href="#takeaways">结论</a>
+    <a href="#sources">来源</a>
+  </nav>
+
+  <section id="framework">
+    <div class="section-head">
+      <h2>一张图记住三件东西</h2>
+      <p>论文和仓库里有三个连接在一起的 artifact：数据/benchmark、预测模型、可部署 agent。不要把它们混成一个模型分数。</p>
+    </div>
+    <div class="grid-3">
+      <article class="card">
+        <div class="tag">benchmark</div>
+        <h3>DeXposure-Bench</h3>
+        <p>六轴评估套件：预测、早预警、校准、压力测试、监管 ticket 质量、数据退化鲁棒性。核心是把收益和成本一起暴露出来。</p>
+        <div class="facts">
+          <div class="fact"><b>6 axes</b><span>b1-b6</span></div>
+          <div class="fact"><b>8 refs</b><span>h1, m1-m7</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="tag">forecaster</div>
+        <h3>DeXposure-FM</h3>
+        <p>GraphPFN + LiMiX-16M 图表基础模型骨干，按 h=1/4/8/12 周分别微调；输出 edge existence、edge weight 和 node TVL change。</p>
+        <div class="facts">
+          <div class="fact"><b>4 horizons</b><span>1, 4, 8, 12 weeks</span></div>
+          <div class="fact"><b>50 MC</b><span>uncertainty samples</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="tag">agent</div>
+        <h3>DeXposure-Claw</h3>
+        <p>MCP-compatible 的保守 agent 形态。研究 pipeline 负责 forecast -> evidence -> decision -> gate，发布单位是带证据和 gate 状态的 audit log/ticket。</p>
+        <div class="facts">
+          <div class="fact"><b>4 layers</b><span>forecast-measure-decide-gate</span></div>
+          <div class="fact"><b>&lt;$10</b><span>full LLM sweep order</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="section-head">
+      <h2>Agent pipeline 怎么做</h2>
+      <p>每周一个决策 epoch。LLM 不直接读原始交易，而是读 FM 预测图、监控指标、压力场景、置信度和 data-health 组成的 typed evidence bundle。</p>
+    </div>
+    <div class="pipeline" role="img" aria-label="Four layer DeXposure agent pipeline">
+      <div class="stage" data-n="0">
+        <h3>Weekly graph G_t</h3>
+        <p>输入是周度有向加权暴露图和节点特征：protocol 间通过 token 持仓形成 credit exposure。</p>
+        <div class="out">out: current exposure snapshot</div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="stage fm" data-n="1">
+        <h3>Forecast-FM</h3>
+        <p>构造 G_hat_{t+h}：保留已有边、按 FM residual 重加权，并加入 existence probability 超阈值的新边。</p>
+        <div class="out">out: predicted graphs + MC samples</div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="stage evidence" data-n="2">
+        <h3>Monitor and stress</h3>
+        <p>五个 monitor 指标做 z-score alert；五类 stress scenario 做 CVaR loss 汇总和 target attribution。</p>
+        <div class="out">out: alerts, CVaR table, confidence</div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="stage llm" data-n="3">
+        <h3>LLM decision</h3>
+        <p>LLM 只在 typed JSON evidence 上输出 target、severity、action 和 rationale，三次 temperature 0 用于一致性。</p>
+        <div class="out">out: draft supervisory tickets</div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="stage gate" data-n="4">
+        <h3>Safety gates</h3>
+        <p>DH_t &lt; 0.7 或 mean confidence &lt; 0.6 时进入 safe mode，压制 Recommend-Reduce / Contingency。</p>
+        <div class="out">out: ticket tau* or SafeMode</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="qa-handoff">
+    <div class="section-head">
+      <h2>测试交付怎么核验</h2>
+      <p>先纠偏：这个项目当前没有 Swagger/OpenAPI 交付物，不应该按 <code>openapi.yaml</code>、<code>swagger.json</code> 或 Swagger UI 去验收。</p>
+    </div>
+    <div class="contract-grid">
+      <div class="chart-card">
+        <h3>验收边界</h3>
+        <div class="status-list">
+          <div class="status-row">
+            <b>不验</b>
+            <span>不验 Swagger/OpenAPI 文件；仓库里没有对应静态规范，也没有把它作为论文或测试交付物。</span>
+          </div>
+          <div class="status-row">
+            <b>要验</b>
+            <span>验本页是否准确解释 paper artifact、benchmark 结果、pipeline 事实，以及数值是否能回到本地结果文件。</span>
+          </div>
+          <div class="status-row">
+            <b>接口</b>
+            <span>若要测服务端，只按当前代码里的 FastAPI route 做冒烟测试；不要把它包装成正式 OpenAPI 交付承诺。</span>
+          </div>
+        </div>
+        <div class="contract-note">
+          推荐测试顺序：先读本页的三个 artifact 定义，再按“事实偏移清单”排查旧文档/旧测试，最后抽查结果表里的关键数值。
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>当前服务端实际路由</h3>
+        <p class="small">仅作为代码事实，方便测试冒烟；这不是 Swagger/OpenAPI 交付声明。</p>
+        <div style="overflow:auto">
+          <table aria-label="Current server route inventory">
+            <thead><tr><th>method</th><th>path</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td><span class="method-chip">GET</span></td><td><code>/health</code></td><td>服务状态和 FM 可用性</td></tr>
+              <tr><td><span class="method-chip">POST</span></td><td><code>/forecast</code></td><td>按日期加载 snapshot 并预测图</td></tr>
+              <tr><td><span class="method-chip">POST</span></td><td><code>/predict-graph</code></td><td>提交完整 graph payload 并预测图</td></tr>
+              <tr><td><span class="method-chip">POST</span></td><td><code>/batch-forecast</code></td><td>同一日期多 horizon 预测</td></tr>
+              <tr><td><span class="method-chip">GET</span></td><td><code>/dates</code></td><td>列出可用 snapshot 日期</td></tr>
+              <tr><td><span class="method-chip">GET</span></td><td><code>/snapshot</code></td><td>按 <code>date</code> 返回原始 snapshot</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:18px">
+      <div class="chart-card">
+        <h3>事实偏移清单</h3>
+        <div class="drift-list">
+          <div class="drift ok">
+            <b>没有 Swagger/OpenAPI 交付物</b>
+            <p>不要让测试同学去找不存在的 <code>swagger.yaml</code>、<code>swagger.json</code> 或 <code>openapi.yaml</code>；也不要把 Swagger UI 当成本项目的验收对象。</p>
+          </div>
+          <div class="drift risk">
+            <b>测试期望与当前服务端不一致</b>
+            <p><code>paper/tests/test_serve.py</code> 和 <code>test_mock_fm_pipeline.py</code> 仍期待 <code>create_app(mock_mode=True)</code>、<code>/models</code>、<code>/run-epoch</code>、<code>_mock_forecast</code>。当前 <code>serve.py</code> 没有这些接口。</p>
+          </div>
+          <div class="drift risk">
+            <b><code>/forecast</code> 响应形状有下游风险</b>
+            <p>当前 <code>serve.py</code> 返回 <code>PredictGraphResponse</code>：<code>nodes/edges/n_nodes/n_edges/horizon/elapsed_ms</code>。但 <code>agent_loop.call_forecast_api</code> 的注释和 <code>pred_graph.py</code> 期望 <code>edge_probs/edge_weights/weight_stds/node_ids</code>。</p>
+          </div>
+          <div class="drift warn">
+            <b>运行脚本路径仍有旧命名</b>
+            <p><code>paper/scripts/start_server.sh</code> 和 <code>sync_and_serve.sh</code> 使用 <code>lib.agent.serve:app</code>，当前可读源码路径是 <code>dexposure_agent.serve:app</code>。</p>
+          </div>
+          <div class="drift warn">
+            <b>旧设计页路由不是当前实现</b>
+            <p><code>paper/docs/experiment_design.html</code> 写的是 <code>/predict /metrics /stress /batch</code>，当前代码实际是 <code>/forecast /predict-graph /batch-forecast</code> 等。</p>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>测试同学怎么验</h3>
+        <p class="small">这组检查能区分“材料能读”“代码事实一致”和“agent contract 真能跑”。</p>
+        <div class="status-list">
+          <div class="status-row">
+            <b>阅读</b>
+            <span>从“框架”“Pipeline”“Benchmark”“结果”四段顺序读，确认 DeXposure-Bench、FM、Claw 没被混成一个模型。</span>
+          </div>
+          <div class="status-row">
+            <b>数值</b>
+            <span>抽查 F1、FIR、judge、PI coverage 是否能回到 <code>paper/results/*.json</code> 和 appendix 表。</span>
+          </div>
+          <div class="status-row">
+            <b>冒烟</b>
+            <span>先测 <code>GET /health</code> 和 <code>GET /dates</code>，再用一个可用日期测 <code>POST /forecast</code>。</span>
+          </div>
+          <div class="status-row">
+            <b>契约</b>
+            <span>若目标是 agent pipeline，重点不是 Swagger，而是 <code>/forecast</code> 是否返回下游需要的概率分布字段。</span>
+          </div>
+          <div class="status-row">
+            <b>判定</b>
+            <span>当前页面把 Swagger/OpenAPI 判为“不属于本次验收”；把端到端 agent HTTP contract 判为“需要修正实现或测试期望”。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="benchmark">
+    <div class="section-head">
+      <h2>DeXposure-Bench 是什么</h2>
+      <p>它不是只评预测 MAE，而是把“是否能监管上可用”拆成六个互不替代的能力轴。共同 ground truth 是 4 周后绝对损失 top 5% stressed protocols。</p>
+    </div>
+    <div class="axis-grid">
+      <div class="axis"><div class="bid">b1_forecast</div><h3>Temporal graph prediction</h3><p>PageRank/HHI/Gini MAE, Spearman, trend consistency across h=1,4,8,12.</p></div>
+      <div class="axis"><div class="bid">b2_warning</div><h3>Streaming early warning</h3><p>历史事件窗口 Terra/Luna, FTX, SVB/USDC 的 precision、recall、F1、lead time。</p></div>
+      <div class="axis"><div class="bid">b3_calibration</div><h3>Predictive uncertainty</h3><p>0.90 prediction interval coverage, width, ECE, CRPS from MC samples.</p></div>
+      <div class="axis"><div class="bid">b4_stress</div><h3>Scenario fidelity</h3><p>S1-S5 stress shocks 的 loss MAE、distress count、propagation depth、overlap@k。</p></div>
+      <div class="axis"><div class="bid">b5_decision</div><h3>Ticket quality</h3><p>precision、audit completeness/recall、F1、target stability、judge score、FIR。</p></div>
+      <div class="axis"><div class="bid">b6_robustness</div><h3>Data-quality sensitivity</h3><p>在低数据、部分图、feature noise/missing 等五类退化下重复预测指标。</p></div>
+    </div>
+    <div class="timeline">
+      <div class="track" aria-label="Dataset split timeline">
+        <div class="segment train">Train: 2020-03 to 2024-06, about 222 weeks</div>
+        <div class="segment val">Val: 2024-07 to 2024-12</div>
+        <div class="segment test">Test: 2025-01 to 2025-08</div>
+      </div>
+      <div class="caption">Dataset: 4,300 protocols, 24,300 tokens, 43.7M exposure entries, 283 weekly snapshots. Decision axes score n=29 weeks because final four test weeks lack t+4 ground truth.</div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="section-head">
+      <h2>实验结果如何</h2>
+      <p>主要表要按 multi-objective trade-off 读。m1 精度最高但几乎不召回；m6/m7 F1 高但 Opus 决策层带来 false intervention；Sonnet 4.6 是当前更好的 operating point。</p>
+    </div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Headline b5 decision table</h3>
+        <p class="small">Frozen 2025 split, n=29. FIR 对不发 intervention 的方法是 undefined，这里以 n/a 显示。</p>
+        <div style="overflow:auto">
+          <table aria-label="Headline b5 decision comparison">
+            <thead>
+              <tr><th>method</th><th>prec.</th><th>recall</th><th>F1</th><th>judge</th><th>FIR</th><th>stab.</th></tr>
+            </thead>
+            <tbody id="headlineRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Ticket F1 by method</h3>
+        <p class="small">从保守 rules baseline 到 FM+LLM+gate 的主线提升。</p>
+        <div class="bars" id="f1Bars"></div>
+        <div class="legend"><span><i style="background:var(--green)"></i>LLM-bearing</span><span><i style="background:var(--teal)"></i>rules</span><span><i style="background:var(--coral)"></i>FIR risk</span></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:18px">
+      <div class="chart-card">
+        <h3>F1 vs false-intervention rate</h3>
+        <p class="small">Opus 4.7 使用 FM evidence 后会过度升级；Sonnet 4.6 在同样 FM prompts 上把 FIR 压到 0。</p>
+        <div class="scatter-wrap" id="scatter"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Decision LLM operating points</h3>
+        <p class="small">同一 FM-derived prompts，不同决策模型和 gate 设置。</p>
+        <div class="bars" id="decisionBars"></div>
+      </div>
+    </div>
+    <div class="callout">
+      <div class="big">0.0288</div>
+      <p><b>当前实践上更像会部署的点：</b> m7 + Claude Sonnet 4.6。它在 Opus 4.8 judge 下 F1=0.0288、FIR=0.000、judge=2.66，并且比主实验 Opus 4.7 决策层便宜约 5 倍。</p>
+    </div>
+  </section>
+
+  <section id="decision">
+    <div class="section-head">
+      <h2>LLM 与 judge 面板</h2>
+      <p>关键不是“LLM 一定更安全”，而是 LLM 决策模型本身影响很大。Judge 轴也有 model-family noise，所以论文把解释质量读作 directional evidence。</p>
+    </div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Cross-family judge scores</h3>
+        <p class="small">三种 frontier judge 都把 m7 排最高，但 Gemini judge 噪声更大。</p>
+        <div class="bars" id="judgeBars"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Matched-budget precision@k</h3>
+        <p class="small">截断到每周 top-k 后，LLM 每个 target 的命中率约为 rules 的两倍；FM 和 raw-snapshot LLM 在 matched k 下不可区分。</p>
+        <div id="budgetChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="diagnostics">
+    <div class="section-head">
+      <h2>诊断：FM、校准、鲁棒性、ablation</h2>
+      <p>FM 的贡献更像“动态信号和证据容量”，不是碾压 persistence 的静态点误差。</p>
+    </div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>b1 forecast at h=4</h3>
+        <p class="small">Persistence 静态 MAE/Rank 强；FM 提供 trend consistency。</p>
+        <div class="bars" id="b1Bars"></div>
+      </div>
+      <div class="chart-card">
+        <h3>b3 calibration and b6 robustness</h3>
+        <p class="small">PI coverage 对齐 0.90 目标；FM+rules mean relative degradation 比 persistence 低 24%。</p>
+        <div class="bars" id="calibBars"></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:18px">
+      <div class="chart-card">
+        <h3>b2 crisis early warning</h3>
+        <p class="small">共享 weighted-degree monitor，在三个历史事件上提前 4-5 周发出信号。</p>
+        <div style="overflow:auto">
+          <table>
+            <thead><tr><th>event</th><th>lead</th><th>K=5 prec.</th><th>K=10 prec.</th><th>K=20 prec.</th></tr></thead>
+            <tbody>
+              <tr><td class="method">Terra/Luna</td><td>5w</td><td>0.60</td><td>0.70</td><td>0.65</td></tr>
+              <tr><td class="method">FTX</td><td>5w</td><td>0.60</td><td>0.70</td><td>0.55</td></tr>
+              <tr><td class="method">SVB-USDC</td><td>4w</td><td class="best">1.00</td><td class="best">1.00</td><td class="best">1.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Ablation map</h3>
+        <p class="small">哪些组件 load-bearing，哪些组件是 degradation 下的 reserve。</p>
+        <div class="bars" id="ablationBars"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="takeaways">
+    <div class="section-head">
+      <h2>最后怎么讲</h2>
+      <p>这几条是回到论文或答辩时最不容易说偏的版本。</p>
+    </div>
+    <div class="grid-3">
+      <article class="card">
+        <div class="tag">claim 1</div>
+        <h3>Benchmark 的贡献</h3>
+        <p>DeXposure-Bench 把 DeFi agent 从“预测分数”推进到“监管可用性”：召回、解释、FIR、鲁棒性、压力情境都被同一 ground truth 约束。</p>
+        <div class="pill-list"><span class="pill">six axes</span><span class="pill">absolute-loss ground truth</span><span class="pill">reference methods</span></div>
+      </article>
+      <article class="card">
+        <div class="tag">claim 2</div>
+        <h3>Pipeline 的贡献</h3>
+        <p>LLM 被限制在结构化证据上推理，不能自由发挥；所有 high-severity action 必须经过 data-health 和 confidence gate，输出可审计。</p>
+        <div class="pill-list"><span class="pill">typed evidence</span><span class="pill">scenario CVaR</span><span class="pill">safe mode</span></div>
+      </article>
+      <article class="card">
+        <div class="tag">claim 3</div>
+        <h3>结果的真实含义</h3>
+        <p>FM 和 LLM 都有用，但不是免费的：FM 支持更大的目标集，LLM 提升 F1/解释，Opus 会过度升级，Sonnet 4.6 在当前实验中给出更好的风险-收益点。</p>
+        <div class="pill-list"><span class="pill">F1 lift</span><span class="pill">FIR caveat</span><span class="pill">Sonnet operating point</span></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="sources">
+    <div class="section-head">
+      <h2>本页使用的本地来源</h2>
+      <p>数值来自当前 repo 文件，没有联网查询。页面是静态 HTML，可直接打开或随论文材料一起归档。</p>
+    </div>
+    <div class="source-grid">
+      <a href="../../paper-emnlp-industry/sections/3-pipeline.tex">paper-emnlp-industry/sections/3-pipeline.tex</a>
+      <a href="../../paper-emnlp-industry/sections/4-bench.tex">paper-emnlp-industry/sections/4-bench.tex</a>
+      <a href="../../paper-emnlp-industry/sections/5-results.tex">paper-emnlp-industry/sections/5-results.tex</a>
+      <a href="../../paper-emnlp-industry/sections/AppA-algorithm-details.tex">paper-emnlp-industry/sections/AppA-algorithm-details.tex</a>
+      <a href="../../paper-emnlp-industry/sections/AppB-implementation-details.tex">paper-emnlp-industry/sections/AppB-implementation-details.tex</a>
+      <a href="../dexposure_agent/serve.py">paper/dexposure_agent/serve.py</a>
+      <a href="../dexposure_agent/agent_loop.py">paper/dexposure_agent/agent_loop.py</a>
+      <a href="../dexposure_agent/pred_graph.py">paper/dexposure_agent/pred_graph.py</a>
+      <a href="../tests/test_serve.py">paper/tests/test_serve.py</a>
+      <a href="../results/paper_table3_latest.json">paper/results/paper_table3_latest.json</a>
+      <a href="../results/paper_task1_latest.json">paper/results/paper_task1_latest.json</a>
+      <a href="../results/rejudge_aggregated.json">paper/results/rejudge_aggregated.json</a>
+      <a href="../results/bootstrap_stats.json">paper/results/bootstrap_stats.json</a>
+      <a href="../results/matched_budget.json">paper/results/matched_budget.json</a>
+    </div>
+    <p class="note" style="margin-top:14px">注：为了避免把不可比的值误读成“安全为 0”，表中把 m1/m2/m5 的 FIR 显示为 n/a。论文正文说明这些方法没有发出 intervention-level ticket，因此 FIR 是 undefined 而不是真正的零风险。</p>
+  </section>
+
+  <footer class="footer">
+    DeXposure Recovery Brief / generated from local paper artifacts / static HTML.
+  </footer>
+</main>
+
+<script>
+const methods = [
+  {id:"m1", name:"m1 Persist+Rules", pred:"G_t persistence", precision:.720, recall:.0038, f1:.0076, judge:null, fir:null, stability:.5139, type:"rules"},
+  {id:"m2", name:"m2 Pure LLM", pred:"raw snapshot", precision:.5747, recall:.0093, f1:.0183, judge:2.24, fir:null, stability:.5319, type:"llm"},
+  {id:"m5", name:"m5 FM+Rules", pred:"FM", precision:.600, recall:.0096, f1:.0190, judge:null, fir:null, stability:.2569, type:"rules"},
+  {id:"m6", name:"m6 FM+LLM", pred:"FM", precision:.5698, recall:.0123, f1:.0241, judge:2.41, fir:.4483, stability:.4885, type:"risky"},
+  {id:"m7", name:"m7 FM+LLM+Gate", pred:"FM", precision:.5802, recall:.0119, f1:.0233, judge:2.45, fir:.4368, stability:.4349, type:"risky"}
+];
+const decisionPanel = [
+  {name:"m6 Opus 4.7", f1:.0241, fir:.448, judge:2.41, color:"var(--coral)"},
+  {name:"m6 Sonnet 4.6", f1:.0276, fir:0, judge:2.52, color:"var(--green)"},
+  {name:"m6 Gemini 2.5", f1:.0129, fir:0, judge:2.21, color:"var(--blue)"},
+  {name:"m7 Opus 4.7", f1:.0233, fir:.437, judge:2.45, color:"var(--coral)"},
+  {name:"m7 Sonnet 4.6", f1:.0288, fir:0, judge:2.66, color:"var(--green)"},
+  {name:"m7 Gemini 2.5", f1:.0139, fir:0, judge:2.38, color:"var(--blue)"}
+];
+const judgePanel = [
+  {name:"m2 / Opus judge", value:2.24, color:"var(--teal)"},
+  {name:"m6 / Opus judge", value:2.41, color:"var(--blue)"},
+  {name:"m7 / Opus judge", value:2.45, color:"var(--green)"},
+  {name:"m2 / Gemini judge", value:2.69, color:"var(--teal)"},
+  {name:"m6 / Gemini judge", value:2.55, color:"var(--blue)"},
+  {name:"m7 / Gemini judge", value:2.90, color:"var(--green)"},
+  {name:"m2 / GPT judge", value:1.90, color:"var(--teal)"},
+  {name:"m6 / GPT judge", value:2.45, color:"var(--blue)"},
+  {name:"m7 / GPT judge", value:2.45, color:"var(--green)"}
+];
+const budget = [
+  {name:"m1 P@1", value:.241, color:"var(--teal)"}, {name:"m2 P@1", value:.517, color:"var(--blue)"}, {name:"m7 P@1", value:.552, color:"var(--green)"},
+  {name:"m1 P@2", value:.276, color:"var(--teal)"}, {name:"m2 P@2", value:.552, color:"var(--blue)"}, {name:"m7 P@2", value:.552, color:"var(--green)"},
+  {name:"m1 P@3", value:.264, color:"var(--teal)"}, {name:"m2 P@3", value:.586, color:"var(--blue)"}, {name:"m7 P@3", value:.563, color:"var(--green)"}
+];
+
+function fmt(x, d=3){
+  if(x === null || x === undefined || Number.isNaN(x)) return "n/a";
+  return Number(x).toFixed(d);
+}
+function colorFor(item){
+  if(item.color) return item.color;
+  if(item.type === "risky") return "var(--coral)";
+  if(item.type === "llm") return "var(--green)";
+  return "var(--teal)";
+}
+function makeRows(){
+  const body = document.getElementById("headlineRows");
+  body.innerHTML = methods.map(m => `
+    <tr>
+      <td><span class="method">${m.name}</span><span class="sub">${m.pred}</span></td>
+      <td>${fmt(m.precision,3)}</td>
+      <td>${fmt(m.recall,4)}</td>
+      <td class="${m.id==="m6" ? "best" : ""}">${fmt(m.f1,4)}</td>
+      <td>${m.judge ? fmt(m.judge,2) : '<span class="na">n/a</span>'}</td>
+      <td>${m.fir === null ? '<span class="na">n/a</span>' : `<span class="risk">${fmt(m.fir,3)}</span>`}</td>
+      <td>${fmt(m.stability,3)}</td>
+    </tr>
+  `).join("");
+}
+function barChart(el, data, opts={}){
+  const max = opts.max ?? Math.max(...data.map(d => d.value));
+  const fmtFn = opts.fmt ?? (v => fmt(v,3));
+  document.querySelector(el).innerHTML = data.map(d => {
+    const w = Math.max(0, Math.min(100, d.value / max * 100));
+    return `<div class="bar-row">
+      <div class="bar-label" title="${d.name}">${d.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${colorFor(d)}"></div></div>
+      <div class="bar-value">${fmtFn(d.value)}</div>
+    </div>`;
+  }).join("");
+}
+function scatter(){
+  const data = [
+    {name:"m2 Pure LLM", x:0, y:.0183, color:"var(--blue)"},
+    {name:"m6 Opus", x:.448, y:.0241, color:"var(--coral)"},
+    {name:"m7 Opus+Gate", x:.437, y:.0233, color:"var(--coral)"},
+    {name:"m6 Sonnet", x:0, y:.0276, color:"var(--green)"},
+    {name:"m7 Sonnet+Gate", x:0, y:.0288, color:"var(--green)"},
+    {name:"m6 Gemini", x:0, y:.0129, color:"var(--teal)"},
+    {name:"m7 Gemini+Gate", x:0, y:.0139, color:"var(--teal)"}
+  ];
+  const W=640,H=300,p={l:54,r:18,t:22,b:44};
+  const xMax=.48,yMax=.031;
+  const sx=x=>p.l+(x/xMax)*(W-p.l-p.r);
+  const sy=y=>H-p.b-(y/yMax)*(H-p.t-p.b);
+  const grid=[.1,.2,.3,.4].map(x=>`<line x1="${sx(x)}" y1="${p.t}" x2="${sx(x)}" y2="${H-p.b}" stroke="#e6ecee"/>`).join("")+
+    [.01,.02,.03].map(y=>`<line x1="${p.l}" y1="${sy(y)}" x2="${W-p.r}" y2="${sy(y)}" stroke="#e6ecee"/>`).join("");
+  const pts=data.map((d,i)=>{
+    const jitter = d.x===0 ? (i-3)*5 : 0;
+    return `<g>
+      <circle cx="${sx(d.x)+jitter}" cy="${sy(d.y)}" r="${d.name.includes('Sonnet')?6:5}" fill="${d.color}" stroke="#fff" stroke-width="2"/>
+      <text x="${sx(d.x)+jitter+8}" y="${sy(d.y)+4}" font-size="11" fill="#26363b">${d.name}</text>
+    </g>`;
+  }).join("");
+  document.getElementById("scatter").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="F1 versus false intervention rate scatter plot">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
+    ${grid}
+    <line x1="${p.l}" y1="${H-p.b}" x2="${W-p.r}" y2="${H-p.b}" stroke="#93a3a8"/>
+    <line x1="${p.l}" y1="${p.t}" x2="${p.l}" y2="${H-p.b}" stroke="#93a3a8"/>
+    <text x="${W/2}" y="${H-8}" font-size="12" text-anchor="middle" fill="#5f6d73">False-intervention rate, FIR</text>
+    <text x="14" y="${H/2}" font-size="12" text-anchor="middle" fill="#5f6d73" transform="rotate(-90 14 ${H/2})">Ticket F1</text>
+    <text x="${sx(0)}" y="${H-p.b+18}" font-size="10" text-anchor="middle" fill="#5f6d73">0 / n.a.</text>
+    <text x="${sx(.2)}" y="${H-p.b+18}" font-size="10" text-anchor="middle" fill="#5f6d73">0.2</text>
+    <text x="${sx(.4)}" y="${H-p.b+18}" font-size="10" text-anchor="middle" fill="#5f6d73">0.4</text>
+    <text x="${p.l-8}" y="${sy(.01)+4}" font-size="10" text-anchor="end" fill="#5f6d73">.01</text>
+    <text x="${p.l-8}" y="${sy(.02)+4}" font-size="10" text-anchor="end" fill="#5f6d73">.02</text>
+    <text x="${p.l-8}" y="${sy(.03)+4}" font-size="10" text-anchor="end" fill="#5f6d73">.03</text>
+    ${pts}
+  </svg>`;
+}
+function budgetChart(){
+  const groups = [
+    {k:"k=1", rows:[["m1 rules",.241,"var(--teal)"],["m2 LLM",.517,"var(--blue)"],["m7 gated",.552,"var(--green)"]]},
+    {k:"k=2", rows:[["m1 rules",.276,"var(--teal)"],["m2 LLM",.552,"var(--blue)"],["m7 gated",.552,"var(--green)"]]},
+    {k:"k=3", rows:[["m1 rules",.264,"var(--teal)"],["m2 LLM",.586,"var(--blue)"],["m7 gated",.563,"var(--green)"]]}
+  ];
+  document.getElementById("budgetChart").innerHTML = groups.map(g => `
+    <div style="margin:0 0 13px">
+      <div style="font-weight:850;color:var(--teal);font-size:12px;margin-bottom:6px">${g.k}</div>
+      <div class="bars">${g.rows.map(r => `
+        <div class="bar-row">
+          <div class="bar-label">${r[0]}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${r[1]/.62*100}%;background:${r[2]}"></div></div>
+          <div class="bar-value">${r[1].toFixed(2)}</div>
+        </div>`).join("")}</div>
+    </div>`).join("");
+}
+
+makeRows();
+barChart("#f1Bars", methods.map(m => ({name:m.name.replace("m","m "), value:m.f1, type:m.type})), {max:.03, fmt:v=>v.toFixed(4)});
+barChart("#decisionBars", decisionPanel.map(d => ({name:d.name, value:d.f1, color:d.color})), {max:.03, fmt:v=>v.toFixed(4)});
+barChart("#judgeBars", judgePanel, {max:3.1, fmt:v=>v.toFixed(2)});
+barChart("#b1Bars", [
+  {name:"m1 PR MAE h4 x1e5", value:3.4, color:"var(--teal)"},
+  {name:"m5 PR MAE h4 x1e5", value:4.5, color:"var(--coral)"},
+  {name:"m1 rank corr h4", value:.570*8, color:"var(--teal)"},
+  {name:"m5 rank corr h4", value:.558*8, color:"var(--green)"},
+  {name:"m1 trend cons h4", value:0, color:"var(--teal)"},
+  {name:"m5 trend cons h4", value:.628*8, color:"var(--green)"}
+], {max:5.2, fmt:v=> v>1 ? v.toFixed(2) : v.toFixed(3)});
+barChart("#calibBars", [
+  {name:"PI coverage", value:.913, color:"var(--green)"},
+  {name:"target coverage", value:.900, color:"var(--teal)"},
+  {name:"ECE", value:.013, color:"var(--gold)"},
+  {name:"m5 degradation", value:.113, color:"var(--green)"},
+  {name:"m1 degradation", value:.148, color:"var(--coral)"}
+], {max:1, fmt:v=>v.toFixed(3)});
+barChart("#ablationBars", [
+  {name:"A2 off FIR", value:.429, color:"var(--coral)"},
+  {name:"A3 no scenario precision", value:0, color:"var(--coral)"},
+  {name:"A1 off degraded FIR low", value:.27, color:"var(--orange)"},
+  {name:"A1 off degraded FIR high", value:.60, color:"var(--coral)"},
+  {name:"A1 on degraded FIR", value:0, color:"var(--green)"},
+  {name:"A6 multi alerts / single", value:4, color:"var(--green)"}
+], {max:4, fmt:v=> v>=1 ? `${v.toFixed(1)}x` : v.toFixed(3)});
+budgetChart();
+scatter();
+</script>
+</body>
+</html>

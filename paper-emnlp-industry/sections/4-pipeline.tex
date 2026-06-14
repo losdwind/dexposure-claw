@@ -1,4 +1,4 @@
-\section{Pipeline}
+\section{\sysname{} Pipeline}
 \label{sec:pipeline}
 
 \begin{figure*}[t]
@@ -14,6 +14,10 @@ notice (Layer~4). Bottom annotations report the per-layer F1 and judge-score
 lifts from Section~\ref{sec:results}.}
 \label{fig:system}
 \end{figure*}
+
+This section introduces the \sysname{} pipeline.
+
+\subsection{Overview}
 
 \sysname{} is a four-layer pipeline for forecast-grounded DeFi supervision
 (Figure~\ref{fig:system}). Layer~1 uses \fmname{} to forecast near-future
@@ -32,7 +36,7 @@ approximately \$10).
 
 At each decision epoch $t$, the agent observes a credit-exposure snapshot
 $G_t=(V_t,E_t,W_t)$, an inter-protocol token-mediated exposure graph defined
-in Appendix~\ref{app:fm-notation}, together with node covariates $X_t$. For
+in Section~\ref{sec:preliminaries}, together with node covariates $X_t$. For
 each forecast horizon $h\in\mathcal{H}=\{1,4,8,12\}$ weeks, it queries
 \fmname{} for a predictive distribution
 \begin{equation}
@@ -43,8 +47,9 @@ each forecast horizon $h\in\mathcal{H}=\{1,4,8,12\}$ weeks, it queries
 From this distribution, the agent constructs an expected-weight predicted
 graph $\widehat{G}_{t+h}$ by thresholding edge-existence probabilities at
 $\pi_{\min}=0.2$. It also draws $M=50$ Monte Carlo samples to quantify
-predictive uncertainty. Full predicted-graph construction equations are
-given in Appendix~\ref{app:fm-notation}.
+predictive uncertainty. The predicted-graph construction is defined in
+Section~\ref{sec:preliminaries}; implementation choices are given in
+Appendix~\ref{app:fm-notation}.
 
 \subsection{Structured evidence}
 \label{ssec:evidence}
