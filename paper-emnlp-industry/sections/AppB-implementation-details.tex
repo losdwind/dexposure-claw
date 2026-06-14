@@ -7,8 +7,8 @@
 backbone~\citep{HollmannEtAl2025TabPFN,
 eremeev2025turningtabularfoundationmodels} with a LiMiX-16M tabular
 transformer encoder ($12$ layers, $4$ attention heads, hidden dimension
-$64$). The same backbone serves three heads---edge existence (binary),
-edge weight (regression), and node-TVL change (regression)---trained
+$64$). The same backbone serves three heads (edge existence, binary;
+edge weight, regression; and node-TVL change, regression), trained
 jointly with a BCE$+$MSE composite loss. We fine-tune one checkpoint per
 horizon $h\!\in\!\{1,4,8,12\}$ for $20$ epochs with AdamW (learning rate
 $10^{-4}$ for heads, $10^{-5}$ for the backbone). Fine-tuning draws on

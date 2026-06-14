@@ -15,9 +15,15 @@ correlation, smallest $|\Delta_{\mathrm{rel}}|$) in \textbf{bold};
 ties share the bold.
 Persistence ignores node features, so its \texttt{noisy\_features\_01} and
 \texttt{missing\_features\_20} rows degenerate to the clean numbers (and
-$\Delta_{\mathrm{rel}}=0$); EvolveGCN's predictions also change only
-negligibly under these two regimes
-($|\Delta_{\mathrm{rel}}|<10^{-8}$).}
+$\Delta_{\mathrm{rel}}=0$); EvolveGCN's predictions likewise change only
+negligibly there ($|\Delta_{\mathrm{rel}}|<10^{-8}$). Because both models'
+inputs are effectively unperturbed under these two feature regimes, we leave
+the $\Delta_{\mathrm{rel}}$ column unbolded in these two regimes: a near-zero value
+reflects feature-insensitivity, not robustness. In the data-degradation
+regimes EvolveGCN attains the smallest $|\Delta_{\mathrm{rel}}|$ yet the worst
+HHI and Gini MAE, so its low relative degradation reflects uniformly
+weak-but-stable forecasts rather than robustness, as $\Delta_{\mathrm{rel}}$
+rewards consistency irrespective of accuracy.}
 \label{tab:b6_detail}
 \begin{tabular}{l l c c c c c}
 \toprule
@@ -42,14 +48,14 @@ Regime & Method & PR MAE ($\downarrow$) & HHI MAE ($\downarrow$) & Gini MAE ($\d
 & \texttt{m5\_fm\_rules}   & 12.45          & \textbf{0.0350} & 0.0022          & 0.499          & $+0.077$ \\
 \midrule
 \multirow{4}{*}{noisy\_features\_01}
-& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $\mathbf{0.000}$ \\
-& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $\mathbf{0.000}$ \\
+& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $0.000$ \\
+& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $0.000$ \\
 & \texttt{m4\_fm\_only}    & 11.38          & 0.0323          & 0.0021          & 0.554          & $-0.005$ \\
 & \texttt{m5\_fm\_rules}   & 11.35          & 0.0323          & 0.0021          & 0.554          & $-0.007$ \\
 \midrule
 \multirow{4}{*}{missing\_features\_20}
-& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $\mathbf{0.000}$ \\
-& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $\mathbf{0.000}$ \\
+& \texttt{m1\_persistence} & \textbf{9.77}  & \textbf{0.0322} & \textbf{0.0018} & \textbf{0.584} & $0.000$ \\
+& \texttt{m3\_evolvegcn}   & 10.68          & 0.0489          & 0.1326          & 0.563          & $0.000$ \\
 & \texttt{m4\_fm\_only}    & 12.11          & 0.0323          & 0.0023          & 0.559          & $+0.017$ \\
 & \texttt{m5\_fm\_rules}   & 12.08          & 0.0323          & 0.0023          & 0.559          & $+0.014$ \\
 \bottomrule

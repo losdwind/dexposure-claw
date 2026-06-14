@@ -26,22 +26,43 @@ genuine zero.}
 \paragraph{Full all-horizon \texttt{b1\_forecast} results.}
 \label{app:b1-full}
 \input{tables/b1_forecast_all_horizons}
+Across all four horizons the persistence baseline (\texttt{m1}) stays best
+on PageRank and Gini MAE and on rank correlation, while the FM-grounded
+forecasters (\texttt{m4}/\texttt{m5}) lead on HHI MAE and trend consistency;
+the gaps are stable as $h$ grows from $1$ to $12$.
 
 \paragraph{Per-scenario \texttt{b4\_stress} results.}
 \label{app:b4-detail}
 \input{tables/b4_stress_by_scenario}
+Across the five stress scenarios the FM variants (\texttt{m4}/\texttt{m5})
+track the persistence baseline on loss MAE and target overlap@10, while
+EvolveGCN (\texttt{m3}) is the weakest on downstream what-if fidelity.
 
 \paragraph{Per-regime \texttt{b6\_robustness} results.}
 \label{app:b6-detail}
 \input{tables/b6_robustness_by_regime}
+At $h{=}4$ under five degradation regimes, EvolveGCN's small relative
+degradation reflects uniformly weak-but-stable forecasts (worst HHI and
+Gini MAE) rather than genuine robustness, while persistence and the FM
+variants remain accurate and are by construction insensitive to the two
+feature-perturbation regimes.
 
-\paragraph{Per-budget \texttt{b2\_warning} results.}
+\paragraph{Per-budget \texttt{b2\_warning} results (historical event study).}
 \label{app:b2-budget}
 \input{tables/b2_warning_by_budget}
+For the three pre-test crisis windows the shared weighted-degree
+monitor (\texttt{h1}) achieves median lead times of $4$--$5$ weeks,
+with precision $1.000$ at SVB/USDC across all alert budgets
+$K\!\in\!\{5,10,20\}$. This is historical monitor evidence on
+pre-2025 events, not a test-split result.
 
 \paragraph{Per-regime A1 (data-health gate) isolation.}
 \label{app:a1-isolated}
 \input{tables/a1_data_health_gate_isolation}
+Isolating the data-health gate from the confidence gate
+($\tau_{\mathrm{conf}}{=}0$ throughout), the gate-off setting lets FIR climb
+to $0.541$ under degradation, while the \textit{on}/\textit{strict} settings
+suppress intervention tickets via safe-mode and drive FIR to $0$.
 
 \paragraph{Stress-condition ablation Panels B and C.}
 \label{app:ablation-stress}
@@ -56,6 +77,41 @@ Panel~C: multi-horizon monitoring ($h\!\in\!\{1,4,8,12\}$) generates
 73--98 alerts in the three crisis windows vs 19--23 for
 single-horizon ($h\!=\!4$), at unchanged precision range
 $0.533$--$0.624$ and zero false interventions in both cases.
+
+\subsection{Qualitative ticket examples}
+\label{app:qualitative}
+We give two verbatim decision tickets (one representative consistency
+run each) behind the aggregate \texttt{b5\_decision} scores. In both
+weeks the FM-grounded LLM (\texttt{m7}) escalates while the raw-snapshot
+baseline (\texttt{m2}) does not; they differ in whether the escalation
+was correct.
+
+\paragraph{Success --- 2025-03-24 (FIR $0$, target precision $0.83$, Opus-4.8 judge \texttt{m7}$=4$, \texttt{m2}$=2$).}
+On the same hub (node~2786, $9.35$B exposure), \texttt{m2} stays at
+\emph{moderate} / \textsc{Investigate} ($0.62$) because, in its own
+words, ``without forward-looking signals no protocol meets the $0.75$
+threshold for intervention.'' \texttt{m7} reads the same hub as
+\emph{elevated} / \textsc{Recommend-Reduce} ($0.88$): ``largest predicted
+exposure ($9.35$B), dominant in S1 (single-failure cascade causes
+$18.67\%$ system loss, $84$ distressed, $282$ affected) and largest
+contributor to S5 correlated stress.'' All three reduced hubs
+($2786$, $2269$, $118$) fall inside the realized top-$5\%$ stress set.
+
+\paragraph{Over-intervention --- 2025-04-28 (FIR $1.0$, target precision $0$, Opus-4.8 judge \texttt{m7}$=3$).}
+Here \texttt{m7} escalates the three largest hubs ($2269$/$2786$/$1599$)
+to \textsc{Recommend-Reduce}, citing an S1 top-protocol failure of
+$22.14\%$ system loss. The grounding is real but the targets are wrong:
+none of the named hubs is in the realized top-$5\%$ stress set, which
+that week was dominated by long-tail protocols. The Opus-4.8 judge's own
+rationale names the failure mode---the report ``cites specific network
+metrics \dots\ and provides plausible cascade scenario reasoning, but
+none of its named targets match the ground-truth top-$5\%$ systemic risk
+set, indicating poor predictive accuracy despite well-grounded data
+references.'' Across the test split this decoupling between explanation
+quality and target correctness is only weak (Spearman between Opus-4.8
+quality and $1-\mathrm{FIR}$ is $0.31$), but it is the mechanism behind
+\texttt{m7}'s aggregate FIR of $0.437$ and the motivation for the
+decision-LLM swap (Table~\ref{tab:decision-panel}).
 
 \subsection{Statistical significance and matched-budget analysis}
 \label{app:stats}
@@ -124,9 +180,9 @@ Comparison & Metric & $p$ \\
 \end{tabular}
 \end{table}
 
-The load-bearing quantitative claims---the FM signal's F1 lift, the full
+The load-bearing quantitative claims (the FM signal's F1 lift, the full
 stack's F1 lift over rules, the Sonnet~4.6 F1 improvement, and the
-over-intervention cost---are significant at $p\!<\!0.001$. The
+over-intervention cost) are significant at $p\!<\!0.001$. The
 explanation-quality lift of the FM-grounded variants is judge-dependent
 (significant under GPT-5.5, positive but not significant under Opus~4.8 at
 $p\!=\!0.23$, absent under the noisiest Gemini judge), so we read the judge
@@ -176,7 +232,7 @@ rules baseline, LLM targeting is genuinely better per target: at every $k$,
 precision@$k$ roughly doubles ($0.52$--$0.59$ vs $0.24$--$0.28$) and
 recall@$k$ is significantly higher ($p\!\leq\!0.0055$). Against the
 raw-snapshot LLM, the FM's contribution is \emph{not} a higher per-target
-hit rate---at matched $k$ the two are indistinguishable---but the ability
+hit rate, since at matched $k$ the two are indistinguishable, but the ability
 to support a \emph{larger} target set at undiminished precision
 (Table~\ref{tab:headline}). That expanded tail is also where the
 over-intervention risk concentrates: under Opus~4.7 it is escalated to

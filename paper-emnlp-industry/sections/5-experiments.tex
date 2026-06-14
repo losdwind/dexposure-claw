@@ -2,8 +2,9 @@
 \label{sec:evaluation}
 \label{sec:bench}
 
-\paragraph{Axes and ground truth.}
-\benchname{} scores the pipeline on six axes: forecast quality
+\paragraph{Metrics and ground truth.}
+\benchname{} scores the pipeline on six axes that span forecasting,
+warning, and decision quality: forecast quality
 (\texttt{b1\_forecast}), warning lead time (\texttt{b2\_warning}),
 uncertainty calibration (\texttt{b3\_calibration}), stress-scenario
 losses (\texttt{b4\_stress}), regulator-prioritised tickets
@@ -16,10 +17,12 @@ $|\mathcal{S}_t^h|\!\approx\!283$ protocols per week; decision axes
 score $n\!=\!29$ test weeks because the final four snapshots lack a
 4-week-ahead target.
 
-\paragraph{Data, splits, and references.}
-We use \corpusname{} weekly exposure graphs (4{,}300 protocols,
-24{,}300 tokens, $43.7$M exposure entries, $283$ snapshots from
-2020-03 to 2025-08) \citep{wu2025dexposuredatasetbenchmarksinterprotocol}.
+\paragraph{Data, splits, and baselines.}
+All experiments run on \corpusname{} weekly exposure graphs under a
+strict temporal split, against eight bundled reference
+implementations. The corpus holds 4{,}300 protocols,
+24{,}300 tokens, $43.7$M exposure entries, and $283$ snapshots from
+2020-03 to 2025-08 \citep{wu2025dexposuredatasetbenchmarksinterprotocol}.
 All model selection uses pre-2025 data: 2020-03--2024-06 train and
 2024-07--2024-12 validation; 2025-01--2025-08 is the frozen test
 split. The harness bundles eight reference implementations:
@@ -31,7 +34,8 @@ the historical Terra/Luna, FTX, and SVB/USDC warning study is
 reported separately from the 2025 leaderboard.
 
 \paragraph{Reproducibility.}
-A complete leaderboard run finishes in under four GPU-hours on a
+The full leaderboard is cheap to reproduce end to end. A complete
+run finishes in under four GPU-hours on a
 single RTX~4090 plus approximately \$10 of LLM API spend. The
 harness fixes seeds, versions, and checkpoint hashes; every reported
 number reproduces from the released artefacts.

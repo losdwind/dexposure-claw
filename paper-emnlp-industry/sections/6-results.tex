@@ -9,7 +9,50 @@ explanation quality, and false interventions are scored jointly
 (\texttt{b4}, \texttt{b5})? Which components are load-bearing, and
 which are reserves under degradation (ablations)?
 
-\paragraph{\fmname{} contributes trend, calibration, and robustness; persistence still wins on static point error.}
+\subsection{What the forecaster changes}
+Before the aggregate scores, Table~\ref{tab:qualitative} shows the
+mechanism on a single week. Given the same network, the raw-snapshot
+LLM (\texttt{m2}) reads only present-time concentration and is
+structurally capped at \texttt{Investigate}; the \fmname{} stress
+scenarios let the LLM (\texttt{m7}) escalate a specific hub with a
+quantified cascade as warrant. The same grounding can also misfire:
+\S\ref{app:qualitative} pairs this success with a week where an
+equally well-grounded escalation targets the wrong hubs (judge-confirmed
+grounding, zero target precision)---the failure mode the aggregate FIR
+quantifies below.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\toprule
+\multicolumn{2}{@{}>{\raggedright\arraybackslash}p{\linewidth}@{}}{%
+\textbf{Same hub (node~2786, $9.35$B exposure), week 2025-03-24}, with
+vs.\ without the forecaster. Opus-4.8 judge: \texttt{m2}~$=2$,
+\texttt{m7}~$=4$.}\\
+\midrule
+\texttt{m2} & (no FM) \emph{moderate} risk; node~2786
+\textsc{Investigate} ($0.62$): ``\dots without forward-looking signals
+\textbf{no protocol meets the $0.75$ threshold for intervention}---warranting
+investigation of the largest hubs.'' \\
+\addlinespace
+\texttt{m7} & (FM) \emph{elevated} risk; node~2786
+\textsc{Recommend-Reduce} ($0.88$): ``dominant in \textbf{S1
+single-failure cascade \dots\ $18.67\%$ system loss, $84$ distressed} \dots\
+and largest contributor to S5 correlated stress.'' \\
+\bottomrule
+\end{tabularx}
+\caption{A single week, with and without forecaster grounding (verbatim
+ticket excerpts; one of three consistency runs). Without a forward signal
+the LLM is structurally capped at \textsc{Investigate}; the \fmname{}'s
+stress scenarios license a quantified escalation. The same grounding can
+equally warrant a confident-but-wrong escalation---the over-intervention
+case (2025-04-28) and full tickets are in \S\ref{app:qualitative}.}
+\label{tab:qualitative}
+\end{table}
+
+\subsection{Comparison}
+\paragraph{Forecast quality.}
 On static error metrics, persistence is a deceptively strong
 baseline: at $h\!=\!4$ it beats the FM on PageRank MAE
 ($3.4\!\times\!10^{-5}$ vs $4.5\!\times\!10^{-5}$) and edges it on
@@ -22,7 +65,7 @@ degradation $0.113$ vs $0.148$ for persistence ($24\%$ less). The
 full per-horizon and per-regime audits are in
 \S\ref{app:full-tables}.
 
-\paragraph{Headline decision-quality result.}
+\paragraph{Main result: decision quality.}
 Table~\ref{tab:headline} consolidates the central
 \texttt{b5\_decision} comparison. The persistence$+$rules baseline
 (\texttt{m1}) achieves the highest single-axis precision
@@ -37,10 +80,11 @@ LLM-as-judge explanation quality from $2.24$ to $2.45$ on a 1--5
 scale ($+9.4\%$) under a tier-above Claude~Opus~4.8 judge
 \citep{Zheng2023LLMJudge}; the lift is significant under GPT-5.5
 ($p\!<\!0.001$) but not Opus~4.8 ($p\!=\!0.23$;
-\S\ref{app:stats})---directional rather than confirmed. The
+\S\ref{app:stats}), so we read it as directional rather than
+confirmed. The
 cost surfaces sharply once \texttt{m2} is in the table: the
 raw-snapshot LLM issues \emph{no} interventions, but adding the FM
-signal (\texttt{m2}$\!\to\!$\texttt{m6}) makes it escalate---and
+signal (\texttt{m2}$\!\to\!$\texttt{m6}) makes it escalate, and
 $44.8\%$ of those interventions misfire
 ($\mathrm{FIR}~0\!\to\!0.448$; $p\!<\!10^{-4}$). The safety gate
 (\texttt{m6}$\!\to\!$\texttt{m7}) reduces FIR only marginally
@@ -54,13 +98,13 @@ tickets (forecast quality in \S\ref{app:b1-full}); EvolveGCN
 trails persistence downstream, consistent with its $\sim$220
 weekly-snapshot training budget.}
 
-\paragraph{Judge robustness across model families.}
+\paragraph{Judge robustness.}
 We re-judge \texttt{m2}/\texttt{m6}/\texttt{m7} with a
 cross-family panel (Table~\ref{tab:judge-panel}). All three
 frontier judges rank \texttt{m7} highest (mean score varying by
-$\leq\!0.45$). The one disagreement---Gemini~2.5~Pro scores
-\texttt{m2} above \texttt{m6} ($2.69$ vs $2.55$), still below
-\texttt{m7}---sits within Gemini's ${\sim}3\times$ higher weekly
+$\leq\!0.45$). The one disagreement, where Gemini~2.5~Pro scores
+\texttt{m2} above \texttt{m6} ($2.69$ vs $2.55$, still below
+\texttt{m7}), sits within Gemini's ${\sim}3\times$ higher weekly
 noise (std $1.3$--$1.5$ vs $0.3$--$0.6$). Cross-family agreement
 on the top system closes the judge-family confound.
 
@@ -68,9 +112,9 @@ on the top system closes the judge-family confound.
 \centering
 \small
 \setlength{\tabcolsep}{4.5pt}
-\begin{tabularx}{\linewidth}{@{}llXccccccc@{}}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lllccccccc@{}}
 \toprule
-ID & Pred. & Decision        & Prec.$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ & Judge$\uparrow$ & FIR$\downarrow$ & Ground.$\uparrow$ & Stabil.$\uparrow$ \\
+ID & Pred. & Decision & Prec.$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ & Judge$\uparrow$ & FIR$\downarrow$ & Ground.$\uparrow$ & Stabil.$\uparrow$ \\
 \midrule
 \texttt{m1} & persist.   & rules               & \textbf{0.720} & 0.004 & 0.0076          & ---            & ---            & ---   & 0.514 \\
 \texttt{m2} & ---        & LLM (no FM)         & 0.575          & 0.009 & 0.0183          & 2.24           & ---            & 1.000 & 0.532 \\
@@ -78,7 +122,7 @@ ID & Pred. & Decision        & Prec.$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$
 \texttt{m6} & \fmname{}  & LLM                 & 0.570          & 0.012 & \textbf{0.0241} & 2.41           & 0.448          & 1.000 & 0.488 \\
 \texttt{m7} & \fmname{}  & LLM + safety gate   & 0.580          & 0.012 & 0.0233          & \textbf{2.45}  & 0.437          & 1.000 & 0.435 \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}
 \caption{Headline \texttt{b5\_decision} comparison on the frozen
 2025 test split ($n\!=\!29$). Rows are read as a multi-objective
 trade-off rather than a single leaderboard: \texttt{m1} is the
@@ -87,9 +131,9 @@ baseline (no forecaster); \texttt{m6}/\texttt{m7} are the
 FM-grounded LLM variants. Judge scores (1--5 scale) are from a
 Claude~Opus~4.8 judge, strictly tier-above the Claude~Opus~4.7
 decision LLM; cross-family agreement is in
-Table~\ref{tab:judge-panel}. \,---\, in FIR: undefined---
-\texttt{m1}/\texttt{m2}/\texttt{m5} emit no intervention-level
-ticket that could misfire.}
+Table~\ref{tab:judge-panel}. A dash in the FIR column means
+undefined: \texttt{m1}/\texttt{m2}/\texttt{m5} emit no
+intervention-level ticket that could misfire.}
 \label{tab:headline}
 \end{table*}
 
@@ -113,17 +157,19 @@ tier-below weak-judge reference.}
 \label{tab:judge-panel}
 \end{table}
 
-\paragraph{A tier-below, cheaper decision LLM dominates the headline operating point.}
-We re-run the decision layer of \texttt{m6} and \texttt{m7} on the
-\emph{same} FM-derived prompts with two non-Opus~4.7 decision
-LLMs---Claude~Sonnet~4.6 (within-family, tier-below, $\sim$5$\times$
-cheaper) and Google Gemini~2.5~Pro (cross-family)---and re-score
-with the same Opus~4.8 judge (Table~\ref{tab:decision-panel}).
+\paragraph{Decision-LLM swap.}
+The headline operating point is not Opus-bound: a $\sim$5$\times$
+cheaper decision LLM Pareto-dominates it. We re-run the decision
+layer of \texttt{m6} and \texttt{m7} on the \emph{same} FM-derived
+prompts with two non-Opus~4.7 decision LLMs (Claude~Sonnet~4.6,
+within-family and tier-below; and Google~Gemini~2.5~Pro,
+cross-family), and re-score with the same Opus~4.8 judge
+(Table~\ref{tab:decision-panel}).
 On both architectures Sonnet~4.6 is a Pareto improvement over
 Opus~4.7: F1 rises ($+15\%$/$+24\%$; $p\!<\!0.001$ on
 \texttt{m7}), judge quality is directionally higher
 ($+0.11$/$+0.21$; n.s.), and FIR collapses from $0.437$--$0.448$
-to $0.000$---genuinely: Sonnet~4.6 still issues interventions at
+to $0.000$, and genuinely so: Sonnet~4.6 still issues interventions at
 Opus-comparable volume ($\sim$190 vs $252$), all on truly-stressed
 targets. Gemini~2.5~Pro is more conservative still (lower F1,
 FIR~$0$), so over-intervention is a property of the decision model,
@@ -165,10 +211,10 @@ another $27\%$ ($0.0190\!\to\!0.0241$). The two layers therefore
 make additive, non-substitutable contributions
 (Figure~\ref{fig:layerwise} in \S\ref{app:full-tables}). Adding
 the safety gate trades $3\%$ F1 for judge changes within noise;
-its value is operational---every intervention clears two gates
+its value is operational: every intervention clears two gates
 with auditable logs.
 
-\paragraph{Matched-budget view.}
+\paragraph{Matched-budget analysis.}
 F1 conflates target quality with volume:
 \texttt{m6}/\texttt{m7} emit $6.3$--$6.5$ targets per week vs
 $4.9$ for \texttt{m2} and $2.1$ for \texttt{m1}. Truncating every
@@ -182,7 +228,8 @@ thus not a sharper top of the ranking but support for a
 Opus~4.7 the expanded tail is where over-intervention
 concentrates.
 
-\paragraph{Ablation: load-bearing vs reserve components.}
+\subsection{Ablation}
+\paragraph{Component ablation.}
 Under clean 2025 data the confidence gate is load-bearing: removing
 it raises FIR from $0.000$ to $0.429$. The scenario engine is
 load-bearing for target extraction: skipping it collapses ticket
@@ -194,12 +241,6 @@ interventions that would otherwise produce false alarms (FIR range
 $[0.27,0.60]$ when disabled vs $0.000$ when triggered);
 multi-horizon monitoring generates $\sim$4$\times$ more alerts in
 the three crisis windows at unchanged precision.
-Per-regime ablation audits are in \S\ref{app:ablation-stress}.
-
-\paragraph{Early-warning timeline (historical event study).}
-For the three pre-test crisis windows the shared weighted-degree
-monitor (\texttt{h1}) achieves median lead times of $4$--$5$
-weeks with precision $1.000$ at SVB/USDC across all alert budgets
-$K\!\in\!\{5,10,20\}$; per-budget details in
-\S\ref{app:b2-budget}. This is historical monitor evidence, not
-a test-split result.
+Per-regime ablation audits are in \S\ref{app:ablation-stress}; the
+historical SVB/USDC/Terra event study (lead times, not a test-split
+result) is in \S\ref{app:b2-budget}.

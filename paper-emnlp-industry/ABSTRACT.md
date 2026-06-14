@@ -3,8 +3,17 @@
 Target: 150-200 words. Anonymous. Lead with the deployed LLM-agent
 system and its evaluation, not with the graph foundation model.
 
-**STATUS: Draft A selected as final (2026-05-24).** Embedded in
-`main.tex`. Draft B kept below for reference only.
+**STATUS: SUPERSEDED (2026-06-15).** The authoritative abstract is the one
+embedded in `main.tex`, revised to (a) disclose that the Opus 4.7 decision
+model still over-reads the forecaster (false-intervention rate ~0.44; 0.437
+for the gated stack) so that the safe operating point is the Sonnet 4.6 swap,
+and (b) name DeXposure-Bench (six-axis harness, absolute-loss ground truth,
+false-intervention rate, eight reference implementations, audit logs) as a
+contribution. The drafts below are kept for historical reference only and
+their numbers are STALE — in particular the judge claim "2.03 -> 2.69 (+33%)"
+and "+208%" predate the honest Section 6 framing, where the m2 -> m7 judge
+lift is reported as directional (n.s. under the Opus judge). Do NOT copy
+numbers from this file; cite `main.tex` and the Results section instead.
 
 ---
 

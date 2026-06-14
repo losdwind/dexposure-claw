@@ -1,17 +1,6 @@
 \section*{Limitations}
 \label{sec:limitations}
 
-\paragraph{Historical replay evaluation.}
-We evaluate \sysname{} by replaying $283$ frozen weekly snapshots
-of \corpusname{} (2020--2025), which lets us compare methods under
-identical evidence and audit calibration, lead time, and ticket
-quality. This setup does not measure production-integration factors
-such as live data-feed reliability, operator workload, or threshold
-retuning under changing supervisory priorities. These factors affect
-deployment policy rather than the central comparison studied here:
-whether structured forecast evidence improves auditable
-human-in-the-loop risk monitoring.
-
 \paragraph{Single domain.}
 \benchname{} evaluates a single on-chain risk surface (DeFi
 inter-protocol credit exposure). Generalisation to NFT lending,
@@ -21,32 +10,27 @@ split and the stressed-set percentile $\pi$.
 
 \paragraph{Weekly resolution.}
 The pipeline operates at weekly granularity, but several DeFi shocks
-unfold within hours---Terra/Luna erased \$40B in under 48~hours. A
+unfold within hours; Terra/Luna erased \$40B in under 48~hours. A
 sub-hourly production deployment would require denser snapshot
 ingestion and re-evaluation of conformal calibration on the
 resulting denser time series. The $4$--$5$ week lead times we
 report should be read as ``how early the weekly monitor turns'',
 not as end-to-end alert latency.
 
-\paragraph{Judge thinking-budget is held minimal.}
-The cross-family judge panel (Claude~Opus~4.8, Google
-Gemini~2.5~Pro, OpenAI~GPT-5.5) is run with reasoning effort set
-to \emph{minimal} so the comparison against the
-non-reasoning Anthropic baseline is a like-for-like comparison of
-intrinsic model capability rather than thinking budget. Default
-reasoning mode on Gemini~2.5~Pro and GPT-5.5 would change the
-reported scores; we treat the reasoning-on configuration as a
-distinct evaluation surface and leave it for a follow-up study.
-Practitioners deploying the judge at default reasoning settings
-should re-calibrate the score thresholds reported here. Human-judge
-calibration with practising supervisors remains the most pressing
-methodological extension.
+\paragraph{Judge configuration and calibration.}
+Our judge panel runs at \emph{minimal} reasoning effort for a
+like-for-like comparison against the non-reasoning baseline
+(Appendix~\ref{app:implementation}); default reasoning settings would
+shift the reported scores, so practitioners should re-calibrate the
+thresholds accordingly. More fundamentally, all judge scores are from
+LLM panels: human-judge calibration with practising supervisors
+remains the most pressing methodological extension.
 
 \paragraph{Decision-outcome proxy.}
 \texttt{b5\_decision} scores tickets against a regulator-aligned
 absolute-loss ground truth, which captures supervisory targeting
 priority but not the counterfactual effect of supervisory
-action---whether the recommended risk reduction would have changed
-the subsequent contagion path. We therefore interpret decision
+action, i.e., whether the recommended risk reduction would have
+changed the subsequent contagion path. We therefore interpret decision
 scores as evidence of targeting and explanation quality, not as a
 causal estimate of intervention impact.

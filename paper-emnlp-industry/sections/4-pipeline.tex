@@ -4,14 +4,13 @@
 \begin{figure*}[t]
 \centering
 \resizebox{0.95\textwidth}{!}{\input{figures/fig1_system_overview}}
-\caption{\sysname{}: a four-layer supervisory pipeline. Given a weekly
-exposure graph $G_t$, the system first forecasts future exposure networks
-with a foundation model (Layer~1), converts those forecasts into monitor
-alerts and stress-scenario evidence (Layer~2), asks an LLM to produce
-supervisory tickets from the typed evidence bundle (Layer~3), and applies
-safety gates before releasing either a ticket $\tau^{\star}$ or a safe-mode
-notice (Layer~4). Bottom annotations report the per-layer F1 and judge-score
-lifts from Section~\ref{sec:results}.}
+\caption{\sysname{} system overview. A weekly exposure graph $G_t$ is
+forecast into future exposure distributions and deterministic risk signals,
+then converted into a typed evidence contract containing monitor alerts,
+attribution, stress-scenario losses, uncertainty summaries, data-health
+signals, and forecast horizons. The LLM drafts supervisory tickets only from
+this structured evidence, after which data-health and confidence gates either
+release an auditable ticket $\tau^{\star}$ or enter safe mode.}
 \label{fig:system}
 \end{figure*}
 
