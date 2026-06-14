@@ -1,15 +1,15 @@
 \section{Results}
 \label{sec:results}
 
-We use \benchname{} to ask three questions. Does \fmname{} provide
-forecast signal that persistence does not (\texttt{b1},
-\texttt{b3}, \texttt{b6})? Does routing the LLM through structured
-evidence improve supervisory tickets once precision, recall,
-explanation quality, and false interventions are scored jointly
-(\texttt{b4}, \texttt{b5})? Which components are load-bearing, and
-which are reserves under degradation (ablations)?
+We report three groups of results. First, we evaluate whether
+\fmname{} supplies forecast signal beyond persistence
+(\texttt{b1}, \texttt{b3}, \texttt{b6}). Second, we compare
+supervisory tickets when the LLM receives raw snapshots versus
+structured forecast evidence (\texttt{b4}, \texttt{b5}). Third, we
+ablate the pipeline components that control escalation under clean
+and degraded data.
 
-\subsection{What the forecaster changes}
+\subsection{Qualitative mechanism}
 Before the aggregate scores, Table~\ref{tab:qualitative} shows the
 mechanism on a single week. Given the same network, the raw-snapshot
 LLM (\texttt{m2}) reads only present-time concentration and is
@@ -51,8 +51,8 @@ case (2025-04-28) and full tickets are in \S\ref{app:qualitative}.}
 \label{tab:qualitative}
 \end{table}
 
-\subsection{Comparison}
-\paragraph{Forecast quality.}
+\subsection{Main comparison}
+\paragraph{Forecasts.}
 On static error metrics, persistence is a deceptively strong
 baseline: at $h\!=\!4$ it beats the FM on PageRank MAE
 ($3.4\!\times\!10^{-5}$ vs $4.5\!\times\!10^{-5}$) and edges it on
@@ -65,7 +65,7 @@ degradation $0.113$ vs $0.148$ for persistence ($24\%$ less). The
 full per-horizon and per-regime audits are in
 \S\ref{app:full-tables}.
 
-\paragraph{Main result: decision quality.}
+\paragraph{Decision tickets.}
 Table~\ref{tab:headline} consolidates the central
 \texttt{b5\_decision} comparison. The persistence$+$rules baseline
 (\texttt{m1}) achieves the highest single-axis precision
@@ -98,7 +98,7 @@ tickets (forecast quality in \S\ref{app:b1-full}); EvolveGCN
 trails persistence downstream, consistent with its $\sim$220
 weekly-snapshot training budget.}
 
-\paragraph{Judge robustness.}
+\paragraph{Judge panel.}
 We re-judge \texttt{m2}/\texttt{m6}/\texttt{m7} with a
 cross-family panel (Table~\ref{tab:judge-panel}). All three
 frontier judges rank \texttt{m7} highest (mean score varying by
@@ -157,7 +157,7 @@ tier-below weak-judge reference.}
 \label{tab:judge-panel}
 \end{table}
 
-\paragraph{Decision-LLM swap.}
+\paragraph{Decision model.}
 The headline operating point is not Opus-bound: a $\sim$5$\times$
 cheaper decision LLM Pareto-dominates it. We re-run the decision
 layer of \texttt{m6} and \texttt{m7} on the \emph{same} FM-derived
@@ -202,7 +202,7 @@ $\sim$5$\times$ lower cost.}
 \label{tab:decision-panel}
 \end{table}
 
-\paragraph{Layer-wise contribution.}
+\paragraph{Layer ablation.}
 Holding the decision policy fixed at \emph{LLM} and adding the
 \fmname{} signal lifts ticket F1 by $32\%$
 ($0.0183\!\to\!0.0241$; $p\!<\!0.001$); holding the predictor
@@ -214,7 +214,7 @@ the safety gate trades $3\%$ F1 for judge changes within noise;
 its value is operational: every intervention clears two gates
 with auditable logs.
 
-\paragraph{Matched-budget analysis.}
+\paragraph{Matched budget.}
 F1 conflates target quality with volume:
 \texttt{m6}/\texttt{m7} emit $6.3$--$6.5$ targets per week vs
 $4.9$ for \texttt{m2} and $2.1$ for \texttt{m1}. Truncating every
@@ -228,8 +228,8 @@ thus not a sharper top of the ranking but support for a
 Opus~4.7 the expanded tail is where over-intervention
 concentrates.
 
-\subsection{Ablation}
-\paragraph{Component ablation.}
+\subsection{Component ablations}
+\paragraph{Stress settings.}
 Under clean 2025 data the confidence gate is load-bearing: removing
 it raises FIR from $0.000$ to $0.429$. The scenario engine is
 load-bearing for target extraction: skipping it collapses ticket
@@ -244,3 +244,14 @@ the three crisis windows at unchanged precision.
 Per-regime ablation audits are in \S\ref{app:ablation-stress}; the
 historical SVB/USDC/Terra event study (lead times, not a test-split
 result) is in \S\ref{app:b2-budget}.
+
+\paragraph{Deployment.}
+Two deployment lessons follow. First, the FM's value is coverage and
+calibration, not a sharper top-ranked forecast: matched-budget
+precision matches the raw-snapshot LLM while supporting more targets.
+Second, safety hinges on actionability calibration: Opus~4.7 is
+grounded ($1.000$) but has $\mathrm{FIR}\!=\!0.437$--$0.448$,
+whereas Sonnet~4.6 on the same evidence reaches F1 $0.0288$ and
+FIR $0.000$. Gate ablations show reserve capacity under stress, so
+FIR should sit beside F1 and rationale quality as a first-class
+deployment metric.
