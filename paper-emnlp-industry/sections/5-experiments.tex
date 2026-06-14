@@ -1,0 +1,37 @@
+\section{Experiments}
+\label{sec:evaluation}
+\label{sec:bench}
+
+\paragraph{Axes and ground truth.}
+\benchname{} scores the pipeline on six axes: forecast quality
+(\texttt{b1\_forecast}), warning lead time (\texttt{b2\_warning}),
+uncertainty calibration (\texttt{b3\_calibration}), stress-scenario
+losses (\texttt{b4\_stress}), regulator-prioritised tickets
+(\texttt{b5\_decision}), and degraded-data robustness
+(\texttt{b6\_robustness}). The decision and warning axes share the
+absolute-loss ground truth of \S\ref{sec:preliminaries}, avoiding
+fractional-change rankings that over-weight tiny protocols. We fix
+$\pi\!=\!0.05$ and $h\!=\!4$ weeks, yielding
+$|\mathcal{S}_t^h|\!\approx\!283$ protocols per week; decision axes
+score $n\!=\!29$ test weeks because the final four snapshots lack a
+4-week-ahead target.
+
+\paragraph{Data, splits, and references.}
+We use \corpusname{} weekly exposure graphs (4{,}300 protocols,
+24{,}300 tokens, $43.7$M exposure entries, $283$ snapshots from
+2020-03 to 2025-08) \citep{wu2025dexposuredatasetbenchmarksinterprotocol}.
+All model selection uses pre-2025 data: 2020-03--2024-06 train and
+2024-07--2024-12 validation; 2025-01--2025-08 is the frozen test
+split. The harness bundles eight reference implementations:
+\texttt{h1}, \texttt{m1}--\texttt{m7}, spanning heuristic monitors,
+persistence, snapshot LLM, EvolveGCN~\citep{ParejaEtAl2020EvolveGCN},
+\fmname{}, rules, LLM decisions, and safety gates. Full schemas and
+method details are in \S\ref{app:bench-details}--\S\ref{app:reference-methods};
+the historical Terra/Luna, FTX, and SVB/USDC warning study is
+reported separately from the 2025 leaderboard.
+
+\paragraph{Reproducibility.}
+A complete leaderboard run finishes in under four GPU-hours on a
+single RTX~4090 plus approximately \$10 of LLM API spend. The
+harness fixes seeds, versions, and checkpoint hashes; every reported
+number reproduces from the released artefacts.

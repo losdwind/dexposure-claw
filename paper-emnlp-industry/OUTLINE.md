@@ -119,10 +119,10 @@ Rough budgeting assumes ACL 2026 template at default font/spacing
     - "A1 data-health gate is dormant on clean data but reserves
       activate under degraded data (full per-regime audit in App. E)"
 
-### Page 6 — Section 6 (Deployment Lessons) + Section 7 (Conclusion)
+### Page 6 — Section 5 (end) + Section 6 (Discussion and Conclusion)
 
-- 6 Deployment Lessons (~half page; this is the section a Main-track
-  reviewer would skip but Industry-track reviewer wants most)
+- 6 Discussion and Conclusion (~half page; deployment takeaways folded
+  into the conclusion)
   - L1: Grounding score 1.000 ≠ correctness — LLM over-reaches
     on severity even with perfect evidence citation
   - L2: Audit logs *as a design artefact*, not just an output —
@@ -140,7 +140,7 @@ Rough budgeting assumes ACL 2026 template at default font/spacing
   "what to take away if you build a similar LLM-agent system")
 
 After page 6 (does not count against page budget):
-- Limitations (3 paragraphs from existing 7-Limitations.tex,
+- Limitations (3 paragraphs from existing limitations material,
   lightly adapted)
 - Ethics statement (new, ~half page; see ETHICS.md placeholder below)
 - References
@@ -156,8 +156,8 @@ What MUST move to appendix to fit 6 pages (with anchor links from main text):
 |------------------------------------------------|--------------------------|-------------------------|
 | 3-Pre.tex (preliminaries / notation)           | Appendix A               | "FM and notation"       |
 | 4-Alg.tex equations + Algorithm 1 pseudocode   | Appendix B               | "Pipeline mathematics"  |
-| 5-Bench.tex ground-truth equation, full schema | Appendix C               | "Benchmark details"     |
-| 5-Bench.tex reference method table             | Appendix D               | "Reference methods"     |
+| 5-experiments.tex ground-truth equation, full schema | Appendix C        | "Benchmark details"     |
+| 5-experiments.tex reference method table             | Appendix D        | "Reference methods"     |
 | 6-Exp.tex per-horizon b1 details (T1, A1)      | Appendix E.1             | "Full b1 results"       |
 | 6-Exp.tex per-scenario b4 (A2)                 | Appendix E.2             | "Per-scenario b4"       |
 | 6-Exp.tex per-regime b6 (A3)                   | Appendix E.3             | "Per-regime b6"         |
@@ -200,12 +200,11 @@ Before submission, scan for and replace:
 - sections/2-related.tex (compressed)
 - sections/3-pre.tex (Preliminaries / notation)
 - sections/4-pipeline.tex (pipeline)
-- sections/5-bench.tex (benchmark harness)
-- sections/6-results.tex (empirical results)
-- sections/7-lessons.tex (Deployment Lessons section)
-- sections/8-conclusion.tex (short)
-- sections/9-limitations.tex (lightly adapted from old Limitations)
-- sections/10-ethics.tex
+- sections/5-experiments.tex (Experiments setup / benchmark harness)
+- sections/5-results.tex (Results subsection)
+- sections/6-discussion-conclusion.tex (Discussion and Conclusion; includes deployment takeaways)
+- sections/limitations.tex (lightly adapted from old Limitations)
+- sections/ethics.tex
 - sections/appendix-*.tex (mapping above)
 - references.bib (subset of existing reference.bib that survives in
   the compressed related-work section)

@@ -1,0 +1,30 @@
+\section{Discussion and Conclusion}
+\label{sec:discussion-conclusion}
+\label{sec:lessons}
+\label{sec:conclusion}
+
+The experiments point to three findings that a single-axis
+leaderboard would miss. First, the FM's value is not a sharper
+point forecast but trend, calibration, and robustness upstream and
+coverage downstream. Persistence is a strong point-error baseline
+and matched-budget precision makes FM-fed and raw-snapshot LLM
+variants indistinguishable; yet where persistence is structurally
+pinned the FM supplies trend consistency ($0.525$--$0.632$ vs
+$0$), calibrated intervals (PI coverage $0.913$, ECE $0.013$), and
+$24\%$ lower degradation under stress, and downstream its evidence
+supports more targets at undiminished precision and lifts F1.
+Second, the LLM failure mode is actionability calibration, not
+grounding. Opus~4.7 cites valid fields (grounding $1.000$) but
+has $\mathrm{FIR}\!=\!0.437$--$0.448$; Sonnet~4.6 on the same FM
+prompts raises F1 to $0.0288$ and reduces FIR to $0.000$. FIR is
+therefore a first-class metric alongside grounding and judge
+scores. Third, gates are reserve capacity: clean-data effects are
+within noise, but under severe masking the data-health gate
+suppresses up to $60\%$ of FIR-eligible tickets, so gates need
+stress tests and audit logs that support threshold retuning.
+
+Overall, \sysname{} is best read as an auditable
+recall--explanation Pareto option for human-in-the-loop DeFi
+supervision: structured forecast evidence improves coverage and
+rationales, but high-severity recommendations still require
+decision-model calibration and intervention-realism measurement.

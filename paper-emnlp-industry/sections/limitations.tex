@@ -1,14 +1,16 @@
 \section*{Limitations}
 \label{sec:limitations}
 
-\paragraph{Backtest, not field deployment.}
-All results come from a historical backtest over $283$ weekly
-snapshots of \corpusname{} (2020--2025). We have not run
-\sysname{} as a live weekly cron at a supervisory authority. The
-ticket-level audit logs we release come from the backtest. Field
-deployment lessons---operator behaviour, end-to-end latency under
-real data feeds, regulator-in-the-loop calibration---are out of
-scope for this paper and remain the most pressing future direction.
+\paragraph{Historical replay evaluation.}
+We evaluate \sysname{} by replaying $283$ frozen weekly snapshots
+of \corpusname{} (2020--2025), which lets us compare methods under
+identical evidence and audit calibration, lead time, and ticket
+quality. This setup does not measure production-integration factors
+such as live data-feed reliability, operator workload, or threshold
+retuning under changing supervisory priorities. These factors affect
+deployment policy rather than the central comparison studied here:
+whether structured forecast evidence improves auditable
+human-in-the-loop risk monitoring.
 
 \paragraph{Single domain.}
 \benchname{} evaluates a single on-chain risk surface (DeFi
@@ -40,11 +42,11 @@ should re-calibrate the score thresholds reported here. Human-judge
 calibration with practising supervisors remains the most pressing
 methodological extension.
 
-\paragraph{Offline decision evaluation.}
+\paragraph{Decision-outcome proxy.}
 \texttt{b5\_decision} scores tickets against a regulator-aligned
 absolute-loss ground truth, which captures supervisory targeting
-priority but not the downstream effect of supervisory action---whether
-the recommended risk reduction would actually have averted
-contagion. A controlled live evaluation with a regulator in the
-loop, which \benchname{} approximates but cannot replace, remains
-the primary direction we plan to extend the harness in.
+priority but not the counterfactual effect of supervisory
+action---whether the recommended risk reduction would have changed
+the subsequent contagion path. We therefore interpret decision
+scores as evidence of targeting and explanation quality, not as a
+causal estimate of intervention impact.

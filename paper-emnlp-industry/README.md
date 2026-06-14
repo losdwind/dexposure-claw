@@ -5,22 +5,22 @@ Parallel to [`../paper/`](../paper/) (TKDE version, untouched).
 
 ## Status (2026-06-10 — DELIVERABLE, post-review revision)
 
-[`main.pdf`](main.pdf) compiles cleanly. 17 total pages:
+[`main.pdf`](main.pdf) compiles cleanly. 18 total pages:
 
 | Page  | Content |
 |-------|---------|
 | 1     | Title + Abstract + §1 Introduction (start) |
-| 2     | §1 Introduction (end) + §2 Related Work |
-| 3     | §3 Pipeline + Figure 1 + §4 Evaluation Harness (start) |
-| 4     | §4 (end) + §5 Empirical Results (start) |
-| 5     | §5 + footnote |
-| 6     | Tables 1–3 + §5 (end) + §6 Deployment Lessons |
-| 7     | Limitations + Ethics + References (start) |
+| 2     | §1 Introduction (end) + §2 Related Work + §3 Preliminaries (start) |
+| 3     | §3 (end) + §4 Pipeline + Figure 1 |
+| 4     | §4 (end) + §5 Experiments (benchmark setup) |
+| 5     | §5.1 Results (start) |
+| 6     | Tables 1–3 + §5.1 (end) + §6 Discussion and Conclusion + Limitations (start) |
+| 7     | Limitations (end) + Ethics + References (start) |
 | 8–9   | References (end) |
-| 10–17 | Appendices A–E (Figure 2 layer-wise now lives in E) |
+| 10–18 | Appendices A–E (Figure 2 layer-wise now lives in E) |
 
 **Main text: §1–§6 end on page 6 → within the 6-page budget.**
-**Limitations / Ethics / References / Appendices: pages 7–17 → outside budget per CFP.**
+**Limitations / Ethics / References / Appendices: pages 7–18 → outside budget per CFP.**
 
 ### Quality checks passed (re-run 2026-06-10)
 
@@ -52,7 +52,8 @@ Parallel to [`../paper/`](../paper/) (TKDE version, untouched).
    Appendix B (S2 bridge cluster, S3 stablecoin, S4 sector lending,
    S5 correlated top-10).
 6. §E Panel B gate symbol fixed (τ_data=0 disables A1; τ_conf=0 is
-   held fixed), §6 "four lessons" → three, m5→m6 F1 text 0.0189 →
+   held fixed), standalone lessons folded into §7 Discussion and
+   Conclusion, m5→m6 F1 text 0.0189 →
    0.0190, n=29 vs ~33 weeks explained (h=4 lookahead truncation),
    "$10 per run" cost claim scoped to full leaderboard sweep,
    judge scale (1–5) declared in Table 1 caption, persistence
@@ -206,24 +207,17 @@ paper-emnlp-industry/
 └── sections/
     ├── 1-intro.tex                 <- G3-lead version
     ├── 2-related.tex               <- bench-first order
-    ├── 3-pipeline.tex              <- with Figure 1 inline
-    ├── 4-bench.tex
-    ├── 5-results.tex               <- with Table 1 + Figure 2 inline
-    ├── 6-lessons.tex               <- L1–L4
-    ├── 7-conclusion.tex
-    ├── 8-limitations.tex
-    ├── 9-ethics.tex
-    ├── A-fm-notation.tex
-    ├── B-pipeline-math.tex         <- with Algorithm 1
-    ├── C-bench-details.tex
-    ├── D-reference-methods.tex
-    ├── E-full-tables.tex           <- wires A1–A5 + T4
-    ├── A1-b1_forecast_AllHorizons.tex  <- copied from TKDE
-    ├── A2-b4_stress_Detail.tex         <- copied
-    ├── A3-b6_robustness_Detail.tex     <- copied
-    ├── A4-b2_warning_Budget.tex        <- copied, sec:exp → sec:results
-    ├── A5-A1_isolated_Detail.tex       <- copied
-    └── T4-Ablation.tex                 <- copied, anonymised
+    ├── 3-pre.tex                   <- preliminaries / notation
+    ├── 4-pipeline.tex              <- with Figure 1 inline
+    ├── 5-experiments.tex           <- Experiments setup / evaluation harness
+    ├── 5-results.tex               <- Results subsection + Tables 1–3
+    ├── 6-discussion-conclusion.tex <- Discussion and Conclusion
+    ├── limitations.tex             <- required unnumbered section
+    ├── ethics.tex                  <- required unnumbered section
+    ├── AppA-algorithm-details.tex
+    ├── AppB-implementation-details.tex
+    ├── AppC-experimental-results.tex
+    └── T4-Ablation.tex
 ```
 
 ## Pre-submission checklist (when you're ready to submit)

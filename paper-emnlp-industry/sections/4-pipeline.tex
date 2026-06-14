@@ -20,18 +20,19 @@ This section introduces the \sysname{} pipeline.
 \subsection{Overview}
 
 \sysname{} is a four-layer pipeline for forecast-grounded DeFi supervision
-(Figure~\ref{fig:system}). Layer~1 uses \fmname{} to forecast near-future
-credit-exposure graphs. Layer~2 converts the forecast distribution into a
-typed evidence bundle containing monitor alerts, uncertainty estimates, and
-stress-scenario losses. Layer~3 passes this bundle to an LLM, which emits
-ranked supervisory tickets with targets, severities, and rationales. Layer~4
-applies data-health and confidence gates to determine whether
-intervention-level actions are admissible. The pipeline runs at weekly
+(Figure~\ref{fig:system}). \textbf{Layer~1: FM Prediction} uses \fmname{} to
+forecast near-future credit-exposure graphs. \textbf{Layer~2: Monitor \&
+Scenario} converts the forecast distribution into a typed evidence bundle
+containing monitor alerts, uncertainty estimates, and stress-scenario losses.
+\textbf{Layer~3: LLM Decision} passes this bundle to an LLM, which emits
+ranked supervisory tickets with targets, severities, and rationales.
+\textbf{Layer~4: Safety Gate} applies data-health and confidence gates to
+determine whether intervention-level actions are admissible. The pipeline runs at weekly
 cadence on a single RTX~4090, with well under a dollar of LLM API spend
 per weekly decision (a full \benchname{} leaderboard run is
 approximately \$10).
 
-\subsection{Forecaster interface}
+\subsection{Layer 1: FM Prediction}
 \label{ssec:forecaster}
 
 At each decision epoch $t$, the agent observes a credit-exposure snapshot
@@ -51,7 +52,7 @@ predictive uncertainty. The predicted-graph construction is defined in
 Section~\ref{sec:preliminaries}; implementation choices are given in
 Appendix~\ref{app:fm-notation}.
 
-\subsection{Structured evidence}
+\subsection{Layer 2: Monitor \& Scenario}
 \label{ssec:evidence}
 
 Layer~2 converts $\widehat{G}_{t+h}$ and its Monte Carlo samples into a typed
@@ -74,7 +75,7 @@ $h$, the engine aggregates the worst-half sampled losses as
 $\operatorname{CVaR}_{0.5}(s,h)$. Full monitor and scenario definitions are
 provided in Appendix~\ref{app:pipeline-math}.
 
-\subsection{LLM decision layer}
+\subsection{Layer 3: LLM Decision}
 \label{ssec:llm-decision}
 
 Layer~3 receives the evidence bundle as a typed JSON payload containing
@@ -88,7 +89,7 @@ rationale that cites specific evidence fields by name. To measure
 self-consistency, we repeat the decision call three times at temperature~$0$
 and report the Jaccard overlap of ticket targets and severities.
 
-\subsection{Safety gates}
+\subsection{Layer 4: Safety Gate}
 \label{ssec:gates}
 
 Layer~4 determines whether intervention-level recommendations are feasible.
